@@ -1,0 +1,24 @@
+# env:
+#   PROJECT_ID: freightmonster-dev
+#   GAR_LOCATION: us-west1
+#   REPOSITORY: backend
+#   IMAGE_1: backend
+#   IMAGE_2: backend-nginx
+
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', '$us-west1-docker.pkg.dev/freightmonster-dev/backend', '.']
+images:
+- '$us-west1-docker.pkg.dev/freightmonster-dev/backend'
+
+# - name: 'APP push'
+#       args: ['push', '$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_1:$GITHUB_SHA']
+
+# - name: 'NGINX build'
+#     run: |-
+#       docker build --tag "$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_2:$GITHUB_SHA" ./nginx/
+
+- name: 'NGINX push'
+      args: ['build', '-t', '$us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx', '.']
+images:
+- '$us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx'
