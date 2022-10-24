@@ -6,16 +6,14 @@
 #   IMAGE_2: backend-nginx
 
 steps:
-- name: 'gcr.io/cloud-builders/docker'
+  - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
-           'us-west1-docker.pkg.dev/freightmonster-dev/backend:v2', 
-           '.']
+            'us-west1-docker.pkg.dev/freightmonster-dev/backend/backend:v2', 
+            '.']
 
-  # Docker Push
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 
-           'us-west1-docker.pkg.dev/freightmonster-dev/backend:v2']
-
+            'us-west1-docker.pkg.dev/freightmonster-dev/backend/backend:v2']
 # - name: 'gcr.io/cloud-builders/docker'
 #       args: ['build', '-t', '$us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx', '.']
 # images:
