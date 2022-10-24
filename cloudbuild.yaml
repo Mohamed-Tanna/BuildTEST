@@ -7,9 +7,9 @@
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', 'us-west1-docker.pkg.dev/freightmonster-dev/backend:v1', '.']
+  args: ['build', 'us-west1-docker.pkg.dev/freightmonster-dev/backend:$GITHUB_SHA', '.']
 images:
-- '$us-west1-docker.pkg.dev/freightmonster-dev/backend:v1'
+- '$us-west1-docker.pkg.dev/freightmonster-dev/backend:$GITHUB_SHA'
 
 # - name: 'gcr.io/cloud-builders/docker'
 #       args: ['build', '-t', '$us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx', '.']
