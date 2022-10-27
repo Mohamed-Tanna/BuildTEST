@@ -1,36 +1,36 @@
-# env:
-#   PROJECT_ID: freightmonster-dev
-#   GAR_LOCATION: us-west1
-#   REPOSITORY: backend
-#   IMAGE_1: backend
-#   IMAGE_2: backend-nginx
-
 steps:
+
+  # Docker build
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
-            'us-west1-docker.pkg.dev/freightmonster-dev/backend/backend:v2', 
+            'us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA', 
             '.']
 
+  # Docker push
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 
-            'us-west1-docker.pkg.dev/freightmonster-dev/backend/backend:v2']
+            'us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA']
   
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
-            'us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx/nginx:v2', 
+            'us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA', 
             './nginx']
   
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 
-          'us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx/nginx:v2']
-# - name: 'gcr.io/cloud-builders/docker'
-#       args: ['build', '-t', '$us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx', '.']
-# images:
-# - '$us-west1-docker.pkg.dev/freightmonster-dev/backend-nginx'
+          'us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA']
 
-# - name: 'APP push'
-#       args: ['push', '$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_1:$GITHUB_SHA']
+  #SSH to GCE instance
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    args:
+      - '-c'
+      - >-
+        gcloud compute ssh root@dev-backend --zone=us-west1-a
+        --command="
+        docker-compose down -v &&
+        docker image prune -a &&
+        IMAGE_1=us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA IMAGE_2=us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA docker-compose up -d "
 
-# - name: 'NGINX build'
-#     run: |-
-#       docker build --tag "$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_2:$GITHUB_SHA" ./nginx/
+    entrypoint: bash
+options:
+  logging: CLOUD_LOGGING_ONLY
