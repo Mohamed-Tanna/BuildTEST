@@ -11,11 +11,13 @@ RUN mkdir static
 
 RUN pip install --upgrade pip
 
+RUN apk add --no-cache gcc musl-dev python3-dev
+
+RUN pip install ruamel.yaml.clib
+
 COPY requirements.txt /code/
 
 RUN pip install -r requirements.txt
-
-RUN  pip install -U pip setuptools wheel ruamel.yaml.clib==0.2.6
 
 COPY daemon.json /etc/docker/daemon.json
 
