@@ -6,7 +6,7 @@ from dj_rest_auth.views import PasswordResetConfirmView, PasswordResetView
 
 urlpatterns = [
     path("", include("dj_rest_auth.urls")),
-    path("signup", include("dj_rest_auth.registration.urls")),
+    path("signup/", include("dj_rest_auth.registration.urls")),
     path("verify-email/", VerifyEmailView.as_view(), name="rest_verify_email"),
     path(
         "account-confirm-email/",
