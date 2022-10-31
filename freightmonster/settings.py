@@ -15,7 +15,7 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("HOST_DEBUG")
 
 
-ALLOWED_HOSTS = ["10.138.0.5", "app-dev.freightslayer.com", "127.0.0.1"]
+ALLOWED_HOSTS = ["10.138.0.5", "app-dev.freightslayer.com", "127.0.0.1", "localhost"]
 CSRF_TRUSTED_ORIGINS = ["https://app-dev.freightslayer.com"]
 CORS_ORIGIN_ALLOW_ALL = True
 
@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     "dj_rest_auth.registration",
     "authentication",
     "shipment",
+    "defender",
+    "admin_honeypot",
     "corsheaders",
     "drf_yasg",
 ]
@@ -63,6 +65,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "defender.middleware.FailedLoginMiddleware",
 ]
 
 ROOT_URLCONF = "freightmonster.urls"
@@ -101,6 +104,12 @@ DATABASES = {
     }
 }
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -188,4 +197,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+SECURE_SSL_REDIRECT = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+DEFENDER_LOGIN_FAILURE_LIMIT = 5
+DEFENDER_LOCK_OUT_BY_IP_AND_USERNAME = True
