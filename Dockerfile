@@ -15,6 +15,8 @@ COPY requirements.txt /code/
 
 RUN pip install -r requirements.txt
 
+RUN  pip install -U pip setuptools wheel ruamel.yaml.clib==0.2.6
+
 COPY daemon.json /etc/docker/daemon.json
 
 COPY . /code/
