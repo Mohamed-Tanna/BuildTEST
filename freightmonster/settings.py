@@ -12,7 +12,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 SECRET_KEY = env("SECRET_KEY")
 
 
-DEBUG = env("HOST_DEBUG")
+DEBUG = False
 
 
 ALLOWED_HOSTS = ["10.138.0.5", "app-dev.freightslayer.com", "127.0.0.1", "localhost"]
@@ -112,6 +112,7 @@ CHANNEL_LAYERS = {
 }
 
 DEFENDER_REDIS_URL = "redis://redis:6379/0"
+
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
