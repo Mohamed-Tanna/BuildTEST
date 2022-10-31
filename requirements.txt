@@ -45,7 +45,6 @@ oauthlib==3.2.0
 packaging==21.3
 pathspec==0.9.0
 platformdirs==2.5.2
-psycopg2==2.9.3
 pwned-passwords-django==1.6
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
