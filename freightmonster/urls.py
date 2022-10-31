@@ -27,7 +27,6 @@ urlpatterns = [
         r"^redoc/$", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"
     ),
     path("admin/defender/", include("defender.urls")),
-    path("admin/", include("admin_honeypot.urls", namespace="admin_honeypot")),
     path("freight-slayer-admin-sos-portal/", admin.site.urls),
     path("authentication/", include("authentication.urls")),
     path("shipment/", include("shipment.urls")),

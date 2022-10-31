@@ -21,7 +21,6 @@ defusedxml==0.7.1
 Deprecated==1.2.13
 dj-rest-auth==2.2.5
 Django==4.1
-django-admin-honeypot @ git+https://github.com/dmpayton/django-admin-honeypot.git@a840496d183df89965eeb33c9a5dd9ea3919dfff
 django-allauth==0.51.0
 django-cors-headers==3.13.0
 django-defender==0.9.5

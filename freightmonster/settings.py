@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     "authentication",
     "shipment",
     "defender",
-    "admin_honeypot",
     "corsheaders",
     "drf_yasg",
 ]
