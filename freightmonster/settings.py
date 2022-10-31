@@ -107,10 +107,11 @@ DATABASES = {
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [("redis", 6379)]},
+        "CONFIG": {"hosts": [(env("HOST_REDIS"), 6379)]},
     }
 }
 
+DEFENDER_REDIS_URL = "redis://redis:6379/0"
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
