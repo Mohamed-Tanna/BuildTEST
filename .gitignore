@@ -1,0 +1,43 @@
+# Django #
+*.log
+*.pot
+*.pyc
+__pycache__
+static
+
+# Backup files # 
+*.bak
+
+# Distribution / packaging 
+.Python build/ 
+develop-eggs/ 
+dist/ 
+downloads/ 
+eggs/ 
+.eggs/ 
+lib/ 
+lib64/ 
+parts/ 
+sdist/ 
+var/ 
+wheels/ 
+*.egg-info/ 
+.installed.cfg 
+*.egg 
+*.manifest 
+*.spec
+
+# Visual Studio Code # 
+.vscode/* 
+!.vscode/settings.json 
+!.vscode/tasks.json 
+!.vscode/launch.json 
+!.vscode/extensions.json 
+.history
+
+# Docker compose #
+docker-compose.yml
+
+# previous branch env and setting #
+freightmonster/settings/local_dev.py
+freightmonster/envs/.local_dev.env
