@@ -1,13 +1,7 @@
-import os
-import environ
 import requests
 from .models import AppUser, Carrier
 from allauth.account.models import EmailAddress
-from .serializers import (
-    AppUserSerializer,
-    BaseUserUpdateSerializer,
-    ShipmentPartySerilaizer,
-)
+from .serializers import AppUserSerializer,BaseUserUpdateSerializer,ShipmentPartySerializer
 from rest_framework import exceptions
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 from rest_framework.generics import GenericAPIView
@@ -19,12 +13,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from shipment.models import Facility
 from shipment.serializers import FacilitySerializer
-
-from django.conf import settings
 from django.utils.translation import gettext_lazy
 
-env = environ.Env(DEBUG=(bool, False))
-environ.Env.read_env(os.path.join(settings.BASE_DIR, ".env"))
 
 
 class HealthCheckView(APIView):
@@ -126,7 +116,7 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
 
 class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
-    serializer_class = ShipmentPartySerilaizer
+    serializer_class = ShipmentPartySerializer
 
     # override
     def create(self, request, *args, **kwargs):

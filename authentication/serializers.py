@@ -4,8 +4,6 @@ from rest_framework import exceptions, serializers
 from django.utils.translation import gettext_lazy
 import re
 from authentication.models import AppUser
-from rest_framework.response import Response
-from rest_framework import status
 
 
 class CustomLoginSerializer(LoginSerializer):
@@ -85,8 +83,16 @@ class BaseUserUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {"username": {"required": False}}
 
 
-class ShipmentPartySerilaizer(serializers.ModelSerializer):
+class ShipmentPartySerializer(serializers.ModelSerializer):
 
     class Meta:
         model= ShipmentParty
         fields = ["app_user"]
+
+
+class CarrierSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Carrier
+        fields = ["app_user", "DOT_number"]
+        extra_kwargs = {"MC_number": {"required": False}}

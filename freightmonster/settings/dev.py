@@ -1,15 +1,13 @@
 from .base import *
-from pathlib import Path
 import os
 import environ
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DIR = os.path.join(BASE_DIR, 'envs/.dev.env')
+DIR = os.path.join(BASE_DIR, 'freightmonster/envs/.dev.env')
 
-env = environ.Env(DEBUG=(bool, False))
-environ.Env.read_env(os.path.join(DIR))
+dev_env = environ.Env()
+dev_env.read_env(os.path.join(DIR))
 
-DEBUG = False
+DEBUG = True
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
@@ -20,11 +18,11 @@ CSRF_TRUSTED_ORIGINS = ["https://app-dev.freightslayer.com"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "INSTANCE": env("CONNECTION_NAME"),
-        "NAME": env("DATABASE_NAME"),
-        "USER": env("DATABASE_USER"),
-        "PASSWORD": env("DATABASE_PASS"),
-        "HOST": env("DATABASE_PRIVATE_IP"),
+        "INSTANCE": dev_env("CONNECTION_NAME"),
+        "NAME": dev_env("DATABASE_NAME"),
+        "USER": dev_env("DATABASE_USER"),
+        "PASSWORD": dev_env("DATABASE_PASS"),
+        "HOST": dev_env("DATABASE_PRIVATE_IP"),
         "PORT": "5432",
     }
 }
@@ -35,5 +33,7 @@ CHANNEL_LAYERS = {
         "CONFIG": {"hosts": [(env("HOST_REDIS"), 6379)]},
     }
 }
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 DEFENDER_REDIS_URL = f"redis://{env('HOST_REDIS')}:6379/0"
