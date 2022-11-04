@@ -1,4 +1,6 @@
 import requests
+import environ
+import os
 from .models import AppUser, Carrier
 from allauth.account.models import EmailAddress
 from .serializers import *
@@ -16,6 +18,9 @@ from shipment.serializers import FacilitySerializer
 from django.utils.translation import gettext_lazy
 from django.conf import settings
 
+
+dev_env = environ.Env()
+dev_env.read_env(os.path.join(settings.DIR))
 
 
 class HealthCheckView(APIView):
