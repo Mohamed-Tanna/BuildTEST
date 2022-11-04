@@ -226,7 +226,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         app_user = AppUser.objects.get(id=app_user)
         if app_user.user_type == "carrier":
             DOT_number = request.data.get("DOT_number")
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={settings.dev_env('WEBKEY')}"
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={dev_env('WEBKEY')}"
             try:
                 res = requests.get(url=URL)
                 data = res.json()
