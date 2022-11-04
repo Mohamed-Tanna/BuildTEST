@@ -210,33 +210,36 @@ class FacilityView(GenericAPIView, CreateModelMixin):
 
 class CarrierView(APIView):
     
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
 
-        DOT_number = request.data.get("DOT_number")
         app_user = request.data.get("app_user")
         app_user = AppUser.objects.get(id=app_user)
-        
-        if AppUser.user_type == "carrier":
+        if app_user.user_type == "carrier":
+            DOT_number = request.data.get("DOT_number")
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}"
-            res = requests.get(url=URL)
-            data = res.json()
-            allowed_to_operate = data["content"]["carrier"]["allowed_to_operate"]
-
             try:
-                MC_number = request.data.get("MC_number")
-                if allowed_to_operate == "Y":
-                    Carrier.objects.create(
-                        app_user=app_user, DOT_number=DOT_number, MC_number=MC_number, allowed_to_operate=True
-                    )
+                res = requests.get(url=URL)
+                data = res.json()
+                allowed_to_operate = data["content"]["carrier"]["allowed_to_operate"]
 
+                if allowed_to_operate == "Y":
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+                else:
+                    msg = gettext_lazy("Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA")
+                    raise exceptions.PermissionDenied(msg=msg)
+            
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
-                print("MC number is not provided")
-                if allowed_to_operate == "Y":
-                    Carrier.objects.create(
-                        app_user=app_user, DOT_number=DOT_number, allowed_to_operate=True
-                    )
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+                return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
+            
+
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
 
         
