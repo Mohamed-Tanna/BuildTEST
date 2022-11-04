@@ -1,7 +1,7 @@
 import requests
 from .models import AppUser, Carrier
 from allauth.account.models import EmailAddress
-from .serializers import AppUserSerializer,BaseUserUpdateSerializer,ShipmentPartySerializer
+from .serializers import *
 from rest_framework import exceptions
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 from rest_framework.generics import GenericAPIView
@@ -208,8 +208,12 @@ class FacilityView(GenericAPIView, CreateModelMixin):
         return self.create(request, *args, **kwargs)
 
 
-class CarrierView(APIView):
+class CarrierView(GenericAPIView, CreateModelMixin):
     
+    serializer_class = CarrierSerializer
+    queryset = Carrier.objects.all()
+
+    #override
     def create(self, request, *args, **kwargs):
 
         app_user = request.data.get("app_user")
