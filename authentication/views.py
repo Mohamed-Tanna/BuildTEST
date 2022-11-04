@@ -221,12 +221,13 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         app_user = AppUser.objects.get(id=app_user)
         if app_user.user_type == "carrier":
             DOT_number = request.data.get("DOT_number")
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={settings.env('WEBKEY')}"
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={settings.dev_env('WEBKEY')}"
             try:
                 res = requests.get(url=URL)
                 data = res.json()
-                allowed_to_operate = data["content"]["carrier"]["allowed_to_operate"]
+                allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
                 print(allowed_to_operate)
+
                 if allowed_to_operate == "Y":
                     serializer = self.get_serializer(data=request.data)
                     serializer.is_valid(raise_exception=True)
