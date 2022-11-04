@@ -14,6 +14,7 @@ from drf_yasg import openapi
 from shipment.models import Facility
 from shipment.serializers import FacilitySerializer
 from django.utils.translation import gettext_lazy
+from django.conf import settings
 
 
 
@@ -220,12 +221,12 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         app_user = AppUser.objects.get(id=app_user)
         if app_user.user_type == "carrier":
             DOT_number = request.data.get("DOT_number")
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}"
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={settings.env('WEBKEY')}"
             try:
                 res = requests.get(url=URL)
                 data = res.json()
                 allowed_to_operate = data["content"]["carrier"]["allowed_to_operate"]
-
+                print(allowed_to_operate)
                 if allowed_to_operate == "Y":
                     serializer = self.get_serializer(data=request.data)
                     serializer.is_valid(raise_exception=True)
