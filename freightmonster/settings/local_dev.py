@@ -21,7 +21,7 @@ DATABASES = {
         "NAME": dev_env("DATABASE_NAME"),
         "USER": dev_env("DATABASE_USER"),
         "PASSWORD": dev_env("DATABASE_PASS"),
-        "HOST": dev_env("DATABASE_IP"),
+        "HOST": dev_env("DATABASE_PUBLIC_IP"),
         "PORT": "5432",
     }
 }
