@@ -262,6 +262,19 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=[
+                "app_user",
+                "DOT_number"
+            ],
+            properties={
+                "app_user": openapi.Schema(type=openapi.TYPE_STRING),
+                "DOT_number": openapi.Schema(type=openapi.TYPE_STRING),
+            }
+        )
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
