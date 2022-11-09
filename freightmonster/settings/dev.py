@@ -2,7 +2,7 @@ from .base import *
 import os
 import environ
 
-DIR = os.path.join(BASE_DIR, 'freightmonster/envs/.local_dev.env')
+DIR = os.path.join(BASE_DIR, 'freightmonster/envs/.dev.env')
 
 dev_env = environ.Env()
 dev_env.read_env(os.path.join(DIR))
