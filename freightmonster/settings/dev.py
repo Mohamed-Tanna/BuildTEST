@@ -7,7 +7,7 @@ DIR = os.path.join(BASE_DIR, 'freightmonster/envs/.dev.env')
 dev_env = environ.Env()
 dev_env.read_env(os.path.join(DIR))
 
-DEBUG = True
+DEBUG = False
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
