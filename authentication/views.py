@@ -17,7 +17,7 @@ from shipment.models import Facility
 from shipment.serializers import FacilitySerializer
 from django.utils.translation import gettext_lazy
 from django.conf import settings
-
+#LOCAL
 
 dev_env = environ.Env()
 dev_env.read_env(os.path.join(settings.DIR))
