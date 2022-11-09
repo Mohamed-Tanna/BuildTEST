@@ -30,10 +30,10 @@ DATABASES = {
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [(env("LOCAL_REDIS"), 6379)]},
+        "CONFIG": {"hosts": [(env("HOST_REDIS"), 6379)]},
     }
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-DEFENDER_REDIS_URL = f"redis://{env('LOCAL_REDIS')}:6379/0"
+DEFENDER_REDIS_URL = f"redis://{env('HOST_REDIS')}:6379/0"
