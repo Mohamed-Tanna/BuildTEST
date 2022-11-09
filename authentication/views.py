@@ -18,7 +18,6 @@ from shipment.serializers import FacilitySerializer
 from django.utils.translation import gettext_lazy
 from django.conf import settings
 
-
 dev_env = environ.Env()
 dev_env.read_env(os.path.join(settings.DIR))
 
