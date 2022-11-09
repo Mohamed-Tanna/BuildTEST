@@ -215,11 +215,17 @@ class FacilityView(GenericAPIView, CreateModelMixin):
 
 
 class CarrierView(GenericAPIView, CreateModelMixin):
-    
+
     serializer_class = CarrierSerializer
     queryset = Carrier.objects.all()
 
-    #override
+    # override
+    def perform_create(self, serializer):
+        carrier = serializer.save()
+        carrier.allowed_to_operate = True
+        carrier.save()
+
+    # override
     def create(self, request, *args, **kwargs):
 
         app_user = request.data.get("app_user")
@@ -231,26 +237,31 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                 res = requests.get(url=URL)
                 data = res.json()
                 allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
-                print(allowed_to_operate)
 
                 if allowed_to_operate == "Y":
                     serializer = self.get_serializer(data=request.data)
                     serializer.is_valid(raise_exception=True)
                     self.perform_create(serializer)
                     headers = self.get_success_headers(serializer.data)
-                    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+                    return Response(
+                        serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                    )
 
                 else:
-                    msg = gettext_lazy("Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA")
+                    msg = gettext_lazy(
+                        "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                    )
                     raise exceptions.PermissionDenied(msg=msg)
-            
+
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
-            
+        else:
+            return Response(
+                {"user role" : ["User is not registered as a carrier"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
-
-        

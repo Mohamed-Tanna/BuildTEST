@@ -37,7 +37,3 @@ wheels/
 
 # Docker compose #
 docker-compose.yml
-
-# previous branch env and setting #
-freightmonster/settings/local_dev.py
-freightmonster/envs/.local_dev.env

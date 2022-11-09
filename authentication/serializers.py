@@ -94,5 +94,5 @@ class CarrierSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Carrier
-        fields = ["app_user", "DOT_number"]
+        fields = ["app_user", "DOT_number", "MC_number"]
         extra_kwargs = {"MC_number": {"required": False}}
