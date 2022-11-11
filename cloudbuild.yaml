@@ -28,7 +28,7 @@ steps:
         gcloud compute ssh root@dev-backend --zone=us-west1-a
         --command="
         docker-compose down -v &&
-        docker images -a | xargs docker rmi &&
+        docker images | xargs docker rmi &&
         IMAGE_1=us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA IMAGE_2=us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA docker-compose up -d "
 
     entrypoint: bash
