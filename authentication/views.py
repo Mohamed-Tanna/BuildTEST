@@ -1,6 +1,6 @@
 import requests
-import environ
 import os
+from google.cloud import secretmanager
 from .models import AppUser, Carrier
 from allauth.account.models import EmailAddress
 from .serializers import *
@@ -16,10 +16,6 @@ from drf_yasg import openapi
 from shipment.models import Facility
 from shipment.serializers import FacilitySerializer
 from django.utils.translation import gettext_lazy
-from django.conf import settings
-
-dev_env = environ.Env()
-dev_env.read_env(os.path.join(settings.DIR))
 
 
 class HealthCheckView(APIView):
@@ -227,11 +223,18 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     # override
     def create(self, request, *args, **kwargs):
 
+        client = secretmanager.SecretManagerServiceClient()
+        webkey = client.access_secret_version(
+            request={
+                "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('FMCSA_WEBKEY')}/versions/1"
+            }
+        )
+        webkey = webkey.payload.data.decode("UTF-8")
         app_user = request.data.get("app_user")
         app_user = AppUser.objects.get(id=app_user)
         if app_user.user_type == "carrier":
             DOT_number = request.data.get("DOT_number")
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={dev_env('WEBKEY')}"
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={webkey}"
             try:
                 res = requests.get(url=URL)
                 data = res.json()
@@ -257,21 +260,18 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                 return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
         else:
             return Response(
-                {"user role" : ["User is not registered as a carrier"]},
+                {"user role": ["User is not registered as a carrier"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=[
-                "app_user",
-                "DOT_number"
-            ],
+            required=["app_user", "DOT_number"],
             properties={
                 "app_user": openapi.Schema(type=openapi.TYPE_STRING),
                 "DOT_number": openapi.Schema(type=openapi.TYPE_STRING),
-            }
+            },
         )
     )
     def post(self, request, *args, **kwargs):
