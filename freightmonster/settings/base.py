@@ -57,6 +57,10 @@ MIDDLEWARE = [
     "defender.middleware.FailedLoginMiddleware",
 ]
 
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+]
+
 ROOT_URLCONF = "freightmonster.urls"
 
 TEMPLATES = [
