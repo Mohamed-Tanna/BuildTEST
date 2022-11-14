@@ -40,4 +40,4 @@ docker-compose.yml
 
 # previous branch env and setting #
 freightmonster/settings/local.py
-freightmonster/.local.env
+.local.env

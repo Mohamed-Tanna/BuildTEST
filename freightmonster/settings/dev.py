@@ -58,11 +58,6 @@ database_ip = client.access_secret_version(
         "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('DB_IP')}/versions/2"
     }
 )
-print("INSTANCE", connection_name.payload.data.decode("UTF-8"),
-        "NAME", database_name.payload.data.decode("UTF-8"),
-        "USER", database_user.payload.data.decode("UTF-8"),
-        "PASSWORD", database_password.payload.data.decode("UTF-8"),
-        "HOST", database_ip.payload.data.decode("UTF-8"))
 
 DATABASES = {
     "default": {

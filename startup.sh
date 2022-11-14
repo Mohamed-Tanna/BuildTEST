@@ -1,5 +1,4 @@
 #!/bin/sh
-export DJANGO_SETTINGS_MODULE=freightmonster.settings.dev
 python manage.py collectstatic
 python manage.py makemigrations
 python manage.py migrate

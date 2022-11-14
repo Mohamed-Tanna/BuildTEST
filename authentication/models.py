@@ -31,7 +31,8 @@ class Broker(models.Model):
         on_delete=models.DO_NOTHING
     )
     MC_number = models.CharField(max_length=8, null=False, blank=False)
-    
+    allowed_to_operate = models.BooleanField(null=False, default=False)
+
     def __str__(self):
         return self.app_user.user.username
 
