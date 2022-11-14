@@ -15,7 +15,7 @@ class BrokerAdmin(admin.ModelAdmin):
 
 
 admin.site.register(AppUser, admin_class=AppUserAdmin)
-admin.site.register(Carrier)
-admin.site.register(Broker)
+admin.site.register(Carrier, admin_class=CarrierAdmin)
+admin.site.register(Broker, admin_class=BrokerAdmin)
 admin.site.register(ShipmentParty)
 
