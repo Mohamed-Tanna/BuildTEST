@@ -2,7 +2,7 @@ import os
 
 from django.core.exceptions import ImproperlyConfigured
 
-ENVS = ["LOCAL" ,"DEV", "PROD", "STAGING"]
+ENVS = ["DEV", "PROD", "STAGING"]
 
 env = os.getenv("ENV")
 

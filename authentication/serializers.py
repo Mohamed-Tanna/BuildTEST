@@ -96,3 +96,10 @@ class CarrierSerializer(serializers.ModelSerializer):
         model = Carrier
         fields = ["app_user", "DOT_number", "MC_number"]
         extra_kwargs = {"MC_number": {"required": False}}
+
+
+class BrokerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Broker
+        fields = ["app_user", "MC_number"]

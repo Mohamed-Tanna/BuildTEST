@@ -277,3 +277,73 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
+
+
+class BrokerView(GenericAPIView, CreateModelMixin):
+
+    serializer_class = BrokerSerializer
+    queryset = Broker.objects.all()
+
+    # override
+    def perform_create(self, serializer):
+        carrier = serializer.save()
+        carrier.allowed_to_operate = True
+        carrier.save()
+
+    # override
+    def create(self, request, *args, **kwargs):
+
+        client = secretmanager.SecretManagerServiceClient()
+        webkey = client.access_secret_version(
+            request={
+                "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('FMCSA_WEBKEY')}/versions/1"
+            }
+        )
+        webkey = webkey.payload.data.decode("UTF-8")
+        app_user = request.data.get("app_user")
+        app_user = AppUser.objects.get(id=app_user)
+        if app_user.user_type == "broker":
+            MC_number = request.data.get("MC_number")
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{MC_number}?webKey={webkey}"
+            try:
+                res = requests.get(url=URL)
+                data = res.json()
+                allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
+
+                if allowed_to_operate == "Y":
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    return Response(
+                        serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                    )
+
+                else:
+                    msg = gettext_lazy(
+                        "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                    )
+                    raise exceptions.PermissionDenied(msg=msg)
+
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
+        else:
+            return Response(
+                {"user role": ["User is not registered as a broker"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["app_user", "MC_number"],
+            properties={
+                "app_user": openapi.Schema(type=openapi.TYPE_STRING),
+                "MC_number": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        )
+    )
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)

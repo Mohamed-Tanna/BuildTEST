@@ -31,6 +31,9 @@ class Broker(models.Model):
         on_delete=models.DO_NOTHING
     )
     MC_number = models.CharField(max_length=8, null=False, blank=False)
+    
+    def __str__(self):
+        return self.app_user.user.username
 
 
 class Carrier(models.Model):
@@ -39,6 +42,9 @@ class Carrier(models.Model):
     DOT_number = models.CharField(max_length=8, null=False, blank=False)
     MC_number = models.CharField(max_length=8, null=True)
     allowed_to_operate = models.BooleanField(null=False, default=False)
+
+    def __str__(self):
+        return self.app_user.user.username
     
 
 class ShipmentParty(models.Model):
