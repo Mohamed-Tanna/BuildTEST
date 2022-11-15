@@ -32,8 +32,8 @@ class Trailer(models.Model):
 class Load(models.Model):
 
     owner = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING)
-    shipper = models.ForeignKey(to=ShipmentParty, on_delete=models.DO_NOTHING)
-    consignee = models.ForeignKey(to=ShipmentParty, on_delete=models.DO_NOTHING)
+    shipper = models.ForeignKey(to=ShipmentParty, on_delete=models.DO_NOTHING, related_name="shipper")
+    consignee = models.ForeignKey(to=ShipmentParty, on_delete=models.DO_NOTHING, related_name="consignee")
     broker = models.ForeignKey(to=Broker, on_delete=models.DO_NOTHING)
     carrier = models.ForeignKey(to=Carrier, on_delete=models.DO_NOTHING)
     pick_up_date = models.DateField(null=False)
