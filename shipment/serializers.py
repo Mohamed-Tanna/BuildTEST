@@ -1,7 +1,5 @@
-from rest_framework import exceptions, serializers
-
-from authentication.models import ShipmentParty
-from .models import Facility
+from rest_framework import serializers
+from .models import *
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -20,11 +18,15 @@ class FacilitySerializer(serializers.ModelSerializer):
             "extra_info"
         ]
 
-# class FacilityCreateSerializer(serializers.Serializer):
+class LoadSerializer(serializers.ModelSerializer):
 
-#     facility = FacilitySerializer()
-#     # app_user = serializers.ReadOnlyField(source="app_user.id")
-
-#     class Meta:
-#         fields = ["facility"]
-
+    class Meta:
+        model = Load
+        fields = [
+            "owner",
+            "pick_up_date",
+            "delivery_date",
+            "pick_up_location",
+            "destination",
+            "status",
+        ]

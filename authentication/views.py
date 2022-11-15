@@ -1,7 +1,7 @@
 import requests
 import os
 from google.cloud import secretmanager
-from .models import AppUser, Carrier
+from .models import *
 from allauth.account.models import EmailAddress
 from .serializers import *
 from rest_framework import exceptions
@@ -13,8 +13,6 @@ from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from shipment.models import Facility
-from shipment.serializers import FacilitySerializer
 from django.utils.translation import gettext_lazy
 
 
@@ -56,13 +54,13 @@ class AppUserView(GenericAPIView, CreateModelMixin):
         """
         Create an AppUser from an existing user
 
-        Create an AppUser with its according role form **(Broker, Carrier, ShipmentParty)**
+            Create an AppUser with its according role form **(Broker, Carrier, ShipmentParty)**
 
-        **Example**
+            **Example**
 
-            >>> user : 6
-            >>> user_type : shipment party
-            >>> phone_number : +1 (123) 456-1234
+                >>> user : 6
+                >>> user_type : shipment party
+                >>> phone_number : +1 (123) 456-7890
         """
 
         user = request.data.get("user")
@@ -103,13 +101,13 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
         """
         Update username, first name and last name
 
-        Update the base user **username**, **first name** and **last name** either separately or coupled all together
+            Update the base user **username**, **first name** and **last name** either separately or coupled all together
 
-        **Example**
+            **Example**
 
-            >>> username: JohnDoe
-            >>> first_name: John
-            >>> last_name: Doe
+                >>> username: JohnDoe
+                >>> first_name: John
+                >>> last_name: Doe
         """
 
         return self.update(request, *args, **kwargs)
@@ -154,56 +152,11 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
         """
         Create a Shipment Party from an existing App User
 
-        Create a **Shipment Party** with all the role's additional data - if any - and verify them if required
+            Create a **Shipment Party** with all the role's additional data - if any - and verify them if required
 
-        **Example**
+            **Example**
 
-            >>> app_user: 4
-        """
-
-        return self.create(request, *args, **kwargs)
-
-
-class FacilityView(GenericAPIView, CreateModelMixin):
-
-    serializer_class = FacilitySerializer
-    queryset = Facility.objects.all()
-
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=[
-                "owner",
-                "building_number",
-                "building_name",
-                "street",
-                "city",
-                "state",
-                "zip_code",
-                "country",
-            ],
-            properties={
-                "owner": openapi.Schema(type=openapi.TYPE_STRING),
-                "building_number": openapi.Schema(type=openapi.TYPE_STRING),
-                "building_name": openapi.Schema(type=openapi.TYPE_STRING),
-                "street": openapi.Schema(type=openapi.TYPE_STRING),
-                "city": openapi.Schema(type=openapi.TYPE_STRING),
-                "state": openapi.Schema(type=openapi.TYPE_STRING),
-                "zip_code": openapi.Schema(type=openapi.TYPE_STRING),
-                "country": openapi.Schema(type=openapi.TYPE_STRING),
-                "extra_info": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        )
-    )
-    def post(self, request, *args, **kwargs):
-
-        """
-        Create a Facility
-
-        Create a **Facility** with an existing **Shipment Party** as its owner
-
-        **Example**
-            >>> facility: {facility: facility_object}
+                >>> app_user: 4
         """
 
         return self.create(request, *args, **kwargs)
@@ -272,7 +225,13 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                 "app_user": openapi.Schema(type=openapi.TYPE_STRING),
                 "DOT_number": openapi.Schema(type=openapi.TYPE_STRING),
             },
-        )
+        ),
+        responses={
+            201: "CREATED",
+            400: "BAD REQUEST",
+            404: "NOT FOUND",
+            500: "INTERNAL SERVER ERROR",
+        },
     )
     def post(self, request, *args, **kwargs):
 
@@ -342,7 +301,13 @@ class BrokerView(GenericAPIView, CreateModelMixin):
                 "app_user": openapi.Schema(type=openapi.TYPE_STRING),
                 "MC_number": openapi.Schema(type=openapi.TYPE_STRING),
             },
-        )
+        ),
+        responses={
+            201: "CREATED",
+            400: "BAD REQUEST",
+            404: "NOT FOUND",
+            500: "INTERNAL SERVER ERROR",
+        },
     )
     def post(self, request, *args, **kwargs):
 

@@ -1,11 +1,12 @@
-from enum import unique
 from django.db import models
-from authentication.models import ShipmentParty
+from authentication.models import *
 
 
 class Facility(models.Model):
 
-    owner = models.ForeignKey(to=ShipmentParty,  null=False, blank=False, on_delete=models.DO_NOTHING)
+    owner = models.ForeignKey(
+        to=ShipmentParty, null=False, blank=False, on_delete=models.DO_NOTHING
+    )
     building_number = models.CharField(max_length=100)
     building_name = models.CharField(max_length=100)
     street = models.CharField(max_length=100)
@@ -25,5 +26,31 @@ class Trailer(models.Model):
     description = models.CharField(max_length=50)
     max_height = models.FloatField()
     max_length = models.FloatField()
-    max_width = models.FloatField() 
+    max_width = models.FloatField()
 
+
+class Load(models.Model):
+
+    owner = models.ForeignKey(to=AppUser, null=False)
+    shipper = models.ForeignKey(to=ShipmentParty, on_delete=models.DO_NOTHING)
+    consignee = models.ForeignKey(to=ShipmentParty, on_delete=models.DO_NOTHING)
+    broker = models.ForeignKey(to=Broker, on_delete=models.DO_NOTHING)
+    carrier = models.ForeignKey(to=Carrier, on_delete=models.DO_NOTHING)
+    pick_up_date = models.DateField(null=False)
+    delivery_date = models.DateField(null=False)
+    pick_up_location = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING)
+    destination = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING)
+    status = models.CharField(
+        choices=[
+            ("Created", "Created"),
+            ("Information Recieved", "Information Recieved"),
+            ("Confirmed", "Confirmed"),
+            ("Ready For Pick Up", "Ready For Pick Up"),
+            ("Picked Up", "Picked Up"),
+            ("In Transit", "In Transit"),
+            ("Delivered", "Delivered"),
+            ("Canceled", "Canceled")
+        ],
+        max_length=20,
+        null=False,
+    )

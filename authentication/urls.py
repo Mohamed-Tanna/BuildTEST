@@ -29,7 +29,6 @@ urlpatterns = [
     path("base-user/<id>/", BaseUserView.as_view()),
     path("hc/", HealthCheckView.as_view()),
     path("shipment-party/", ShipmentPartyView.as_view()),
-    path("facility/", FacilityView.as_view()),
     path("carrier/", CarrierView.as_view()),
     path("broker/", BrokerView.as_view())
 ]
