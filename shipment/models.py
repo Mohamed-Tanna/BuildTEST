@@ -38,8 +38,8 @@ class Load(models.Model):
     carrier = models.ForeignKey(to=Carrier, on_delete=models.DO_NOTHING)
     pick_up_date = models.DateField(null=False)
     delivery_date = models.DateField(null=False)
-    pick_up_location = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING)
-    destination = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING)
+    pick_up_location = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING, related_name="Pick Up")
+    destination = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING, related_name="Destination")
     status = models.CharField(
         choices=[
             ("Created", "Created"),
