@@ -70,7 +70,7 @@ class AppUserView(GenericAPIView, CreateModelMixin):
                 return self.create(request, *args, **kwargs)
             else:
                 msg = gettext_lazy("email address is not verified")
-                raise exceptions.NotAuthenticated(msg=msg)
+                raise exceptions.NotAuthenticated(msg)
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_401_UNAUTHORIZED, data=e.args[0])
@@ -206,7 +206,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                     msg = gettext_lazy(
                         "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
                     )
-                    raise exceptions.PermissionDenied(msg=msg)
+                    raise exceptions.PermissionDenied(msg)
 
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
@@ -282,7 +282,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
                     msg = gettext_lazy(
                         "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
                     )
-                    raise exceptions.PermissionDenied(msg=msg)
+                    raise exceptions.PermissionDenied(msg)
 
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
