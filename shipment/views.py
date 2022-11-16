@@ -14,7 +14,7 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
     permission_classes = [IsAuthenticated, ]
 
     serializer_class = FacilitySerializer
-    queryset = Facility.objects.filter()
+    queryset = Facility.objects.all()
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
