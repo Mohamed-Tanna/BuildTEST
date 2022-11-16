@@ -267,7 +267,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             try:
                 res = requests.get(url=URL)
                 data = res.json()
-                allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
+                allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
 
                 if allowed_to_operate == "Y":
                     serializer = self.get_serializer(data=request.data)
