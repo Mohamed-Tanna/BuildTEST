@@ -24,9 +24,13 @@ class LoadSerializer(serializers.ModelSerializer):
         model = Load
         fields = [
             "owner",
+            "shipper",
+            "consignee",
+            "broker",
+            "carrier"
             "pick_up_date",
             "delivery_date",
             "pick_up_location",
             "destination",
-            "status",
         ]
+        extra_kwargs = {"carrier": {"required": False}}
