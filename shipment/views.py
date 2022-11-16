@@ -2,6 +2,8 @@ from rest_framework.mixins import CreateModelMixin
 from rest_framework.generics import GenericAPIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.response import Response
+from rest_framework import status
 from .models import *
 from shipment.serializers import FacilitySerializer, LoadSerializer
 
@@ -60,6 +62,28 @@ class LoadView(GenericAPIView, CreateModelMixin):
 
     serializer_class = LoadSerializer
     queryset = Load.objects.all()
+
+    def create(self, request, *args, **kwargs):
+
+        app_user = request.data.get("app_user")
+        app_user = AppUser.objects.get(id=app_user)
+        if app_user.user_type == "broker" or app_user.user_type == "shipment party":
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        else:
+            return Response(
+                {
+                    "user role": [
+                        "User does not have the required role to preform this action"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
