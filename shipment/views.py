@@ -1,4 +1,5 @@
-from rest_framework.mixins import CreateModelMixin
+from rest_framework.mixins import CreateModelMixin, ListModelMixin
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import GenericAPIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -8,10 +9,12 @@ from .models import *
 from shipment.serializers import FacilitySerializer, LoadSerializer
 
 
-class FacilityView(GenericAPIView, CreateModelMixin):
+class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
+    
+    permission_classes = [IsAuthenticated, ]
 
     serializer_class = FacilitySerializer
-    queryset = Facility.objects.all()
+    queryset = Facility.objects.filter()
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -56,16 +59,23 @@ class FacilityView(GenericAPIView, CreateModelMixin):
         """
 
         return self.create(request, *args, **kwargs)
+    
+    
+    def get(self, request, *args, **kwargs):
+        
+        return self.list(request, *args, **kwargs)
 
 
 class LoadView(GenericAPIView, CreateModelMixin):
 
+    permission_classes = [IsAuthenticated, ]
+    
     serializer_class = LoadSerializer
     queryset = Load.objects.all()
 
     def create(self, request, *args, **kwargs):
 
-        app_user = request.data.get("owner")
+        app_user = request.data.get("creator")
         app_user = AppUser.objects.get(id=app_user)
         if app_user.user_type == "broker" or app_user.user_type == "shipment party":
             serializer = self.get_serializer(data=request.data)
