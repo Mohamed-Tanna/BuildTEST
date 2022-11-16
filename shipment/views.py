@@ -65,7 +65,7 @@ class LoadView(GenericAPIView, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
 
-        app_user = request.data.get("app_user")
+        app_user = request.data.get("owner")
         app_user = AppUser.objects.get(id=app_user)
         if app_user.user_type == "broker" or app_user.user_type == "shipment party":
             serializer = self.get_serializer(data=request.data)
