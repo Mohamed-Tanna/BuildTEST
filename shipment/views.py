@@ -20,6 +20,31 @@ class FacilityView(GenericAPIView, CreateModelMixin):
     serializer_class = FacilitySerializer
     queryset = Facility.objects.all()
 
+    def create(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        app_user = AppUser.objects.get(user=request.user)
+        request.data["owner"] = app_user.id
+
+        if app_user.user_type == "shipment party":
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        else:
+            return Response(
+                {
+                    "user role": [
+                        "User does not have the required role to preform this action"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -63,10 +88,6 @@ class FacilityView(GenericAPIView, CreateModelMixin):
         """
 
         return self.create(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-
-        return self.list(request, *args, **kwargs)
 
 
 class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
