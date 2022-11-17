@@ -12,7 +12,7 @@ class TrailerAdmin(admin.ModelAdmin):
 
 class LoadAdmin(admin.ModelAdmin):
     
-    list_display = ["owner", "pick_up_date", "delivery_date", "status"]    
+    list_display = ["created_by", "pick_up_date", "delivery_date", "status"]    
 
 
 

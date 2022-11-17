@@ -1,5 +1,7 @@
 import requests
 import os
+from django.db import IntegrityError
+import string, random
 from google.cloud import secretmanager
 from .models import *
 from allauth.account.models import EmailAddress
@@ -81,6 +83,46 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
     serializer_class = BaseUserUpdateSerializer
     queryset = User.objects.all()
     lookup_field = "id"
+
+    #override
+    def perform_update(self, serializer):
+        user = serializer.save()
+        username = user.username
+        modified_username = (username
+            + "#"
+            + (
+                "".join(
+                    random.choice(string.ascii_uppercase + string.digits)
+                    for i in range(5)
+                )
+            )
+        )
+        user.username = modified_username
+
+        while True:
+            try:
+                user.save()
+                break
+
+            except IntegrityError:
+                username = user.username.split("#")[0]
+                modified_username = (
+                    username
+                    + "#"
+                    + (
+                        "".join(
+                            random.choice(string.ascii_uppercase + string.digits)
+                            for i in range(5)
+                        )
+                    )
+                )
+                user.username = modified_username
+                continue
+            
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                break
+
 
     @swagger_auto_schema(
         request_body=openapi.Schema(

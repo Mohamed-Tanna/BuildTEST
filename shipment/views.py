@@ -1,6 +1,8 @@
-from rest_framework.mixins import CreateModelMixin, ListModelMixin
+from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import GenericAPIView
+from django.http import QueryDict
+from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.response import Response
@@ -9,9 +11,11 @@ from .models import *
 from shipment.serializers import FacilitySerializer, LoadSerializer
 
 
-class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
-    
-    permission_classes = [IsAuthenticated, ]
+class FacilityView(GenericAPIView, CreateModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     serializer_class = FacilitySerializer
     queryset = Facility.objects.all()
@@ -59,32 +63,40 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
         """
 
         return self.create(request, *args, **kwargs)
-    
-    
+
     def get(self, request, *args, **kwargs):
-        
+
         return self.list(request, *args, **kwargs)
 
 
-class LoadView(GenericAPIView, CreateModelMixin):
+class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
 
-    permission_classes = [IsAuthenticated, ]
-    
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
     serializer_class = LoadSerializer
     queryset = Load.objects.all()
 
     def create(self, request, *args, **kwargs):
 
-        app_user = request.data.get("creator")
-        app_user = AppUser.objects.get(id=app_user)
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        app_user = AppUser.objects.get(user=request.user)
+        request.data["created_by"] = app_user.id
+        app_user = request.data.get("created_by")
+
         if app_user.user_type == "broker" or app_user.user_type == "shipment party":
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
+
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
+
         else:
             return Response(
                 {
@@ -99,7 +111,6 @@ class LoadView(GenericAPIView, CreateModelMixin):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=[
-                "owner",
                 "pick_up_date",
                 "delivery_date",
                 "pick_up_location",
@@ -107,7 +118,6 @@ class LoadView(GenericAPIView, CreateModelMixin):
                 "status",
             ],
             properties={
-                "owner": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
@@ -133,3 +143,43 @@ class LoadView(GenericAPIView, CreateModelMixin):
         """
 
         return self.create(request, *args, **kwargs)
+
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
+                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
+                "broker": openapi.Schema(type=openapi.TYPE_STRING),
+                "carrier": openapi.Schema(type=openapi.TYPE_STRING),
+                "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
+                "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
+                "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
+                "destination": openapi.Schema(type=openapi.TYPE_STRING),
+                "status": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: "OK",
+            204: "NO CONTENT",
+            304: "NOT MODIFIED",
+            422: "UNPROCESSABLE ENTITY",
+            400: "BAD REQUEST",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+
+        """
+        Update load's shipper, consignee, broker, carrier, pick up location, destination, pick up date, delivery date
+
+            Update the base user **shipper**, **consignee**, **broker**, **carrier**, **pick up location**, **destination**
+            **pick up date** and **delivery date** either separately or all coupled together
+
+            **Example**
+
+                >>> carrier: carrier_id
+                >>> broker: broker_id
+        """
+        return self.update(request, *args, **kwargs)
