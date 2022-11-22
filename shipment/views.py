@@ -1,6 +1,7 @@
-from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
+from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import GenericAPIView
+from django.db.models.query import QuerySet
 from django.http import QueryDict
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
@@ -11,7 +12,7 @@ from .models import *
 from shipment.serializers import FacilitySerializer, LoadSerializer
 
 
-class FacilityView(GenericAPIView, CreateModelMixin):
+class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
@@ -19,31 +20,6 @@ class FacilityView(GenericAPIView, CreateModelMixin):
 
     serializer_class = FacilitySerializer
     queryset = Facility.objects.all()
-
-    def create(self, request, *args, **kwargs):
-
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        app_user = AppUser.objects.get(user=request.user)
-        request.data["owner"] = app_user.id
-
-        if app_user.user_type == "shipment party":
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-        else:
-            return Response(
-                {
-                    "user role": [
-                        "User does not have the required role to preform this action"
-                    ]
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -89,8 +65,50 @@ class FacilityView(GenericAPIView, CreateModelMixin):
 
         return self.create(request, *args, **kwargs)
 
+    def get(self, request, *args, **kwargs):
 
-class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
+        return self.list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method."
+            % self.__class__.__name__
+        )
+
+        queryset = Facility.objects.filter(owner=self.request.query_params.get('owner'))
+        if isinstance(queryset, QuerySet):
+            # Ensure queryset is re-evaluated on each request.
+            queryset = queryset.all()
+        return queryset
+   
+    def create(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        app_user = AppUser.objects.get(user=request.user)
+        request.data["owner"] = app_user.id
+
+        if app_user.user_type == "shipment party":
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        else:
+            return Response(
+                {
+                    "user role": [
+                        "User does not have the required role to preform this action"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, APIView):
 
     permission_classes = [
         IsAuthenticated,
@@ -98,6 +116,11 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
 
     serializer_class = LoadSerializer
     queryset = Load.objects.all()
+    lookup_field = "id"
+
+    def get(self, request, *args, **kwargs):
+
+        return self.retrieve(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
 
@@ -105,8 +128,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
             request.data._mutable = True
 
         app_user = AppUser.objects.get(user=request.user)
-        request.data["created_by"] = app_user.id
-        app_user = request.data.get("created_by")
+        request.data["created_by"] = str(app_user.id)
 
         if app_user.user_type == "broker" or app_user.user_type == "shipment party":
             serializer = self.get_serializer(data=request.data)
@@ -132,18 +154,20 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=[
+                "shipper",
+                "consignee",
                 "pick_up_date",
                 "delivery_date",
                 "pick_up_location",
                 "destination",
-                "status",
             ],
             properties={
+                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
+                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
                 "destination": openapi.Schema(type=openapi.TYPE_STRING),
-                "status": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
         responses={
@@ -203,4 +227,4 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, APIView):
                 >>> carrier: carrier_id
                 >>> broker: broker_id
         """
-        return self.update(request, *args, **kwargs)
+        return self.partial_update(request, *args, **kwargs)

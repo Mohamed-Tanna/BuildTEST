@@ -26,7 +26,9 @@ class CustomLoginSerializer(LoginSerializer):
                     app_user = AppUser.objects.get(user=user)
                 except BaseException as e:
                     print(f"Unexpected {e=}, {type(e)=}")
-                    msg = gettext_lazy("Insufficient permissions")
+                    msg = gettext_lazy(
+                        "Incomplete profile, please specify the user type before trying to log in"
+                    )
                     raise exceptions.AuthenticationFailed(msg)
                 if app_user is not None:
                     if app_user.user_type == "carrier":
@@ -76,22 +78,18 @@ class AppUserSerializer(serializers.ModelSerializer):
 
 
 class BaseUserUpdateSerializer(serializers.ModelSerializer):
-    
     class Meta:
         model = User
-        fields = ["username", "first_name", "last_name"]
-        extra_kwargs = {"username": {"required": False}}
+        fields = ["first_name", "last_name"]
 
 
 class ShipmentPartySerializer(serializers.ModelSerializer):
-
     class Meta:
-        model= ShipmentParty
+        model = ShipmentParty
         fields = ["app_user"]
 
 
 class CarrierSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Carrier
         fields = ["app_user", "DOT_number", "MC_number"]
@@ -99,7 +97,6 @@ class CarrierSerializer(serializers.ModelSerializer):
 
 
 class BrokerSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Broker
         fields = ["app_user", "MC_number"]

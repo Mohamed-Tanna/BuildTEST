@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "channels",
+    'rolepermissions',
     "djangochannelsrestframework",
     "allauth",
     "allauth.account",
@@ -130,6 +131,8 @@ ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True
 
 ACCOUNT_USERNAME_REQUIRED = False
+
+ROLEPERMISSIONS_MODULE = 'authentication.roles'
 
 SITE_ID = 1
 

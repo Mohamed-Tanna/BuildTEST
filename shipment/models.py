@@ -34,8 +34,8 @@ class Load(models.Model):
     created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING)
     shipper = models.ForeignKey(to=ShipmentParty, null=False, on_delete=models.DO_NOTHING, related_name="shipper")
     consignee = models.ForeignKey(to=ShipmentParty, null=False, on_delete=models.DO_NOTHING, related_name="consignee")
-    broker = models.ForeignKey(to=Broker, on_delete=models.DO_NOTHING)
-    carrier = models.ForeignKey(to=Carrier, on_delete=models.DO_NOTHING)
+    broker = models.ForeignKey(to=Broker, null=True, on_delete=models.DO_NOTHING)
+    carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.DO_NOTHING)
     pick_up_date = models.DateField(null=False)
     delivery_date = models.DateField(null=False)
     pick_up_location = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING, related_name="pick_up")
@@ -55,3 +55,9 @@ class Load(models.Model):
         null=False,
         default="Created"
     )
+
+
+class Contact(models.Model):
+
+    app_user = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="main")
+    contact = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="contact")

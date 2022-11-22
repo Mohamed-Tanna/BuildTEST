@@ -4,15 +4,15 @@ from .models import *
 
 class FacilityAdmin(admin.ModelAdmin):
 
-    list_display = ["owner", "building_number", "building_name", "street", "city", "state", "zip_code", "country"]
+    list_display = ["id", "owner", "building_number", "building_name", "street", "city", "state", "zip_code", "country"]
 
 class TrailerAdmin(admin.ModelAdmin):
 
-    list_display = ["model", "max_height", "max_length", "max_width"]
+    list_display = ["id", "model", "max_height", "max_length", "max_width"]
 
 class LoadAdmin(admin.ModelAdmin):
     
-    list_display = ["created_by", "pick_up_date", "delivery_date", "status"]    
+    list_display = ["id", "created_by", "shipper", "consignee", "pick_up_date", "delivery_date", "status"]    
 
 
 

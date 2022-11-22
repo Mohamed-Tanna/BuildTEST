@@ -22,6 +22,7 @@ class LoadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Load
         fields = [
+            "created_by",
             "shipper",
             "consignee",
             "broker",
@@ -31,4 +32,7 @@ class LoadSerializer(serializers.ModelSerializer):
             "pick_up_location",
             "destination",
         ]
-        extra_kwargs = {"carrier": {"required": False}, "broker": {"required": False}}
+        extra_kwargs = {
+            "carrier": {"required": False},
+            "broker": {"required": False},
+        }

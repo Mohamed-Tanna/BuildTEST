@@ -5,6 +5,7 @@ import string, random
 from google.cloud import secretmanager
 from .models import *
 from allauth.account.models import EmailAddress
+from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from rest_framework import exceptions
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
@@ -15,7 +16,10 @@ from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.http import QueryDict
+from rolepermissions.mixins import HasRoleMixin
 from django.utils.translation import gettext_lazy
+from .roles import *
 
 
 class HealthCheckView(APIView):
@@ -31,17 +35,22 @@ class HealthCheckView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-class AppUserView(GenericAPIView, CreateModelMixin):
+class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
+    permission_classes = [
+        IsAuthenticated,
+    ]
+    allowed_roles = [
+        UserRole,
+    ]
     serializer_class = AppUserSerializer
     queryset = AppUser.objects.all()
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["user", "user_type"],
+            required=["user_type", "phone_number"],
             properties={
-                "user": openapi.Schema(type=openapi.TYPE_INTEGER),
                 "user_type": openapi.Schema(type=openapi.TYPE_STRING),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING),
             },
@@ -59,13 +68,11 @@ class AppUserView(GenericAPIView, CreateModelMixin):
             Create an AppUser with its according role form **(Broker, Carrier, ShipmentParty)**
 
             **Example**
-
-                >>> user : 6
                 >>> user_type : shipment party
                 >>> phone_number : +1 (123) 456-7890
         """
 
-        user = request.data.get("user")
+        user = request.user
         try:
             email_address = EmailAddress.objects.get(user=user)
             if email_address.verified == True:
@@ -76,52 +83,29 @@ class AppUserView(GenericAPIView, CreateModelMixin):
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_401_UNAUTHORIZED, data=e.args[0])
+        
+    def create(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["user"] = str(request.user.id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
 
 class BaseUserView(GenericAPIView, UpdateModelMixin):
 
+    permission_classes = [IsAuthenticated, ]
     serializer_class = BaseUserUpdateSerializer
     queryset = User.objects.all()
     lookup_field = "id"
-
-    #override
-    def perform_update(self, serializer):
-        user = serializer.save()
-        username = user.username
-        modified_username = (username
-            + "#"
-            + (
-                "".join(
-                    random.choice(string.ascii_uppercase + string.digits)
-                    for i in range(5)
-                )
-            )
-        )
-        user.username = modified_username
-
-        while True:
-            try:
-                user.save()
-                break
-
-            except IntegrityError:
-                username = user.username.split("#")[0]
-                modified_username = (
-                    username
-                    + "#"
-                    + (
-                        "".join(
-                            random.choice(string.ascii_uppercase + string.digits)
-                            for i in range(5)
-                        )
-                    )
-                )
-                user.username = modified_username
-                continue
-            
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                break
 
 
     @swagger_auto_schema(
@@ -152,17 +136,29 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
                 >>> last_name: Doe
         """
 
-        return self.update(request, *args, **kwargs)
+        if self.kwargs["id"] == str(request.user.id):
+            return self.partial_update(request, *args, **kwargs)
+        else:
+            return Response({"detail": ["Insufficient Permissions"]})
 
 
-class ShipmentPartyView(GenericAPIView, CreateModelMixin):
+class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
+    permission_classes = [IsAuthenticated, ]
+    allowed_roles = [AppUserRole, ]
     serializer_class = ShipmentPartySerializer
+    queryset = ShipmentParty.objects.all()
 
     # override
     def create(self, request, *args, **kwargs):
-        user = request.data.get("app_user")
-        app_user = AppUser.objects.get(id=user)
+
+        app_user = AppUser.objects.get(user=request.user)
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["app_user"] = str(app_user.id)
+
         if app_user.user_type == "shipment party":
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -195,10 +191,6 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
         Create a Shipment Party from an existing App User
 
             Create a **Shipment Party** with all the role's additional data - if any - and verify them if required
-
-            **Example**
-
-                >>> app_user: 4
         """
 
         return self.create(request, *args, **kwargs)
@@ -206,6 +198,8 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
 class CarrierView(GenericAPIView, CreateModelMixin):
 
+    permission_classes = [IsAuthenticated, ]
+    allowed_roles = [AppUserRole, ]
     serializer_class = CarrierSerializer
     queryset = Carrier.objects.all()
 
@@ -225,8 +219,13 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             }
         )
         webkey = webkey.payload.data.decode("UTF-8")
-        app_user = request.data.get("app_user")
-        app_user = AppUser.objects.get(id=app_user)
+        app_user = AppUser.objects.get(user=request.user)
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["app_user"] = str(app_user.id)
+
         if app_user.user_type == "carrier":
             DOT_number = request.data.get("DOT_number")
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={webkey}"
@@ -301,8 +300,13 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             }
         )
         webkey = webkey.payload.data.decode("UTF-8")
-        app_user = request.data.get("app_user")
-        app_user = AppUser.objects.get(id=app_user)
+        app_user = AppUser.objects.get(user=request.user)
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["app_user"] = str(app_user.id)
+
         if app_user.user_type == "broker":
             MC_number = request.data.get("MC_number")
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{MC_number}?webKey={webkey}"
