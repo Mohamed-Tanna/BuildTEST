@@ -60,18 +60,15 @@ from authentication.models import AppUser
 #             raise exceptions.ValidationError(msg)
 
 
-def valid_phone_number(phone_number):
-    phone_number_pattern = re.compile(
-        "^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$"
-    )
-    if not phone_number_pattern.match(phone_number):
-        raise serializers.ValidationError("invalid phone number")
+# def valid_phone_number(phone_number):
+#     phone_number_pattern = re.compile(
+#         "^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$"
+#     )
+#     if not phone_number_pattern.match(phone_number):
+#         raise serializers.ValidationError("invalid phone number")
 
 
 class AppUserSerializer(serializers.ModelSerializer):
-
-    phone_number = serializers.CharField(validators=[valid_phone_number])
-
     class Meta:
         model = AppUser
         fields = ["user", "phone_number", "user_type"]

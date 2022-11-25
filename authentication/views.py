@@ -1,7 +1,7 @@
 import requests
 import os
 from django.db import IntegrityError
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from google.cloud import secretmanager
 from .models import *
 from allauth.account.models import EmailAddress
@@ -80,9 +80,14 @@ class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
             else:
                 msg = gettext_lazy("email address is not verified")
                 raise exceptions.NotAuthenticated(msg)
-        except BaseException as e:
+            
+        except PermissionDenied as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_401_UNAUTHORIZED, data=e.args[0])
+
+        except BaseException as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=e.args[0])
 
     @swagger_auto_schema(
         responses={
