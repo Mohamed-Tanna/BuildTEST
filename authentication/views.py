@@ -1,7 +1,7 @@
 import requests
 import os
 from django.db import IntegrityError
-import string, random
+from django.core.exceptions import ObjectDoesNotExist
 from google.cloud import secretmanager
 from .models import *
 from allauth.account.models import EmailAddress
@@ -83,7 +83,28 @@ class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_401_UNAUTHORIZED, data=e.args[0])
+
+    @swagger_auto_schema(
+        responses={
+            200: "User Exist",
+            400: "Bad Request",
+            404: "Not Found",
+            500: "Internal Server Error",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+
+        try:
+            AppUser.objects.get(user=request.user)
+            return Response(status=status.HTTP_200_OK)
         
+        except ObjectDoesNotExist:
+            return Response({"detail": ["The requested app user does not exist"]}, status=status.HTTP_404_NOT_FOUND)
+        
+        except BaseException as e:
+            return Response({"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST)
+    
+
     def create(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
@@ -112,7 +133,6 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                "username": openapi.Schema(type=openapi.TYPE_STRING),
                 "first_name": openapi.Schema(type=openapi.TYPE_STRING),
                 "last_name": openapi.Schema(type=openapi.TYPE_STRING),
             },
@@ -131,7 +151,6 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
 
             **Example**
 
-                >>> username: JohnDoe
                 >>> first_name: John
                 >>> last_name: Doe
         """
@@ -191,6 +210,9 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         Create a Shipment Party from an existing App User
 
             Create a **Shipment Party** with all the role's additional data - if any - and verify them if required
+
+            **Example**
+                >>> app_user: ""
         """
 
         return self.create(request, *args, **kwargs)
@@ -261,9 +283,8 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["app_user", "DOT_number"],
+            required=["DOT_number"],
             properties={
-                "app_user": openapi.Schema(type=openapi.TYPE_STRING),
                 "DOT_number": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
@@ -342,9 +363,8 @@ class BrokerView(GenericAPIView, CreateModelMixin):
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["app_user", "MC_number"],
+            required=["MC_number"],
             properties={
-                "app_user": openapi.Schema(type=openapi.TYPE_STRING),
                 "MC_number": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
