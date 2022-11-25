@@ -14,10 +14,10 @@ def create_user_role(sender, instance, created, **kwargs):
 @receiver(post_save, sender=AppUser)
 def create_app_user_role(sender, instance, created, **kwargs):
     if created:
-        assign_role(instance, AppUserRole)
+        assign_role(instance.user, AppUserRole)
         if instance.user_type == "carrier":
-            assign_role(instance, CarrierRole)
+            assign_role(instance.user, CarrierRole)
         elif instance.user_type == "broker":
-            assign_role(instance, BrokerRole)
+            assign_role(instance.user, BrokerRole)
         elif instance.user_type == "shipment party":
-            assign_role(instance, ShipmentPartyRole)
+            assign_role(instance.user, ShipmentPartyRole)
