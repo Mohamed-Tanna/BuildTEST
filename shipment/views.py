@@ -1,4 +1,9 @@
-from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, ListModelMixin
+from rest_framework.mixins import (
+    CreateModelMixin,
+    UpdateModelMixin,
+    RetrieveModelMixin,
+    ListModelMixin,
+)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import GenericAPIView
 from django.db.models.query import QuerySet
@@ -7,15 +12,20 @@ from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.response import Response
+from rolepermissions.mixins import HasRoleMixin
 from rest_framework import status
 from .models import *
+from authentication.roles import *
 from shipment.serializers import FacilitySerializer, LoadSerializer
 
 
-class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, HasRoleMixin):
 
     permission_classes = [
         IsAuthenticated,
+    ]
+    allowed_roles = [
+        ShipmentPartyRole,
     ]
 
     serializer_class = FacilitySerializer
@@ -68,21 +78,20 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
     def get(self, request, *args, **kwargs):
 
         return self.list(request, *args, **kwargs)
-    
+
     def get_queryset(self):
 
         assert self.queryset is not None, (
             "'%s' should either include a `queryset` attribute, "
-            "or override the `get_queryset()` method."
-            % self.__class__.__name__
+            "or override the `get_queryset()` method." % self.__class__.__name__
         )
 
-        queryset = Facility.objects.filter(owner=self.request.query_params.get('owner'))
+        queryset = Facility.objects.filter(owner=self.request.query_params.get("owner"))
         if isinstance(queryset, QuerySet):
             # Ensure queryset is re-evaluated on each request.
             queryset = queryset.all()
         return queryset
-   
+
     def create(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
@@ -96,7 +105,9 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
 
         else:
             return Response(
@@ -108,10 +119,17 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, APIView):
+
+class LoadView(
+    GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, HasRoleMixin
+):
 
     permission_classes = [
         IsAuthenticated,
+    ]
+    allowed_roles = [
+        BrokerRole,
+        ShipmentPartyRole,
     ]
 
     serializer_class = LoadSerializer
@@ -160,14 +178,22 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModel
                 "delivery_date",
                 "pick_up_location",
                 "destination",
+                "height",
+                "width",
+                "depth",
             ],
             properties={
                 "shipper": openapi.Schema(type=openapi.TYPE_STRING),
                 "consignee": openapi.Schema(type=openapi.TYPE_STRING),
+                "broker": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
                 "destination": openapi.Schema(type=openapi.TYPE_STRING),
+                "height": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "width": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "depth": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "quantity": openapi.Schema(type=openapi.FORMAT_DECIMAL),
             },
         ),
         responses={
@@ -188,7 +214,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModel
         """
 
         return self.create(request, *args, **kwargs)
-
 
     @swagger_auto_schema(
         request_body=openapi.Schema(

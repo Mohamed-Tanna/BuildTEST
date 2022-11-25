@@ -32,14 +32,41 @@ class Trailer(models.Model):
 class Load(models.Model):
 
     created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING)
-    shipper = models.ForeignKey(to=ShipmentParty, null=False, on_delete=models.DO_NOTHING, related_name="shipper")
-    consignee = models.ForeignKey(to=ShipmentParty, null=False, on_delete=models.DO_NOTHING, related_name="consignee")
+    shipper = models.ForeignKey(
+        to=ShipmentParty,
+        null=False,
+        on_delete=models.DO_NOTHING,
+        related_name="shipper",
+    )
+    consignee = models.ForeignKey(
+        to=ShipmentParty,
+        null=False,
+        on_delete=models.DO_NOTHING,
+        related_name="consignee",
+    )
     broker = models.ForeignKey(to=Broker, null=True, on_delete=models.DO_NOTHING)
     carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.DO_NOTHING)
     pick_up_date = models.DateField(null=False)
     delivery_date = models.DateField(null=False)
-    pick_up_location = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING, related_name="pick_up")
-    destination = models.ForeignKey(to=Facility, on_delete=models.DO_NOTHING, related_name="destination")
+    pick_up_location = models.ForeignKey(
+        to=Facility, on_delete=models.DO_NOTHING, related_name="pick_up"
+    )
+    destination = models.ForeignKey(
+        to=Facility, on_delete=models.DO_NOTHING, related_name="destination"
+    )
+    height = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00, null=False
+    )
+    width = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00, null=False
+    )
+    depth = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0.00, null=False
+    )
+    weight = models.DecimalField(
+        max_digits=12, decimal_places=4, default=0.00, null=False
+    )
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     status = models.CharField(
         choices=[
             ("Created", "Created"),
@@ -49,15 +76,19 @@ class Load(models.Model):
             ("Picked Up", "Picked Up"),
             ("In Transit", "In Transit"),
             ("Delivered", "Delivered"),
-            ("Canceled", "Canceled")
+            ("Canceled", "Canceled"),
         ],
         max_length=20,
         null=False,
-        default="Created"
+        default="Created",
     )
 
 
 class Contact(models.Model):
 
-    app_user = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="main")
-    contact = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="contact")
+    app_user = models.ForeignKey(
+        to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="main"
+    )
+    contact = models.ForeignKey(
+        to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="contact"
+    )

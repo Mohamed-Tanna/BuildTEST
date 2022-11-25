@@ -16,6 +16,9 @@ class FacilitySerializer(serializers.ModelSerializer):
             "country",
             "extra_info",
         ]
+        extra_kwargs = {
+            "extra_info": {"required": False},
+        }
 
 
 class LoadSerializer(serializers.ModelSerializer):
@@ -31,8 +34,14 @@ class LoadSerializer(serializers.ModelSerializer):
             "delivery_date",
             "pick_up_location",
             "destination",
+            "height",
+            "width",
+            "weight",
+            "depth",
+            "quantity",
         ]
         extra_kwargs = {
             "carrier": {"required": False},
             "broker": {"required": False},
+            "quantity": {"required": False},
         }

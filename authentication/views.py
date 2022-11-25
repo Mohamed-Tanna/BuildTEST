@@ -1,6 +1,5 @@
 import requests
 import os
-from django.db import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from google.cloud import secretmanager
 from .models import *
@@ -57,7 +56,9 @@ class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         ),
         responses={
             201: "Created",
-            500: "internal server error",
+            400: "Bad Request",
+            403: "Email Address Is Not Verified",
+            500: "Internal Server Error",
         },
     )
     def post(self, request, *args, **kwargs):
@@ -80,10 +81,10 @@ class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
             else:
                 msg = gettext_lazy("email address is not verified")
                 raise exceptions.NotAuthenticated(msg)
-            
+
         except PermissionDenied as e:
             print(f"Unexpected {e=}, {type(e)=}")
-            return Response(status=status.HTTP_401_UNAUTHORIZED, data=e.args[0])
+            return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
 
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
@@ -102,13 +103,17 @@ class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         try:
             AppUser.objects.get(user=request.user)
             return Response(status=status.HTTP_200_OK)
-        
+
         except ObjectDoesNotExist:
-            return Response({"detail": ["The requested app user does not exist"]}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response(
+                {"detail": ["The requested app user does not exist"]},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         except BaseException as e:
-            return Response({"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST)
-    
+            return Response(
+                {"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST
+            )
 
     def create(self, request, *args, **kwargs):
 
@@ -128,11 +133,12 @@ class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
 class BaseUserView(GenericAPIView, UpdateModelMixin):
 
-    permission_classes = [IsAuthenticated, ]
+    permission_classes = [
+        IsAuthenticated,
+    ]
     serializer_class = BaseUserUpdateSerializer
     queryset = User.objects.all()
     lookup_field = "id"
-
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -168,8 +174,12 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
 
 class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
-    permission_classes = [IsAuthenticated, ]
-    allowed_roles = [AppUserRole, ]
+    permission_classes = [
+        IsAuthenticated,
+    ]
+    allowed_roles = [
+        ShipmentPartyRole,
+    ]
     serializer_class = ShipmentPartySerializer
     queryset = ShipmentParty.objects.all()
 
@@ -223,10 +233,14 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         return self.create(request, *args, **kwargs)
 
 
-class CarrierView(GenericAPIView, CreateModelMixin):
+class CarrierView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
-    permission_classes = [IsAuthenticated, ]
-    allowed_roles = [AppUserRole, ]
+    permission_classes = [
+        IsAuthenticated,
+    ]
+    allowed_roles = [
+        CarrierRole,
+    ]
     serializer_class = CarrierSerializer
     queryset = Carrier.objects.all()
 
@@ -305,8 +319,14 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         return self.create(request, *args, **kwargs)
 
 
-class BrokerView(GenericAPIView, CreateModelMixin):
+class BrokerView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
+    permission_classes = [
+        IsAuthenticated,
+    ]
+    allowed_roles = [
+        BrokerRole,
+    ]
     serializer_class = BrokerSerializer
     queryset = Broker.objects.all()
 
