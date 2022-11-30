@@ -1,33 +1,37 @@
+import string, random
+
+# Module imports
+from .models import *
+from .serializers import *
+from authentication.permissions import *
+
+# Django imports
+from django.http import QueryDict
+from django.db.models.query import QuerySet
+
+# DRF imports
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.mixins import (
     CreateModelMixin,
     UpdateModelMixin,
     RetrieveModelMixin,
     ListModelMixin,
 )
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.generics import GenericAPIView
-from django.db.models.query import QuerySet
-from django.http import QueryDict
-from rest_framework.views import APIView
+
+# ThirdParty imports
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework.response import Response
-from rolepermissions.mixins import HasRoleMixin
-from rest_framework import status
-from .models import *
-from authentication.roles import *
-from shipment.serializers import FacilitySerializer, LoadSerializer
 
 
-class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, HasRoleMixin):
+class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
+        IsShipmentParty,
     ]
-    allowed_roles = [
-        ShipmentPartyRole,
-    ]
-
     serializer_class = FacilitySerializer
     queryset = Facility.objects.all()
 
@@ -35,7 +39,6 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, HasRoleMixi
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=[
-                "owner",
                 "building_number",
                 "building_name",
                 "street",
@@ -45,7 +48,6 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, HasRoleMixi
                 "country",
             ],
             properties={
-                "owner": openapi.Schema(type=openapi.TYPE_STRING),
                 "building_number": openapi.Schema(type=openapi.TYPE_STRING),
                 "building_name": openapi.Schema(type=openapi.TYPE_STRING),
                 "street": openapi.Schema(type=openapi.TYPE_STRING),
@@ -86,9 +88,13 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, HasRoleMixi
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
 
-        queryset = Facility.objects.filter(owner=self.request.query_params.get("owner"))
+        if self.request.query_params.__contains__("shipment-party"):
+            queryset = Facility.objects.filter(
+                owner=self.request.query_params.get("owner")
+            )
+        else:
+            queryset = Facility.objects.filter(owner=self.request.user.id)
         if isinstance(queryset, QuerySet):
-            # Ensure queryset is re-evaluated on each request.
             queryset = queryset.all()
         return queryset
 
@@ -120,16 +126,12 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, HasRoleMixi
             )
 
 
-class LoadView(
-    GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, HasRoleMixin
-):
+class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-    ]
-    allowed_roles = [
-        BrokerRole,
-        ShipmentPartyRole,
+        IsShipmentParty,
+        IsBroker,
     ]
 
     serializer_class = LoadSerializer
@@ -139,34 +141,6 @@ class LoadView(
     def get(self, request, *args, **kwargs):
 
         return self.retrieve(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        app_user = AppUser.objects.get(user=request.user)
-        request.data["created_by"] = str(app_user.id)
-
-        if app_user.user_type == "broker" or app_user.user_type == "shipment party":
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-
-        else:
-            return Response(
-                {
-                    "user role": [
-                        "User does not have the required role to preform this action"
-                    ]
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -253,3 +227,98 @@ class LoadView(
                 >>> broker: broker_id
         """
         return self.partial_update(request, *args, **kwargs)
+
+    # override
+    def create(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        app_user = AppUser.objects.get(user=request.user)
+        request.data["created_by"] = str(app_user.id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+
+class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAppUser,
+    ]
+
+    queryset = Contact.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=[
+                "contact",
+            ],
+            properties={
+                "contact": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        Add Contact
+            Create a conatct for an **authenticated** user and add the contact to user's contact list
+
+            **Example**
+                >>> contact: Johndoe#4AEAT
+        """
+        return self.create(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["origin"] = request.user.id
+
+        contact = User.objects.get(username=request.data["contact"])
+        contact = AppUser.objects.get(user=contact)
+        request.data["contact"] = str(contact.id)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+    def perform_create(self, serializer):
+        conatct = serializer.save()
+        app_user = AppUser.objects.get(id=conatct.contact.id)
+        origin_user = User.objects.get(id=app_user.user.id)
+        contact_app_user = AppUser.objects.get(user=conatct.origin.id)
+        Contact.objects.create(origin=origin_user, contact=contact_app_user)
+
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        queryset = Contact.objects.filter(origin=self.request.user.id)
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return ContactListSerializer
+        elif self.request.method == "POST":
+            return ContactCreateSerializer

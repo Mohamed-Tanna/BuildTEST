@@ -24,7 +24,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "channels",
-    'rolepermissions',
     "djangochannelsrestframework",
     "allauth",
     "allauth.account",
@@ -52,7 +51,7 @@ MIDDLEWARE = [
 ]
 
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
 ]
 
 ROOT_URLCONF = "freightmonster.urls"
@@ -106,6 +105,14 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/hr",
+        "user": "1000/hr",
+    },
 }
 
 AUTHENTICATION_BACKENDS = [
@@ -116,6 +123,8 @@ AUTHENTICATION_BACKENDS = [
 REST_AUTH_SERIALIZERS = {
     "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
 }
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 REST_USE_JWT = True
 
@@ -130,8 +139,6 @@ ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True
 
 ACCOUNT_USERNAME_REQUIRED = False
-
-ROLEPERMISSIONS_MODULE = 'authentication.roles'
 
 SITE_ID = 1
 
@@ -160,8 +167,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# SECURE_SSL_REDIRECT = True
 
 DEFENDER_LOGIN_FAILURE_LIMIT = 5
 

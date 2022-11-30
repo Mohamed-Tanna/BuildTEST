@@ -5,7 +5,7 @@ from authentication.models import *
 class Facility(models.Model):
 
     owner = models.ForeignKey(
-        to=ShipmentParty, null=False, blank=False, on_delete=models.DO_NOTHING
+        to=ShipmentParty, null=False, blank=False, on_delete=models.CASCADE
     )
     building_number = models.CharField(max_length=100)
     building_name = models.CharField(max_length=100)
@@ -31,28 +31,29 @@ class Trailer(models.Model):
 
 class Load(models.Model):
 
-    created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, unique=True, null=True, blank=False)
     shipper = models.ForeignKey(
         to=ShipmentParty,
         null=False,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.CASCADE,
         related_name="shipper",
     )
     consignee = models.ForeignKey(
         to=ShipmentParty,
         null=False,
-        on_delete=models.DO_NOTHING,
+        on_delete=models.CASCADE,
         related_name="consignee",
     )
-    broker = models.ForeignKey(to=Broker, null=True, on_delete=models.DO_NOTHING)
-    carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.DO_NOTHING)
+    broker = models.ForeignKey(to=Broker, null=True, on_delete=models.CASCADE)
+    carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.CASCADE)
     pick_up_date = models.DateField(null=False)
     delivery_date = models.DateField(null=False)
     pick_up_location = models.ForeignKey(
-        to=Facility, on_delete=models.DO_NOTHING, related_name="pick_up"
+        to=Facility, on_delete=models.CASCADE, related_name="pick_up"
     )
     destination = models.ForeignKey(
-        to=Facility, on_delete=models.DO_NOTHING, related_name="destination"
+        to=Facility, on_delete=models.CASCADE, related_name="destination"
     )
     height = models.DecimalField(
         max_digits=12, decimal_places=2, default=0.00, null=False
@@ -67,11 +68,19 @@ class Load(models.Model):
         max_digits=12, decimal_places=4, default=0.00, null=False
     )
     quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    goods_info = models.TextField(null=True)
+    load_type = models.CharField(
+        choices=[("LTL", "LTL"), ("FTL", "FTL")],
+        max_length=3,
+        null=False,
+        default="FTL",
+    )
     status = models.CharField(
         choices=[
             ("Created", "Created"),
             ("Information Recieved", "Information Recieved"),
             ("Confirmed", "Confirmed"),
+            ("Signed", "Signed"),
             ("Ready For Pick Up", "Ready For Pick Up"),
             ("Picked Up", "Picked Up"),
             ("In Transit", "In Transit"),
@@ -85,10 +94,12 @@ class Load(models.Model):
 
 
 class Contact(models.Model):
+    class Meta:
+        unique_together = (("origin", "contact"),)
 
-    app_user = models.ForeignKey(
-        to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="main"
+    origin = models.ForeignKey(
+        to=User, null=True, on_delete=models.CASCADE, related_name="main"
     )
     contact = models.ForeignKey(
-        to=AppUser, null=False, on_delete=models.DO_NOTHING, related_name="contact"
+        to=AppUser, null=True, on_delete=models.CASCADE, related_name="contact"
     )

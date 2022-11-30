@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import *
+from authentication.serializers import AppUserSerializer
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -26,6 +27,7 @@ class LoadSerializer(serializers.ModelSerializer):
         model = Load
         fields = [
             "created_by",
+            "name",
             "shipper",
             "consignee",
             "broker",
@@ -45,3 +47,22 @@ class LoadSerializer(serializers.ModelSerializer):
             "broker": {"required": False},
             "quantity": {"required": False},
         }
+
+
+class ContactListSerializer(serializers.ModelSerializer):
+    contact = AppUserSerializer()
+
+    class Meta:
+        model = Contact
+        fields = [
+            "contact",
+        ]
+
+
+class ContactCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = [
+            "origin",
+            "contact",
+        ]

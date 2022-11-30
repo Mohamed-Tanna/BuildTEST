@@ -78,6 +78,4 @@ CHANNEL_LAYERS = {
     }
 }
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
 DEFENDER_REDIS_URL = f"redis://redis:6379/0"

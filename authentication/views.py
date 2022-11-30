@@ -1,24 +1,27 @@
-import requests
 import os
-from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
-from google.cloud import secretmanager
+import requests
+# Module imports
 from .models import *
-from allauth.account.models import EmailAddress
-from rest_framework.permissions import IsAuthenticated
 from .serializers import *
-from rest_framework import exceptions
-from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
-from rest_framework.generics import GenericAPIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth.models import User
-from rest_framework.views import APIView
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from .permissions import *
+# Django imports
 from django.http import QueryDict
-from rolepermissions.mixins import HasRoleMixin
+from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy
-from .roles import *
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+# DRF imports
+from rest_framework import status
+from rest_framework import exceptions
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
+# third party imports
+from drf_yasg import openapi
+from google.cloud import secretmanager
+from drf_yasg.utils import swagger_auto_schema
+from allauth.account.models import EmailAddress
 
 
 class HealthCheckView(APIView):
@@ -34,13 +37,10 @@ class HealthCheckView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-class AppUserView(GenericAPIView, CreateModelMixin, HasRoleMixin):
+class AppUserView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-    ]
-    allowed_roles = [
-        UserRole,
     ]
     serializer_class = AppUserSerializer
     queryset = AppUser.objects.all()
@@ -172,13 +172,11 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
             return Response({"detail": ["Insufficient Permissions"]})
 
 
-class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
+class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-    ]
-    allowed_roles = [
-        ShipmentPartyRole,
+        IsAppUser,
     ]
     serializer_class = ShipmentPartySerializer
     queryset = ShipmentParty.objects.all()
@@ -193,17 +191,14 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
 
         request.data["app_user"] = str(app_user.id)
 
-        if app_user.user_type == "shipment party":
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+            
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -220,7 +215,6 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         },
     )
     def post(self, request, *args, **kwargs):
-
         """
         Create a Shipment Party from an existing App User
 
@@ -233,13 +227,11 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         return self.create(request, *args, **kwargs)
 
 
-class CarrierView(GenericAPIView, CreateModelMixin, HasRoleMixin):
+class CarrierView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-    ]
-    allowed_roles = [
-        CarrierRole,
+        IsAppUser,
     ]
     serializer_class = CarrierSerializer
     queryset = Carrier.objects.all()
@@ -319,13 +311,11 @@ class CarrierView(GenericAPIView, CreateModelMixin, HasRoleMixin):
         return self.create(request, *args, **kwargs)
 
 
-class BrokerView(GenericAPIView, CreateModelMixin, HasRoleMixin):
+class BrokerView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-    ]
-    allowed_roles = [
-        BrokerRole,
+        IsAppUser,
     ]
     serializer_class = BrokerSerializer
     queryset = Broker.objects.all()
