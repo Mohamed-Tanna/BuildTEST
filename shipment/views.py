@@ -1,11 +1,10 @@
-import string, random
-
 # Module imports
 from .models import *
 from .serializers import *
 from authentication.permissions import *
 
 # Django imports
+from django.db.models import Q
 from django.http import QueryDict
 from django.db.models.query import QuerySet
 
@@ -126,12 +125,17 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
             )
 
 
-class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin):
+class LoadView(
+    GenericAPIView,
+    CreateModelMixin,
+    UpdateModelMixin,
+    RetrieveModelMixin,
+    ListModelMixin,
+):
 
     permission_classes = [
         IsAuthenticated,
-        IsShipmentParty,
-        IsBroker,
+        IsShipmentPartyOrBroker,
     ]
 
     serializer_class = LoadSerializer
@@ -140,7 +144,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModel
 
     def get(self, request, *args, **kwargs):
 
-        return self.retrieve(request, *args, **kwargs)
+        if self.kwargs:
+            return self.retrieve(request, *args, **kwargs)
+        else:
+            return self.list(request, *args, **kwargs)
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -245,6 +252,31 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin, RetrieveModel
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    # override
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        app_user = AppUser.objects.get(user=self.request.user)
+        if app_user.user_type == "shipment party":
+            shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
+        elif app_user.user_type == "broker":
+            broker = Broker.objects.get(app_user=app_user.id)
+        elif app_user.user_type == "carrier":
+            carrier = Carrier.objects.get(app_user=app_user.id)
+        queryset = Load.objects.filter(
+            Q(created_by=self.request.user.id)
+            or Q(shipper=shipment_party)
+            or Q(consignee=shipment_party)
+            or Q(broker=broker)
+            or Q(carreir=carrier)
+        )
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
 
 class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
@@ -285,19 +317,33 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
             request.data._mutable = True
 
         request.data["origin"] = request.user.id
+        try:
+            contact = User.objects.get(username=request.data["contact"])
+        except User.DoesNotExist as e:
+            return Response(
+                {"details": ["User does not exist."]}, status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            contact = AppUser.objects.get(user=contact)
+            request.data["contact"] = str(contact.id)
 
-        contact = User.objects.get(username=request.data["contact"])
-        contact = AppUser.objects.get(user=contact)
-        request.data["contact"] = str(contact.id)
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        except AppUser.DoesNotExist as e:
+            return Response(
+                {
+                    "details": [
+                        "The user that you are trying to add has incomplete profile, please contact them before trying again."
+                    ]
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
     def perform_create(self, serializer):
         conatct = serializer.save()

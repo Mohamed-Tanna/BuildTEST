@@ -1,12 +1,13 @@
 from rest_framework import permissions
 from .models import *
 
+
 class IsAppUser(permissions.BasePermission):
 
     message = "User profile incomplete, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
-        
+
         return AppUser.objects.filter(user=request.user).exists()
 
 
@@ -42,5 +43,21 @@ class IsShipmentParty(permissions.BasePermission):
         try:
             app_user = AppUser.objects.get(user=request.user)
             return ShipmentParty.objects.filter(app_user=app_user).exists()
+        except AppUser.DoesNotExist:
+            return False
+
+
+class IsShipmentPartyOrBroker(permissions.BasePermission):
+
+    message = "User is not a shipment party nor a broker, fill out all of the profile's necessary information before trying again."
+
+    def has_permission(self, request, view):
+        try:
+            app_user = AppUser.objects.get(user=request.user)
+
+            return (
+                ShipmentParty.objects.filter(app_user=app_user).exists()
+                or Broker.objects.filter(app_user=app_user).exists()
+            )
         except AppUser.DoesNotExist:
             return False
