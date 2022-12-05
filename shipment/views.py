@@ -92,7 +92,9 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 owner=self.request.query_params.get("owner")
             )
         else:
+            print("in")
             queryset = Facility.objects.filter(owner=self.request.user.id)
+            print(queryset)
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -102,27 +104,15 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
-        app_user = AppUser.objects.get(user=request.user)
-        request.data["owner"] = app_user.id
+        request.data["owner"] = request.user.id
 
-        if app_user.user_type == "shipment party":
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-
-        else:
-            return Response(
-                {
-                    "user role": [
-                        "User does not have the required role to preform this action"
-                    ]
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
 
 class LoadView(

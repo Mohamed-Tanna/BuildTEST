@@ -5,7 +5,7 @@ from authentication.models import *
 class Facility(models.Model):
 
     owner = models.ForeignKey(
-        to=ShipmentParty, null=False, blank=False, on_delete=models.CASCADE
+        to=User, null=False, blank=False, on_delete=models.CASCADE
     )
     building_number = models.CharField(max_length=100)
     building_name = models.CharField(max_length=100)
@@ -17,7 +17,7 @@ class Facility(models.Model):
     extra_info = models.CharField(max_length=255)
 
     def __str__(self):
-        return f"{self.owner.app_user.user.username} => {self.building_name}"
+        return f"{self.owner.username} => {self.building_name}"
 
 
 class Trailer(models.Model):
