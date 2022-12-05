@@ -18,6 +18,7 @@ from rest_framework.mixins import (
     UpdateModelMixin,
     RetrieveModelMixin,
     ListModelMixin,
+    DestroyModelMixin,
 )
 
 # ThirdParty imports
@@ -92,9 +93,7 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 owner=self.request.query_params.get("owner")
             )
         else:
-            print("in")
             queryset = Facility.objects.filter(owner=self.request.user.id)
-            print(queryset)
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -251,11 +250,27 @@ class LoadView(
         )
         app_user = AppUser.objects.get(user=self.request.user.id)
         if app_user.user_type == "shipment party":
-            shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
+            try:
+                shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
+            except ShipmentParty.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
         elif app_user.user_type == "broker":
-            broker = Broker.objects.get(app_user=app_user.id)
+            try:
+                broker = Broker.objects.get(app_user=app_user.id)
+            except Broker.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
         elif app_user.user_type == "carrier":
-            carrier = Carrier.objects.get(app_user=app_user.id)
+            try:
+                carrier = Carrier.objects.get(app_user=app_user.id)
+            except Carrier.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+
         queryset = Load.objects.filter(
             Q(created_by=self.request.user.id)
             | Q(shipper=shipment_party)
@@ -268,7 +283,7 @@ class LoadView(
         return queryset
 
 
-class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModelMixin):
 
     permission_classes = [
         IsAuthenticated,
@@ -301,6 +316,9 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
         """
         return self.create(request, *args, **kwargs)
 
+    # def delete(self, request, *args, **kwargs):
+    #     return self.destroy(request, *args, **kwargs)
+
     def create(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
@@ -316,15 +334,20 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
         try:
             contact = AppUser.objects.get(user=contact)
             request.data["contact"] = str(contact.id)
+            if request.data["contact"] == request.data["origin"]:
+                return Response(
+                    {"details": ["Oops, you cannot add yourself!"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            else:
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
 
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                )
         except AppUser.DoesNotExist as e:
             return Response(
                 {
