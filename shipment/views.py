@@ -10,6 +10,7 @@ from django.db.models.query import QuerySet
 
 # DRF imports
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
@@ -381,3 +382,23 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
             return ContactListSerializer
         elif self.request.method == "POST":
             return ContactCreateSerializer
+
+class LoadFacilityView(GenericAPIView, ListModelMixin):
+    
+    permission_classes = [IsAuthenticated, IsShipmentPartyOrBroker,]
+    
+    def post(self, request, *args, **kwargs):
+        
+        return self.list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+
+        queryset = Facility.objects.filter(owner=self.request.user.id)
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
