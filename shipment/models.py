@@ -14,7 +14,7 @@ class Facility(models.Model):
     state = models.CharField(max_length=100)
     zip_code = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
-    extra_info = models.CharField(max_length=255)
+    extra_info = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
         return f"{self.owner.username} => {self.building_name}"

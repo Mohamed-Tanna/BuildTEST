@@ -249,7 +249,7 @@ class LoadView(
             "'%s' should either include a `queryset` attribute, "
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
-        app_user = AppUser.objects.get(user=self.request.user)
+        app_user = AppUser.objects.get(user=self.request.user.id)
         if app_user.user_type == "shipment party":
             shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
         elif app_user.user_type == "broker":
@@ -258,10 +258,10 @@ class LoadView(
             carrier = Carrier.objects.get(app_user=app_user.id)
         queryset = Load.objects.filter(
             Q(created_by=self.request.user.id)
-            or Q(shipper=shipment_party)
-            or Q(consignee=shipment_party)
-            or Q(broker=broker)
-            or Q(carreir=carrier)
+            | Q(shipper=shipment_party)
+            | Q(consignee=shipment_party)
+            | Q(broker=broker)
+            | Q(carreir=carrier)
         )
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
