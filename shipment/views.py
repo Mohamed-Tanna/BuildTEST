@@ -274,10 +274,10 @@ class LoadView(
 
         queryset = Load.objects.filter(
             Q(created_by=self.request.user.id)
-            | Q(shipper=shipment_party)
-            | Q(consignee=shipment_party)
-            | Q(broker=broker)
-            | Q(carreir=carrier)
+            | Q(shipper=shipment_party.id)
+            | Q(consignee=shipment_party.id)
+            | Q(broker=broker.id)
+            | Q(carreir=carrier.id)
         )
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
