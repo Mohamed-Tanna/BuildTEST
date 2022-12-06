@@ -435,16 +435,24 @@ class LoadFacilityView(GenericAPIView, ListModelMixin):
             keyword = self.request.data["keyword"]
         if "shipper" in self.request.data:
             username = self.request.data["shipper"]
-            shipper = User.objects.get(username=username)
-            queryset = Facility.objects.filter(
-                owner=shipper.id, building_name__icontains=keyword
-            ).order_by("building_name")
+            try:
+                shipper = User.objects.get(username=username)
+                queryset = Facility.objects.filter(
+                    owner=shipper.id, building_name__icontains=keyword
+                ).order_by("building_name")
+            except User.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                queryset = []
         elif "consignee" in self.request.data:
             username = self.request.data["consignee"]
-            consignee = User.objects.get(username=username)
-            queryset = Facility.objects.filter(
-                owner=consignee.id, building_name__icontains=keyword
-            ).order_by("building_name")
+            try:
+                consignee = User.objects.get(username=username)
+                queryset = Facility.objects.filter(
+                    owner=consignee.id, building_name__icontains=keyword
+                ).order_by("building_name")
+            except User.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                queryset = []
         else:
             queryset = []
 
@@ -479,17 +487,19 @@ class ContactLoadView(GenericAPIView, ListModelMixin):
             "'%s' should either include a `queryset` attribute, "
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
-        user_type = ""
+        
         if "type" in self.request.data:
             user_type = self.request.data["type"]
-        keyword = ""
-        if "keyword" in self.request.data:
-            keyword = self.request.data["keyword"]
-        queryset = Contact.objects.filter(
-            origin=self.request.user.id,
-            contact__user_type=user_type,
-            contact__user__username__icontains=keyword,
-        )
+            keyword = ""
+            if "keyword" in self.request.data:
+                keyword = self.request.data["keyword"]
+            queryset = Contact.objects.filter(
+                origin=self.request.user.id,
+                contact__user_type=user_type,
+                contact__user__username__icontains=keyword,
+            )
+        else:
+            queryset = []
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
