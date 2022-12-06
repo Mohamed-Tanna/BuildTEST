@@ -383,22 +383,113 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
         elif self.request.method == "POST":
             return ContactCreateSerializer
 
+
 class LoadFacilityView(GenericAPIView, ListModelMixin):
-    
-    permission_classes = [IsAuthenticated, IsShipmentPartyOrBroker,]
-    
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = FacilityFilterSerializer
+    queryset = Facility.objects.all()
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
+                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the facility name, state and city.", FacilityFilterSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def post(self, request, *args, **kwargs):
-        
+        """
+        List Facilities for the purpose of creating a Load.
+            List the facilities while filtering them based on a shipper, consignee, or both. Both facilities are
+            required for the creation of any load.
+
+            **Example**
+                >>> "keyword":
+                >>> "shipper": "username#00000"
+        """
         return self.list(request, *args, **kwargs)
-    
+
+    # override
     def get_queryset(self):
-        
+
         assert self.queryset is not None, (
             "'%s' should either include a `queryset` attribute, "
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
+        keyword = ""
+        if "keyword" in self.request.data:
+            keyword = self.request.data["keyword"]
+        if "shipper" in self.request.data:
+            username = self.request.data["shipper"]
+            shipper = User.objects.get(username=username)
+            queryset = Facility.objects.filter(
+                owner=shipper.id, building_name__icontains=keyword
+            ).order_by("building_name")
+        elif "consignee" in self.request.data:
+            username = self.request.data["consignee"]
+            consignee = User.objects.get(username=username)
+            queryset = Facility.objects.filter(
+                owner=consignee.id, building_name__icontains=keyword
+            ).order_by("building_name")
+        else:
+            queryset = []
 
-        queryset = Facility.objects.filter(owner=self.request.user.id)
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
+
+class ContactLoadView(GenericAPIView, ListModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = ContactListSerializer
+    queryset = Contact.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        """
+        List a specific type of contacts for the purpose of searching.
+            List the contacts while filtering them based on their user type and their usernames.
+
+            **Example**
+                >>> "type": "shipment party"
+                >>> "keyword": "oth"
+        """
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        user_type = ""
+        if "type" in self.request.data:
+            user_type = self.request.data["type"]
+        keyword = ""
+        if "keyword" in self.request.data:
+            keyword = self.request.data["keyword"]
+        queryset = Contact.objects.filter(
+            origin=self.request.user.id,
+            contact__user_type=user_type,
+            contact__user__username__icontains=keyword,
+        )
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset

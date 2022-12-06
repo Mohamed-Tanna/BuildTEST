@@ -6,4 +6,6 @@ urlpatterns = [
     path("load/", LoadView.as_view()),
     path("load/<id>/", LoadView.as_view()),
     path("contact/", ContactView.as_view()),
+    path("load-facility/", LoadFacilityView.as_view()),
+    path("load-contact/", ContactLoadView.as_view())
 ]

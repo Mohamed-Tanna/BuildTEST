@@ -66,3 +66,9 @@ class ContactCreateSerializer(serializers.ModelSerializer):
             "origin",
             "contact",
         ]
+
+
+class FacilityFilterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Facility
+        fields = ["building_name", "state", "city"]
