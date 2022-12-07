@@ -250,9 +250,13 @@ class LoadView(
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
         app_user = AppUser.objects.get(user=self.request.user.id)
+        filter_query = Q()
+        filter_query.add(Q(created_by=self.request.user.id), Q.OR)
         if app_user.user_type == "shipment party":
             try:
                 shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
+                filter_query.add(Q(shipper=shipment_party.id), Q.OR)
+                filter_query.add(Q(consignee=shipment_party.id), Q.OR)
             except ShipmentParty.DoesNotExist as e:
                 print(f"Unexpected {e=}, {type(e)=}")
             except BaseException as e:
@@ -260,6 +264,7 @@ class LoadView(
         elif app_user.user_type == "broker":
             try:
                 broker = Broker.objects.get(app_user=app_user.id)
+                filter_query.add(Q(broker=broker.id), Q.OR)
             except Broker.DoesNotExist as e:
                 print(f"Unexpected {e=}, {type(e)=}")
             except BaseException as e:
@@ -267,18 +272,13 @@ class LoadView(
         elif app_user.user_type == "carrier":
             try:
                 carrier = Carrier.objects.get(app_user=app_user.id)
+                filter_query.add(Q(carrier=carrier.id), Q.OR)
             except Carrier.DoesNotExist as e:
                 print(f"Unexpected {e=}, {type(e)=}")
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        queryset = Load.objects.filter(
-            Q(created_by=self.request.user.id)
-            | Q(shipper=shipment_party.id)
-            | Q(consignee=shipment_party.id)
-            | Q(broker=broker.id)
-            | Q(carreir=carrier.id)
-        )
+        queryset = Load.objects.filter(filter_query)
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -487,7 +487,7 @@ class ContactLoadView(GenericAPIView, ListModelMixin):
             "'%s' should either include a `queryset` attribute, "
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
-        
+
         if "type" in self.request.data:
             user_type = self.request.data["type"]
             keyword = ""
