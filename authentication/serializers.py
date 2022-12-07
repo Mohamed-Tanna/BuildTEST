@@ -3,12 +3,6 @@ from rest_framework import serializers
 from authentication.models import AppUser
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["username"]
-
-
 # def valid_phone_number(phone_number):
 #     phone_number_pattern = re.compile(
 #         "^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$"
@@ -18,11 +12,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class AppUserSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    username = serializers.ReadOnlyField(source="user.username")
 
     class Meta:
         model = AppUser
-        fields = ["user", "phone_number", "user_type"]
+        fields = ["user", "phone_number", "user_type", "username"]
 
 
 class BaseUserUpdateSerializer(serializers.ModelSerializer):

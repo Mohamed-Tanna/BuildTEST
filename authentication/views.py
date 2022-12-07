@@ -73,10 +73,13 @@ class AppUserView(GenericAPIView, CreateModelMixin):
                 >>> phone_number : +1 (123) 456-7890
         """
 
-        user = request.user
+        user = request.user.id
         try:
+            print("in")
             email_address = EmailAddress.objects.get(user=user)
+            print("in 1")
             if email_address.verified == True:
+                print("in 2")
                 return self.create(request, *args, **kwargs)
             else:
                 msg = gettext_lazy("email address is not verified")
