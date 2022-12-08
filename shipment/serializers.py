@@ -26,6 +26,7 @@ class LoadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Load
         fields = [
+            "id",
             "created_by",
             "name",
             "shipper",
@@ -47,6 +48,7 @@ class LoadSerializer(serializers.ModelSerializer):
             "broker": {"required": False},
             "quantity": {"required": False},
         }
+        read_only_fields = ("id",)
 
 
 class ContactListSerializer(serializers.ModelSerializer):

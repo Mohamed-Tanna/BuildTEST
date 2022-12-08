@@ -2,7 +2,7 @@ import os
 
 from django.core.exceptions import ImproperlyConfigured
 
-ENVS = ["DEV", "PROD", "STAGING"]
+ENVS = ["LOCAL" ,"DEV", "PROD", "STAGING"]
 
 env = os.getenv("ENV")
 
@@ -17,4 +17,5 @@ match env:
         from .prod import *
     case "STAGING":
         from .staging import *
-# from .local import *
+    case "LOCAL":
+        from .local import *

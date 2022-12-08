@@ -230,66 +230,126 @@ class LoadView(
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
-        try:
-            app_user = AppUser.objects.get(user=request.user)
-            request.data["created_by"] = str(app_user.id)
-            
-            if "shipper" in request.data:
-                username = request.data["shipper"]
-                try:
-                    shipper = User.objects.get(username=username)
-                    shipper = AppUser.objects.get(user=shipper.id)
-                    shipper = ShipmentParty.objects.get(app_user=shipper.id)
-                    request.data["shipper"] = str(shipper.id)
-                except User.DoesNotExist:
-                    return Response({"detail": ["shipper does not exist."]}, status=status.HTTP_404_NOT_FOUND)
-                except BaseException as e:
-                    print(f"Unexpected {e=}, {type(e)=}")
-                    return Response({"detail": ["This user is not a shipper."]}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({"detail": ["shipper is requried."]}, status=status.HTTP_400_BAD_REQUEST)
-            
-            if "consignee" in request.data:
-                username = request.data["consignee"]
-                try:
-                    consignee = User.objects.get(username=username)
-                    consignee = AppUser.objects.get(user=consignee.id)
-                    consignee = ShipmentParty.objects.get(app_user=consignee.id)
-                    request.data["consignee"] = str(consignee.id)
-                except User.DoesNotExist:
-                    return Response({"detail": ["consignee does not exist."]}, status=status.HTTP_404_NOT_FOUND)
-                except BaseException as e:
-                    print(f"Unexpected {e=}, {type(e)=}")
-                    return Response({"detail": ["This user is not a consignee."]}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({"detail": ["consignee is requried."]}, status=status.HTTP_400_BAD_REQUEST)
-            
-            if "broker" in request.data:
-                username = request.data["broker"]
-                try:
-                    broker = User.objects.get(username=username)
-                    broker = AppUser.objects.get(user=broker.id)
-                    broker = Broker.objects.get(app_user=broker.id)
-                    request.data["broker"] = str(broker.id)
-                except User.DoesNotExist:
-                    return Response({"detail": ["broker does not exist."]}, status=status.HTTP_404_NOT_FOUND)
-                except BaseException as e:
-                    print(f"Unexpected {e=}, {type(e)=}")
-                    return Response({"detail": ["This user is not broker."]}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({"detail": ["broker is requried."]}, status=status.HTTP_400_BAD_REQUEST)
-            
-        except AppUser.DoesNotExist:
-                return Response({"detail": ["app user does not exist."]}, status=status.HTTP_404_NOT_FOUND)
-          
+
+        app_user = AppUser.objects.get(user=request.user)
+        request.data["created_by"] = str(app_user.id)
+
+        if "shipper" in request.data:
+            username = request.data["shipper"]
+            try:
+                shipper = User.objects.get(username=username)
+                shipper = AppUser.objects.get(user=shipper.id)
+                shipper = ShipmentParty.objects.get(app_user=shipper.id)
+                request.data["shipper"] = str(shipper.id)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": ["shipper does not exist."]},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                return Response(
+                    {"detail": ["This user is not a shipper."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        else:
+            return Response(
+                {"detail": ["shipper is requried."]}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if "consignee" in request.data:
+            username = request.data["consignee"]
+            try:
+                consignee = User.objects.get(username=username)
+                consignee = AppUser.objects.get(user=consignee.id)
+                consignee = ShipmentParty.objects.get(app_user=consignee.id)
+                request.data["consignee"] = str(consignee.id)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": ["consignee does not exist."]},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                return Response(
+                    {"detail": ["This user is not a consignee."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        else:
+            return Response(
+                {"detail": ["consignee is requried."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if "broker" in request.data:
+            username = request.data["broker"]
+            try:
+                broker = User.objects.get(username=username)
+                broker = AppUser.objects.get(user=broker.id)
+                broker = Broker.objects.get(app_user=broker.id)
+                request.data["broker"] = str(broker.id)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": ["broker does not exist."]},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                return Response(
+                    {"detail": ["This user is not broker."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        else:
+            return Response(
+                {"detail": ["broker is requried."]}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        try:
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
 
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        except BaseException as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+
+            if "delivery_date_check" in str(
+                e.__cause__
+            ) or "pick_up_date should be greater than or equal today's date" in str(
+                e.__cause__
+            ):
+                return Response(
+                    {
+                        "detail": [
+                            "Invalid pick up or drop off date's, please double check the dates and try again"
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            elif "pick up location and drop off location cannot be equal" in str(
+                e.__cause__
+            ):
+                return Response(
+                    {
+                        "detail": [
+                            "pick up location and drop off location cannot be equal, please double check the dates and try again"
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            else:
+                return Response(
+                    {"detail": [f"{e.args[0]}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
     # override
     def get_queryset(self):
@@ -300,7 +360,7 @@ class LoadView(
         )
         app_user = AppUser.objects.get(user=self.request.user.id)
         filter_query = Q()
-        filter_query.add(Q(created_by=self.request.user.id), Q.OR)
+        filter_query.add(Q(created_by=app_user.id), Q.OR)
         if app_user.user_type == "shipment party":
             try:
                 shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
