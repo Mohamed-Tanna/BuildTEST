@@ -7,6 +7,7 @@ class FacilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Facility
         fields = [
+            "id",
             "owner",
             "building_number",
             "building_name",
@@ -20,7 +21,8 @@ class FacilitySerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "extra_info": {"required": False},
         }
-
+        read_only_fields = ("id",)
+        
 
 class LoadSerializer(serializers.ModelSerializer):
     class Meta:
