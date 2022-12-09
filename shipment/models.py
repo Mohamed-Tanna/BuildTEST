@@ -72,7 +72,7 @@ class Load(models.Model):
     status = models.CharField(
         choices=[
             ("Created", "Created"),
-            ("Information Recieved", "Information Recieved"),
+            ("Pending", "Pending"),
             ("Confirmed", "Confirmed"),
             ("Signed", "Signed"),
             ("Ready For Pick Up", "Ready For Pick Up"),

@@ -75,11 +75,9 @@ class AppUserView(GenericAPIView, CreateModelMixin):
 
         user = request.user.id
         try:
-            print("in")
             email_address = EmailAddress.objects.get(user=user)
-            print("in 1")
+
             if email_address.verified == True:
-                print("in 2")
                 return self.create(request, *args, **kwargs)
             else:
                 msg = gettext_lazy("email address is not verified")
@@ -95,7 +93,9 @@ class AppUserView(GenericAPIView, CreateModelMixin):
 
     @swagger_auto_schema(
         responses={
-            200: "User Exist",
+            200: openapi.Response(
+                "App user exists.", AppUserSerializer
+            ),
             400: "Bad Request",
             404: "Not Found",
             500: "Internal Server Error",
@@ -104,8 +104,9 @@ class AppUserView(GenericAPIView, CreateModelMixin):
     def get(self, request, *args, **kwargs):
 
         try:
-            AppUser.objects.get(user=request.user)
-            return Response(status=status.HTTP_200_OK)
+            app_user = AppUser.objects.get(user=request.user)
+            data = AppUserSerializer(app_user).data
+            return Response(data=data, status=status.HTTP_200_OK)
 
         except ObjectDoesNotExist:
             return Response(
@@ -183,24 +184,6 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
     ]
     serializer_class = ShipmentPartySerializer
     queryset = ShipmentParty.objects.all()
-
-    # override
-    def create(self, request, *args, **kwargs):
-
-        app_user = AppUser.objects.get(user=request.user)
-
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        request.data["app_user"] = str(app_user.id)
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
             
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -229,6 +212,24 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
         return self.create(request, *args, **kwargs)
 
+    # override
+    def create(self, request, *args, **kwargs):
+
+        app_user = AppUser.objects.get(user=request.user)
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["app_user"] = str(app_user.id)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
 
 class CarrierView(GenericAPIView, CreateModelMixin):
 
@@ -238,6 +239,25 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     ]
     serializer_class = CarrierSerializer
     queryset = Carrier.objects.all()
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["DOT_number"],
+            properties={
+                "DOT_number": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            201: "CREATED",
+            400: "BAD REQUEST",
+            404: "NOT FOUND",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
 
     # override
     def perform_create(self, serializer):
@@ -294,12 +314,23 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+
+class BrokerView(GenericAPIView, CreateModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAppUser,
+    ]
+    serializer_class = BrokerSerializer
+    queryset = Broker.objects.all()
+
+    
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["DOT_number"],
+            required=["MC_number"],
             properties={
-                "DOT_number": openapi.Schema(type=openapi.TYPE_STRING),
+                "MC_number": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
         responses={
@@ -312,16 +343,6 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
-
-
-class BrokerView(GenericAPIView, CreateModelMixin):
-
-    permission_classes = [
-        IsAuthenticated,
-        IsAppUser,
-    ]
-    serializer_class = BrokerSerializer
-    queryset = Broker.objects.all()
 
     # override
     def perform_create(self, serializer):
@@ -377,22 +398,3 @@ class BrokerView(GenericAPIView, CreateModelMixin):
                 {"user role": ["User is not registered as a broker"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
-
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["MC_number"],
-            properties={
-                "MC_number": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            201: "CREATED",
-            400: "BAD REQUEST",
-            404: "NOT FOUND",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
-    def post(self, request, *args, **kwargs):
-
-        return self.create(request, *args, **kwargs)

@@ -22,35 +22,51 @@ class FacilitySerializer(serializers.ModelSerializer):
             "extra_info": {"required": False},
         }
         read_only_fields = ("id",)
-        
 
-class LoadSerializer(serializers.ModelSerializer):
+
+class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Load
-        fields = [
-            "id",
-            "created_by",
-            "name",
-            "shipper",
-            "consignee",
-            "broker",
-            "carrier",
-            "pick_up_date",
-            "delivery_date",
-            "pick_up_location",
-            "destination",
-            "height",
-            "width",
-            "weight",
-            "depth",
-            "quantity",
-        ]
+        fields = "__all__"
         extra_kwargs = {
             "carrier": {"required": False},
             "broker": {"required": False},
             "quantity": {"required": False},
         }
-        read_only_fields = ("id",)
+        read_only_fields = (
+            "id",
+            "status",
+        )
+
+
+class LoadListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Load
+        fields = [
+            "id",
+            "name",
+            "shipper",
+            "consignee",
+            "broker",
+            "pick_up_location",
+            "destination",
+            "pick_up_date",
+            "delivery_date",
+            "status",
+        ]
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["shipper"] = instance.shipper.app_user.user.username
+        rep["consignee"] = instance.consignee.app_user.user.username
+        try:
+            rep["broker"] = instance.broker.app_user.user.username
+        except BaseException as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            rep["broker"] = None
+        rep["pick_up_location"] = instance.pick_up_location.building_name
+        rep["destination"] = instance.destination.building_name
+        return rep
 
 
 class ContactListSerializer(serializers.ModelSerializer):
@@ -75,4 +91,4 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 class FacilityFilterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Facility
-        fields = ["id" ,"building_name", "state", "city"]
+        fields = ["id", "building_name", "state", "city"]

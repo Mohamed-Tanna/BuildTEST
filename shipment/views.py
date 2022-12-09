@@ -10,7 +10,6 @@ from django.db.models.query import QuerySet
 
 # DRF imports
 from rest_framework import status
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
@@ -78,7 +77,21 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
         return self.create(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.",
+                FacilitySerializer,
+            ),
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def get(self, request, *args, **kwargs):
+        """
+        List all facilities the belong to the authenticated user.
+        """
 
         return self.list(request, *args, **kwargs)
 
@@ -88,13 +101,8 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
             "'%s' should either include a `queryset` attribute, "
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
+        queryset = Facility.objects.filter(owner=self.request.user.id)
 
-        if self.request.query_params.__contains__("shipment-party"):
-            queryset = Facility.objects.filter(
-                owner=self.request.query_params.get("owner")
-            )
-        else:
-            queryset = Facility.objects.filter(owner=self.request.user.id)
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -119,7 +127,6 @@ class LoadView(
     GenericAPIView,
     CreateModelMixin,
     UpdateModelMixin,
-    RetrieveModelMixin,
     ListModelMixin,
 ):
 
@@ -127,17 +134,29 @@ class LoadView(
         IsAuthenticated,
         IsShipmentPartyOrBroker,
     ]
-
-    serializer_class = LoadSerializer
     queryset = Load.objects.all()
     lookup_field = "id"
 
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                "Returns a load list.",
+                LoadListSerializer,
+            ),
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def get(self, request, *args, **kwargs):
+        """
+        List all loads related to a user to be represented in a table.
 
-        if self.kwargs:
-            return self.retrieve(request, *args, **kwargs)
-        else:
-            return self.list(request, *args, **kwargs)
+            taking the authenticated user and listing all of the loads that he is a part of either a shipper, 
+            a consignee, a broker or even the ones he created.
+        """
+
+        return self.list(request, *args, **kwargs)
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -174,7 +193,6 @@ class LoadView(
         },
     )
     def post(self, request, *args, **kwargs):
-
         """
         Create a Load
 
@@ -187,22 +205,11 @@ class LoadView(
         return self.create(request, *args, **kwargs)
 
     @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
-                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "broker": openapi.Schema(type=openapi.TYPE_STRING),
-                "carrier": openapi.Schema(type=openapi.TYPE_STRING),
-                "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
-                "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
-                "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
-                "destination": openapi.Schema(type=openapi.TYPE_STRING),
-                "status": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
+        request_body=LoadCreateRetrieveSerializer,
         responses={
-            200: "OK",
+            200: openapi.Response(
+                "Return the updated Load.", LoadCreateRetrieveSerializer
+            ),
             204: "NO CONTENT",
             304: "NOT MODIFIED",
             422: "UNPROCESSABLE ENTITY",
@@ -211,7 +218,6 @@ class LoadView(
         },
     )
     def put(self, request, *args, **kwargs):
-
         """
         Update load's shipper, consignee, broker, carrier, pick up location, destination, pick up date, delivery date
 
@@ -223,6 +229,7 @@ class LoadView(
                 >>> carrier: carrier_id
                 >>> broker: broker_id
         """
+
         return self.partial_update(request, *args, **kwargs)
 
     # override
@@ -301,7 +308,6 @@ class LoadView(
                     {"detail": ["This user is not broker."]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -388,6 +394,44 @@ class LoadView(
             queryset = queryset.all()
         return queryset
 
+    # override
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return LoadListSerializer
+        elif self.request.method == "POST":
+            return LoadCreateRetrieveSerializer
+        else:
+            return LoadCreateRetrieveSerializer
+
+
+class RetrieveLoadView(
+    GenericAPIView,
+    RetrieveModelMixin,
+):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = LoadCreateRetrieveSerializer
+    queryset = Load.objects.all()
+    lookup_field = "id"
+
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.",
+                LoadCreateRetrieveSerializer,
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
 
 class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModelMixin):
 
@@ -395,9 +439,19 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
         IsAuthenticated,
         IsAppUser,
     ]
-
     queryset = Contact.objects.all()
 
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.", ContactListSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
@@ -411,6 +465,16 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
                 "contact": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
+        responses={
+            200: openapi.Response(
+                "Return the created contact object.", ContactCreateSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            404: "DOES NOT EXIST",
+            500: "INTERNAL SERVER ERROR",
+        },
     )
     def post(self, request, *args, **kwargs):
         """
@@ -422,9 +486,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
         """
         return self.create(request, *args, **kwargs)
 
-    # def delete(self, request, *args, **kwargs):
-    #     return self.destroy(request, *args, **kwargs)
-
+    # override
     def create(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
@@ -464,6 +526,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    # override
     def perform_create(self, serializer):
         conatct = serializer.save()
         app_user = AppUser.objects.get(id=conatct.contact.id)
@@ -471,6 +534,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
         contact_app_user = AppUser.objects.get(user=conatct.origin.id)
         Contact.objects.create(origin=origin_user, contact=contact_app_user)
 
+    # override
     def get_queryset(self):
 
         assert self.queryset is not None, (
@@ -504,6 +568,7 @@ class LoadFacilityView(GenericAPIView, ListModelMixin):
             properties={
                 "shipper": openapi.Schema(type=openapi.TYPE_STRING),
                 "consignee": openapi.Schema(type=openapi.TYPE_STRING),
+                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
         responses={
@@ -523,7 +588,7 @@ class LoadFacilityView(GenericAPIView, ListModelMixin):
             required for the creation of any load.
 
             **Example**
-                >>> "keyword":
+                >>> "keyword": "xyz"
                 >>> "shipper": "username#00000"
         """
         return self.list(request, *args, **kwargs)
@@ -575,6 +640,24 @@ class ContactLoadView(GenericAPIView, ListModelMixin):
     serializer_class = ContactListSerializer
     queryset = Contact.objects.all()
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "type": openapi.Schema(type=openapi.TYPE_STRING),
+                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.", ContactListSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def post(self, request, *args, **kwargs):
         """
         List a specific type of contacts for the purpose of searching.
@@ -582,7 +665,7 @@ class ContactLoadView(GenericAPIView, ListModelMixin):
 
             **Example**
                 >>> "type": "shipment party"
-                >>> "keyword": "oth"
+                >>> "keyword": "xyz"
         """
         return self.list(request, *args, **kwargs)
 
