@@ -302,10 +302,6 @@ class LoadView(
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        else:
-            return Response(
-                {"detail": ["broker is requried."]}, status=status.HTTP_400_BAD_REQUEST
-            )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
