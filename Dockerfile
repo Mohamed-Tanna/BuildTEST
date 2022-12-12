@@ -16,7 +16,8 @@ RUN pip wheel -r requirements.txt
 #production stage
 FROM python:3.10.8-alpine AS production-stage
 
-USER runner
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
 WORKDIR /code
 
