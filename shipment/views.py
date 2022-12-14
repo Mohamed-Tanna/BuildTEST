@@ -400,18 +400,12 @@ class LoadView(
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        try:
-            user = AppUser.objects.get(user=self.request.user.id)
-            load = Load.objects.get(created_by=user.id)
+        # check that the user requesting to update the load is the one who created it 
+        user = AppUser.objects.get(user=self.request.user.id)
+        
+        if Load.objects.filter(created_by=user.id).exists():
             self.perform_update(serializer)
-
-            if getattr(instance, "_prefetched_objects_cache", None):
-                # If 'prefetch_related' has been applied to a queryset, we need to
-                # forcibly invalidate the prefetch cache on the instance.
-                instance._prefetched_objects_cache = {}
-
-            return Response(serializer.data)
-        except Load.DoesNotExist:
+        else:
             return Response(
                 {
                     "detail": [
@@ -420,12 +414,14 @@ class LoadView(
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
-        except BaseException as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            return Response(
-                {"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST
-            )
 
+        if getattr(instance, "_prefetched_objects_cache", None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+        return Response(serializer.data)
+            
+        
     # override
     def get_serializer_class(self):
         if self.request.method == "GET":
