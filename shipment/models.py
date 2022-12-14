@@ -114,3 +114,19 @@ class Contact(models.Model):
 
     class Meta:
         unique_together = (("origin", "contact"),)
+
+
+class Offer(models.Model):
+    bidder = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
+    receiver = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
+    value = models.DecimalField(null=False, max_digits=8, decimal_places=2)
+    status = models.CharField(
+        null=False,
+        choices=[
+            ("Accepted", "Accepted"),
+            ("Rejected", "Rejected"),
+            ("Pending", "Pending"),
+        ],
+        max_length=8,
+        default="Pending",
+    )

@@ -152,7 +152,7 @@ class LoadView(
         """
         List all loads related to a user to be represented in a table.
 
-            taking the authenticated user and listing all of the loads that he is a part of either a shipper, 
+            taking the authenticated user and listing all of the loads that he is a part of either a shipper,
             a consignee, a broker or even the ones he created.
         """
 
@@ -393,6 +393,38 @@ class LoadView(
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
+
+    # override
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user = AppUser.objects.get(user=self.request.user.id)
+            load = Load.objects.get(created_by=user.id)
+            self.perform_update(serializer)
+
+            if getattr(instance, "_prefetched_objects_cache", None):
+                # If 'prefetch_related' has been applied to a queryset, we need to
+                # forcibly invalidate the prefetch cache on the instance.
+                instance._prefetched_objects_cache = {}
+
+            return Response(serializer.data)
+        except Load.DoesNotExist:
+            return Response(
+                {
+                    "detail": [
+                        "The load you are trying to update does not exist or you are not the creator of this load."
+                    ]
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except BaseException as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            return Response(
+                {"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST
+            )
 
     # override
     def get_serializer_class(self):
@@ -691,3 +723,18 @@ class ContactLoadView(GenericAPIView, ListModelMixin):
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
+
+
+class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
+    
+    def get(self, request, *args, **kwargs):
+        
+        return self.list(request, *args, **kwargs)
+    
+    def post(self, request, *args, **kwargs):
+        
+        return self.create(request, *args, **kwargs)
+    
+    def put(self, request, *args, **kwargs):
+        
+        return self.partial_update(request, *args, **kwargs)
