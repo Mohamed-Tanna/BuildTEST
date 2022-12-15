@@ -341,7 +341,7 @@ class LoadView(
                 return Response(
                     {
                         "detail": [
-                            "pick up location and drop off location cannot be equal, please double check the dates and try again"
+                            "pick up location and drop off location cannot be equal, please double check the locations and try again"
                         ]
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -420,8 +420,7 @@ class LoadView(
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
-            
-        
+              
     # override
     def get_serializer_class(self):
         if self.request.method == "GET":

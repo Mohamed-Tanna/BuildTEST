@@ -117,8 +117,8 @@ class Contact(models.Model):
 
 
 class Offer(models.Model):
-    bidder = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
-    receiver = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
+    bidder = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE, related_name="bidder")
+    receiver = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE, related_name="receiver")
     value = models.DecimalField(null=False, max_digits=8, decimal_places=2)
     status = models.CharField(
         null=False,
