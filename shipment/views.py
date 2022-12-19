@@ -1,5 +1,6 @@
 # Module imports
 from .models import *
+from .utilities import *
 from .serializers import *
 from authentication.permissions import *
 
@@ -22,8 +23,9 @@ from rest_framework.mixins import (
 )
 
 # ThirdParty imports
-from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+
 
 
 class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
@@ -205,7 +207,29 @@ class LoadView(
         return self.create(request, *args, **kwargs)
 
     @swagger_auto_schema(
-        request_body=LoadCreateRetrieveSerializer,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "created_by": openapi.Schema(type=openapi.TYPE_STRING),
+                "name": openapi.Schema(type=openapi.TYPE_STRING),
+                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
+                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
+                "broker": openapi.Schema(type=openapi.TYPE_STRING),
+                "carrier": openapi.Schema(type=openapi.TYPE_STRING),
+                "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
+                "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
+                "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
+                "destination": openapi.Schema(type=openapi.TYPE_STRING),
+                "height": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "width": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "weight": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "depth": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "quantity": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "goods_info": openapi.Schema(type=openapi.TYPE_STRING),
+                "load_type": openapi.Schema(type=openapi.TYPE_STRING),
+                "status": openapi.Schema(type=openapi.TYPE_STRING),
+            }
+        ),
         responses={
             200: openapi.Response(
                 "Return the updated Load.", LoadCreateRetrieveSerializer
@@ -243,23 +267,9 @@ class LoadView(
 
         if "shipper" in request.data:
             username = request.data["shipper"]
-            try:
-                shipper = User.objects.get(username=username)
-                shipper = AppUser.objects.get(user=shipper.id)
-                shipper = ShipmentParty.objects.get(app_user=shipper.id)
-                request.data["shipper"] = str(shipper.id)
-            except User.DoesNotExist:
-                return Response(
-                    {"detail": ["shipper does not exist."]},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                return Response(
-                    {"detail": ["This user is not a shipper."]},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+            shipper = get_shipment_party_by_username(username=username)
+            request.data["shipper"] = str(shipper.id)
+            
         else:
             return Response(
                 {"detail": ["shipper is requried."]}, status=status.HTTP_400_BAD_REQUEST
@@ -267,23 +277,9 @@ class LoadView(
 
         if "consignee" in request.data:
             username = request.data["consignee"]
-            try:
-                consignee = User.objects.get(username=username)
-                consignee = AppUser.objects.get(user=consignee.id)
-                consignee = ShipmentParty.objects.get(app_user=consignee.id)
-                request.data["consignee"] = str(consignee.id)
-            except User.DoesNotExist:
-                return Response(
-                    {"detail": ["consignee does not exist."]},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                return Response(
-                    {"detail": ["This user is not a consignee."]},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+            consignee = get_shipment_party_by_username(username=username)
+            request.data["consignee"] = str(consignee.id)
+            
         else:
             return Response(
                 {"detail": ["consignee is requried."]},
@@ -292,25 +288,12 @@ class LoadView(
 
         if "broker" in request.data:
             username = request.data["broker"]
-            try:
-                broker = User.objects.get(username=username)
-                broker = AppUser.objects.get(user=broker.id)
-                broker = Broker.objects.get(app_user=broker.id)
-                request.data["broker"] = str(broker.id)
-            except User.DoesNotExist:
-                return Response(
-                    {"detail": ["broker does not exist."]},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                return Response(
-                    {"detail": ["This user is not broker."]},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+            broker = get_broker_by_username(username=username)
+            request.data["broker"] = str(broker.id)
+            
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        # check database constraints
         try:
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
@@ -323,7 +306,7 @@ class LoadView(
 
             if "delivery_date_check" in str(
                 e.__cause__
-            ) or "pick_up_date should be greater than or equal today's date" in str(
+            ) or "pick_up_date" in str(
                 e.__cause__
             ):
                 return Response(
@@ -335,7 +318,7 @@ class LoadView(
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            elif "pick up location and drop off location cannot be equal" in str(
+            elif "pick up location" in str(
                 e.__cause__
             ):
                 return Response(
@@ -396,15 +379,41 @@ class LoadView(
 
     # override
     def update(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        if "shipper" in request.data:
+            username = request.data["shipper"]
+            shipper = get_shipment_party_by_username(username=username)
+            request.data["shipper"] = str(shipper.id)
+              
+        if "consignee" in request.data:
+            username = request.data["consignee"]
+            consignee = get_shipment_party_by_username(username=username)
+            request.data["consignee"] = str(consignee.id)
+
+        if "broker" in request.data:
+            username = request.data["broker"]
+            broker = get_broker_by_username(username=username)
+            request.data["broker"] = str(broker.id)
+
+        if "carrier" in request.data:
+            username = request.data["carrier"]
+            carrier = get_carrier_by_username(username=username)
+            request.data["carrier"] = str(carrier.id)
+            
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
+
         # check that the user requesting to update the load is the one who created it 
         user = AppUser.objects.get(user=self.request.user.id)
         
-        if Load.objects.filter(created_by=user.id).exists():
+        if Load.objects.filter(id=instance.id, created_by=user.id).exists():
             self.perform_update(serializer)
+
         else:
             return Response(
                 {
