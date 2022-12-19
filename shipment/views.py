@@ -372,7 +372,7 @@ class LoadView(
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        queryset = Load.objects.filter(filter_query)
+        queryset = Load.objects.filter(filter_query).order_by("-id")
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
