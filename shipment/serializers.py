@@ -1,5 +1,5 @@
-from rest_framework import serializers
 from .models import *
+from rest_framework import serializers
 from authentication.serializers import AppUserSerializer
 
 

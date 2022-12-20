@@ -421,7 +421,7 @@ class LoadView(
                         "The load you are trying to update does not exist or you are not the creator of this load."
                     ]
                 },
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         if getattr(instance, "_prefetched_objects_cache", None):
