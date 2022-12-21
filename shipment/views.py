@@ -386,22 +386,34 @@ class LoadView(
         if "shipper" in request.data:
             username = request.data["shipper"]
             shipper = get_shipment_party_by_username(username=username)
-            request.data["shipper"] = str(shipper.id)
+            if isinstance(shipper, Response):
+                return shipper
+            else:
+                request.data["shipper"] = str(shipper.id)
               
         if "consignee" in request.data:
             username = request.data["consignee"]
             consignee = get_shipment_party_by_username(username=username)
-            request.data["consignee"] = str(consignee.id)
+            if isinstance(consignee, Response):
+                return consignee
+            else:
+                request.data["consignee"] = str(consignee.id)
 
         if "broker" in request.data:
             username = request.data["broker"]
             broker = get_broker_by_username(username=username)
-            request.data["broker"] = str(broker.id)
+            if isinstance(broker, Response):
+                return broker
+            else:
+                request.data["broker"] = str(broker.id)
 
         if "carrier" in request.data:
             username = request.data["carrier"]
             carrier = get_carrier_by_username(username=username)
-            request.data["carrier"] = str(carrier.id)
+            if isinstance(carrier, Response):
+                return carrier
+            else:
+                request.data["carrier"] = str(carrier.id)
             
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
