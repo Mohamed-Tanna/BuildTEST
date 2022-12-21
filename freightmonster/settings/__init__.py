@@ -7,7 +7,7 @@ ENVS = ["LOCAL" ,"DEV", "PROD", "STAGING"]
 env = os.getenv("ENV")
 
 if env not in ENVS:
-    error_message = "The currnet 'ENV' is {env} but must be one of {ENVS}"
+    error_message = f"The currnet 'ENV' is {env} but must be one of {ENVS}"
     raise ImproperlyConfigured(error_message)
 
 match env:
