@@ -13,7 +13,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         """
 
         url = (
-            " http://localhost:3000/verify/"
+            "https://dev.freightslayer.com/verify/"
             + emailconfirmation.key
         )
         return url

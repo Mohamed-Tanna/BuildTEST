@@ -28,14 +28,15 @@ from drf_yasg.utils import swagger_auto_schema
 
 
 
-class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, RetrieveModelMixin):
 
     permission_classes = [
         IsAuthenticated,
         IsShipmentParty,
     ]
-    serializer_class = FacilitySerializer
+    lookup_field = "id"
     queryset = Facility.objects.all()
+    serializer_class = FacilitySerializer
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -95,7 +96,10 @@ class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin):
         List all facilities the belong to the authenticated user.
         """
 
-        return self.list(request, *args, **kwargs)
+        if self.kwargs:
+            return self.retrieve(request, *args, **kwargs)
+        else:
+            return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
 
