@@ -12,7 +12,7 @@ class TrailerAdmin(admin.ModelAdmin):
 
 class LoadAdmin(admin.ModelAdmin):
     
-    list_display = ["id", "name", "created_by", "shipper", "consignee", "pick_up_date", "delivery_date", "status"]
+    list_display = ["id", "name", "created_by", "shipper", "consignee", "pick_up_date", "delivery_date", "status", "shipment"]
 
 class ContactAdmin(admin.ModelAdmin):
 
@@ -20,7 +20,11 @@ class ContactAdmin(admin.ModelAdmin):
 
 class OfferAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "bidder", "receiver", "value"]
+    list_display = ["id", "party_1", "party_2", "initial", "current", "load", "status"]
+
+class ShipmentAdmin(admin.ModelAdmin):
+
+    list_display = ["id", "name", "created_by"]
 
 
 
