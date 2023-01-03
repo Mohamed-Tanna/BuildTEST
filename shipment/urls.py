@@ -10,4 +10,6 @@ urlpatterns = [
     path("load-facility/", LoadFacilityView.as_view()),
     path("load-contact/", ContactLoadView.as_view()),
     path("load-details/<id>/", RetrieveLoadView.as_view()),
+    path("", ShipmentView.as_view()),
+    path("<id>/", ShipmentView.as_view()),
 ]

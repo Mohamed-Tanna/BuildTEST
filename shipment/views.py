@@ -27,8 +27,9 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
 
-
-class FacilityView(GenericAPIView, CreateModelMixin, ListModelMixin, RetrieveModelMixin):
+class FacilityView(
+    GenericAPIView, CreateModelMixin, ListModelMixin, RetrieveModelMixin
+):
 
     permission_classes = [
         IsAuthenticated,
@@ -232,7 +233,7 @@ class LoadView(
                 "goods_info": openapi.Schema(type=openapi.TYPE_STRING),
                 "load_type": openapi.Schema(type=openapi.TYPE_STRING),
                 "status": openapi.Schema(type=openapi.TYPE_STRING),
-            }
+            },
         ),
         responses={
             200: openapi.Response(
@@ -273,7 +274,7 @@ class LoadView(
             username = request.data["shipper"]
             shipper = get_shipment_party_by_username(username=username)
             request.data["shipper"] = str(shipper.id)
-            
+
         else:
             return Response(
                 {"detail": ["shipper is requried."]}, status=status.HTTP_400_BAD_REQUEST
@@ -283,7 +284,7 @@ class LoadView(
             username = request.data["consignee"]
             consignee = get_shipment_party_by_username(username=username)
             request.data["consignee"] = str(consignee.id)
-            
+
         else:
             return Response(
                 {"detail": ["consignee is requried."]},
@@ -294,7 +295,7 @@ class LoadView(
             username = request.data["broker"]
             broker = get_broker_by_username(username=username)
             request.data["broker"] = str(broker.id)
-            
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # check database constraints
@@ -308,9 +309,7 @@ class LoadView(
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
 
-            if "delivery_date_check" in str(
-                e.__cause__
-            ) or "pick_up_date" in str(
+            if "delivery_date_check" in str(e.__cause__) or "pick_up_date" in str(
                 e.__cause__
             ):
                 return Response(
@@ -322,9 +321,7 @@ class LoadView(
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            elif "pick up location" in str(
-                e.__cause__
-            ):
+            elif "pick up location" in str(e.__cause__):
                 return Response(
                     {
                         "detail": [
@@ -394,7 +391,7 @@ class LoadView(
                 return shipper
             else:
                 request.data["shipper"] = str(shipper.id)
-              
+
         if "consignee" in request.data:
             username = request.data["consignee"]
             consignee = get_shipment_party_by_username(username=username)
@@ -418,15 +415,15 @@ class LoadView(
                 return carrier
             else:
                 request.data["carrier"] = str(carrier.id)
-            
+
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        # check that the user requesting to update the load is the one who created it 
+        # check that the user requesting to update the load is the one who created it
         user = AppUser.objects.get(user=self.request.user.id)
-        
+
         if Load.objects.filter(id=instance.id, created_by=user.id).exists():
             self.perform_update(serializer)
 
@@ -445,7 +442,7 @@ class LoadView(
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
-              
+
     # override
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -745,16 +742,152 @@ class ContactLoadView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
-    
+class ShipmentView(
+    GenericAPIView,
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin,
+    UpdateModelMixin,
+):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = ShipmentSerializer
+    queryset = Shipment.objects.all()
+    lookup_field = "id"
+
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response("Returns a list of shipments.", ShipmentSerializer),
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        }
+    )
     def get(self, request, *args, **kwargs):
-        
-        return self.list(request, *args, **kwargs)
-    
+        """
+        List all shipments that is created by the authenticated user
+        """
+        if self.kwargs:
+            return self.retrieve(request, *args, **kwargs)
+        else:
+            return self.list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={"name": openapi.Schema(type=openapi.TYPE_STRING)},
+            required=[
+                "name",
+            ],
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the created shipment.",
+                ShipmentSerializer,
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def post(self, request, *args, **kwargs):
-        
+        """
+        Create a shipment.
+
+            **Example**
+            >>> "name": "shipment name"
+        """
         return self.create(request, *args, **kwargs)
-    
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "name": openapi.TYPE_STRING,
+                "status": openapi.TYPE_STRING,
+                "created_by": openapi.TYPE_INTEGER,
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the updated shipment.",
+                ShipmentSerializer,
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def put(self, request, *args, **kwargs):
-        
+        """
+        Update a shipment.
+            update a shipment by changing the user who created this shipment or changing the shipments name or status
+
+            **Example**
+            >>> "created_by": "username#00000"
+        """
+        return self.partial_update(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        app_user = AppUser.objects.get(user=request.user.id)
+
+        if str(instance.created_by) == app_user.user.username:
+            return Response(serializer.data)
+        else:
+            return Response(
+                {
+                    "detail": [
+                        "You are not the creator of this Load",
+                    ]
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    def get_queryset(self):
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        app_user = AppUser.objects.get(user=self.request.user.id)
+        queryset = Shipment.objects.filter(created_by=app_user.id)
+
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        app_user = AppUser.objects.get(user=request.user)
+        request.data["created_by"] = str(app_user.id)
+        request.data["status"] = "Created"
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+
+class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
+    def get(self, request, *args, **kwargs):
+
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+
         return self.partial_update(request, *args, **kwargs)

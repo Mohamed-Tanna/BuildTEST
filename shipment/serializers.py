@@ -124,3 +124,22 @@ class OfferSerializer(serializers.ModelSerializer):
             "status": {"required": False},
         }
         read_only_fields = ("id",)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["party_1"] = instance.party_1.app_user.user.username
+        rep["party_2"] = instance.party_2.user.username
+        return rep
+
+
+class ShipmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shipment
+        fields = "__all__"
+        read_only_fields = ("id",)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["created_by"] = instance.created_by.user.username
+
+        return rep
