@@ -46,6 +46,10 @@ class Shipment(models.Model):
         default="Created",
     )
 
+    class Meta:
+        unique_together = (("created_by", "name"),)
+
+
 
 class Load(models.Model):
 
