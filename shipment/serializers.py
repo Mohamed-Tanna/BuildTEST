@@ -112,7 +112,6 @@ class ShipmentSerializer(serializers.ModelSerializer):
 
 
 class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
-    shipment = ShipmentSerializer()
     class Meta:
         model = Load
         fields = "__all__"
@@ -143,4 +142,5 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             rep["carrier"] = None
         rep["pick_up_location"] = FacilitySerializer(instance.pick_up_location).data
         rep["destination"] = FacilitySerializer(instance.destination).data
+        rep["shipment"] = ShipmentSerializer(instance.shipment).data
         return rep
