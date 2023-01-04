@@ -680,7 +680,7 @@ class LoadFacilityView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ContactLoadView(GenericAPIView, ListModelMixin):
+class LoadContactView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
@@ -877,6 +877,62 @@ class ShipmentView(
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
+
+class LoadShipmentView(GenericAPIView, ListModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = ShipmentSerializer
+    queryset = Shipment.objects.all()
+    
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.", ShipmentSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        List your shipments base on a keyword.
+            List your shipments based on a keyword that represents the shipment's name.
+
+            **Example**
+                >>> "keyword": "xyz"
+        """
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+
+        app_user = AppUser.objects.get(user=self.request.user.id)
+        keyword = ""
+        if "keyword" in self.request.data:
+            keyword = self.request.data["keyword"]
+
+        queryset = Shipment.objects.filter(
+            created_by=app_user.id, name__icontains=keyword
+        )
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
 
 
 class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
