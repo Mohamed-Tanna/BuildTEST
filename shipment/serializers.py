@@ -143,4 +143,18 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         rep["pick_up_location"] = FacilitySerializer(instance.pick_up_location).data
         rep["destination"] = FacilitySerializer(instance.destination).data
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
+
+        return rep
+
+
+class ShipmentAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShipmentAdmin
+        fields = "__all__"
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["admin"] = AppUserSerializer(instance.admin).data
+        rep["shipment"] = ShipmentSerializer(instance.shipment).data
+
         return rep

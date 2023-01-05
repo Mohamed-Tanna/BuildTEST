@@ -50,7 +50,6 @@ class Shipment(models.Model):
         unique_together = (("created_by", "name"),)
 
 
-
 class Load(models.Model):
 
     created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
@@ -154,3 +153,10 @@ class Offer(models.Model):
     )
     load = models.ForeignKey(to=Load, null=False, on_delete=models.CASCADE)
 
+
+class ShipmentAdmin(models.Model):
+    shipment = models.ForeignKey(to=Shipment, null=False, on_delete=models.CASCADE)
+    admin = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (("shipment", "admin"),)

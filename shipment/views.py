@@ -169,6 +169,7 @@ class LoadView(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=[
+                "shipment",
                 "shipper",
                 "consignee",
                 "pick_up_date",
@@ -191,6 +192,7 @@ class LoadView(
                 "width": openapi.Schema(type=openapi.FORMAT_DECIMAL),
                 "depth": openapi.Schema(type=openapi.FORMAT_DECIMAL),
                 "quantity": openapi.Schema(type=openapi.FORMAT_DECIMAL),
+                "shipment": openapi.Schema(type=openapi.TYPE_STRING),
             },
         ),
         responses={
@@ -602,146 +604,6 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
             return ContactCreateSerializer
 
 
-class LoadFacilityView(GenericAPIView, ListModelMixin):
-
-    permission_classes = [
-        IsAuthenticated,
-        IsShipmentPartyOrBroker,
-    ]
-    serializer_class = FacilityFilterSerializer
-    queryset = Facility.objects.all()
-
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
-                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the facility name, state and city.", FacilityFilterSerializer
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
-    def post(self, request, *args, **kwargs):
-        """
-        List Facilities for the purpose of creating a Load.
-            List the facilities while filtering them based on a shipper, consignee, or both. Both facilities are
-            required for the creation of any load.
-
-            **Example**
-                >>> "keyword": "xyz"
-                >>> "shipper": "username#00000"
-        """
-        return self.list(request, *args, **kwargs)
-
-    # override
-    def get_queryset(self):
-
-        assert self.queryset is not None, (
-            "'%s' should either include a `queryset` attribute, "
-            "or override the `get_queryset()` method." % self.__class__.__name__
-        )
-        keyword = ""
-        if "keyword" in self.request.data:
-            keyword = self.request.data["keyword"]
-        if "shipper" in self.request.data:
-            username = self.request.data["shipper"]
-            try:
-                shipper = User.objects.get(username=username)
-                queryset = Facility.objects.filter(
-                    owner=shipper.id, building_name__icontains=keyword
-                ).order_by("building_name")
-            except User.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                queryset = []
-        elif "consignee" in self.request.data:
-            username = self.request.data["consignee"]
-            try:
-                consignee = User.objects.get(username=username)
-                queryset = Facility.objects.filter(
-                    owner=consignee.id, building_name__icontains=keyword
-                ).order_by("building_name")
-            except User.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                queryset = []
-        else:
-            queryset = []
-
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
-        return queryset
-
-
-class LoadContactView(GenericAPIView, ListModelMixin):
-
-    permission_classes = [
-        IsAuthenticated,
-        IsShipmentPartyOrBroker,
-    ]
-    serializer_class = ContactListSerializer
-    queryset = Contact.objects.all()
-
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "type": openapi.Schema(type=openapi.TYPE_STRING),
-                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the contact list of a specific type.", ContactListSerializer
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
-    def post(self, request, *args, **kwargs):
-        """
-        List a specific type of contacts for the purpose of searching.
-            List the contacts while filtering them based on their user type and their usernames.
-
-            **Example**
-                >>> "type": "shipment party"
-                >>> "keyword": "xyz"
-        """
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-
-        assert self.queryset is not None, (
-            "'%s' should either include a `queryset` attribute, "
-            "or override the `get_queryset()` method." % self.__class__.__name__
-        )
-
-        if "type" in self.request.data:
-            user_type = self.request.data["type"]
-            keyword = ""
-            if "keyword" in self.request.data:
-                keyword = self.request.data["keyword"]
-            queryset = Contact.objects.filter(
-                origin=self.request.user.id,
-                contact__user_type=user_type,
-                contact__user__username__icontains=keyword,
-            )
-        else:
-            queryset = []
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
-        return queryset
-
-
 class ShipmentView(
     GenericAPIView,
     CreateModelMixin,
@@ -879,7 +741,7 @@ class ShipmentView(
         )
 
 
-class LoadShipmentView(GenericAPIView, ListModelMixin):
+class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
@@ -887,7 +749,7 @@ class LoadShipmentView(GenericAPIView, ListModelMixin):
     ]
     serializer_class = ShipmentSerializer
     queryset = Shipment.objects.all()
-    
+
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -935,6 +797,161 @@ class LoadShipmentView(GenericAPIView, ListModelMixin):
         return queryset
 
 
+class FacilityFilterView(GenericAPIView, ListModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = FacilityFilterSerializer
+    queryset = Facility.objects.all()
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
+                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
+                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the facility name, state and city.", FacilityFilterSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        List Facilities for the purpose of creating a Load.
+            List the facilities while filtering them based on a shipper, consignee, or both. Both facilities are
+            required for the creation of any load.
+
+            **Example**
+                >>> "keyword": "xyz"
+                >>> "shipper": "username#00000"
+        """
+        return self.list(request, *args, **kwargs)
+
+    # override
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        keyword = ""
+        if "keyword" in self.request.data:
+            keyword = self.request.data["keyword"]
+        if "shipper" in self.request.data:
+            username = self.request.data["shipper"]
+            try:
+                shipper = User.objects.get(username=username)
+                queryset = Facility.objects.filter(
+                    owner=shipper.id, building_name__icontains=keyword
+                ).order_by("building_name")
+            except User.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                queryset = []
+        elif "consignee" in self.request.data:
+            username = self.request.data["consignee"]
+            try:
+                consignee = User.objects.get(username=username)
+                queryset = Facility.objects.filter(
+                    owner=consignee.id, building_name__icontains=keyword
+                ).order_by("building_name")
+            except User.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                queryset = []
+        else:
+            queryset = []
+
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
+
+class ContactFilterView(GenericAPIView, ListModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = ContactListSerializer
+    queryset = Contact.objects.all()
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "type": openapi.Schema(type=openapi.TYPE_STRING),
+                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
+                "shipment": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.", ContactListSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        List a specific type of contacts for the purpose of searching.
+            List the contacts while filtering them based on their user type and their usernames.
+
+            **Example**
+                >>> "type": "shipment party"
+                >>> "keyword": "xyz"
+        """
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+
+        if "type" in self.request.data:
+            user_type = self.request.data["type"]
+            keyword = ""
+            if "keyword" in self.request.data:
+                keyword = self.request.data["keyword"]
+            queryset = Contact.objects.filter(
+                origin=self.request.user.id,
+                contact__user_type=user_type,
+                contact__user__username__icontains=keyword,
+            )
+        elif "shipment" in self.request.data:
+            keyword = ""
+            if "keyword" in self.request.data:
+                keyword = self.request.data["keyword"]
+
+            queryset = Contact.objects.filter(
+                origin=self.request.user.id,
+                contact__user_type="shipment party",
+                contact__user__username__icontains=keyword,
+            ) | Contact.objects.filter(
+                origin=self.request.user.id,
+                contact__user_type="broker",
+                contact__user__username__icontains=keyword,
+            )
+        else:
+            queryset = []
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
+
 class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
     def get(self, request, *args, **kwargs):
 
@@ -947,3 +964,59 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
     def put(self, request, *args, **kwargs):
 
         return self.partial_update(request, *args, **kwargs)
+
+
+class ShipmentAdminView(
+    GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin
+):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = ShipmentAdminSerializer
+    queryset = ShipmentAdmin.objects.all()
+
+    def get(self, request, *args, **kwargs):
+
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+
+        return self.partial_update(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+
+        try:
+            app_user = AppUser.objects.get(user=request.user.id)
+        except AppUser.DoesNotExist:
+            return Response(
+                {"detail": ["user does not exist."]},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            shipment_id = request.data["shipment"]
+            shipment = Shipment.objects.get(id=shipment_id)
+        except Shipment.DoesNotExist:
+            return Response(
+                {"detail": ["shipment does not exist."]},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if shipment.created_by == app_user.id:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        else:
+            return Response(
+                {"detail": ["This user is not the owner of this shipment."]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
