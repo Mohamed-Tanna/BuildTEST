@@ -784,14 +784,23 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
 
-        app_user = AppUser.objects.get(user=self.request.user.id)
+        try:
+            app_user = AppUser.objects.get(user=self.request.user.id)
+        except AppUser.DoesNotExist:
+            queryset = []
+            return queryset
+
+        shipments = ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
+            "shipment", flat=True
+        )
+
         keyword = ""
         if "keyword" in self.request.data:
             keyword = self.request.data["keyword"]
 
         queryset = Shipment.objects.filter(
             created_by=app_user.id, name__icontains=keyword
-        )
+        ) | Shipment.objects.filter(id__in=shipments)
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
