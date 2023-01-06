@@ -546,19 +546,19 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
         request.data["origin"] = request.user.id
         try:
             contact = User.objects.get(username=request.data["contact"])
-        except User.DoesNotExist as e:
+        except User.DoesNotExist:
             return Response(
                 {"details": ["User does not exist."]}, status=status.HTTP_404_NOT_FOUND
             )
         try:
-            contact = AppUser.objects.get(user=contact)
-            request.data["contact"] = str(contact.id)
-            if request.data["contact"] == request.data["origin"]:
+            if contact.id == request.data["origin"]:
                 return Response(
                     {"details": ["Oops, you cannot add yourself!"]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             else:
+                contact = AppUser.objects.get(user=contact.id)
+                request.data["contact"] = contact.id
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
@@ -956,6 +956,54 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             )
         else:
             queryset = []
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
+
+
+class LoadFilterView(GenericAPIView, ListModelMixin):
+    
+    permission_classes = [
+        IsAuthenticated,
+        IsShipmentPartyOrBroker,
+    ]
+    serializer_class = LoadListSerializer
+    queryset = Load.objects.all()
+    
+    def post(self, request, *args, **kwargs):
+        """List all loads depending on a certain value of a field
+
+        **Args**:
+            shipment: a shipment id to return all loads in a single shipment
+            keyword: a keyword to return all loads that contains this keyword in its name
+
+        **Returns**:
+            list of loads: this endpoint will return a list of load objects
+        """
+        return self.list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+    
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        
+        if "shipment" in self.request.data:
+            shipment_id = self.request.data["shipment"]
+            queryset = Load.objects.filter(shipment=shipment_id)
+        elif "keyword" in self.request.data and "keyword" in self.request.data:
+            keyword = self.request.data["keyword"]
+            shipment_id = self.request.data["shipment"]
+            queryset = Load.objects.filter(name__icontains=keyword, shipment=shipment_id)
+        elif "keyword" in self.request.data:
+            keyword = self.request.data["keyword"]
+            app_user = AppUser.objects.get(user=self.request.user.id)
+            queryset = Load.objects.filter(created_by=app_user.id, name__icontains=keyword)
+        else:
+            queryset = []
+            return queryset
+        
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset

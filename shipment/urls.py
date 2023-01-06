@@ -9,6 +9,7 @@ urlpatterns = [
     path("contact/", ContactView.as_view()),
     path("filter-facility/", FacilityFilterView.as_view()),
     path("filter-contact/", ContactFilterView.as_view()),
+    path("filter-load/", LoadFilterView.as_view()),
     path("filter-shipment/", ShipmentFilterView.as_view()),
     path("load-details/<id>/", RetrieveLoadView.as_view()),
     path("", ShipmentView.as_view()),
