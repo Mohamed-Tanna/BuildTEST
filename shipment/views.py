@@ -1035,7 +1035,7 @@ class ShipmentAdminView(
     queryset = ShipmentAdmin.objects.all()
 
     def get(self, request, *args, **kwargs):
-
+        print("GET")
         return self.list(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -1077,3 +1077,21 @@ class ShipmentAdminView(
                 {"detail": ["This user is not the owner of this shipment."]},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    def get_queryset(self):
+
+        print("before assert")
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+
+        print("55555555")
+        print(self.request.GET.get("id"))
+        if self.request.GET.get("id"):
+            shipment_id = self.request.GET.get("id")
+            queryset = ShipmentAdmin.objects.filter(shipment=shipment_id)
+        else:
+            queryset = []
+        
+        return queryset

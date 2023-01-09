@@ -47,14 +47,18 @@ class OfferAdmin(admin.ModelAdmin):
     list_display = ["id", "party_1", "party_2", "initial", "current", "load", "status"]
 
 
-class ShipmentAdmin(admin.ModelAdmin):
+class ShipmentAdminSite(admin.ModelAdmin):
 
     list_display = ["id", "name", "created_by"]
 
+class ShipmentAdminAdmin(admin.ModelAdmin):
+
+    list_display = ["id", "shipment", "admin"]
 
 admin.site.register(Facility, admin_class=FacilityAdmin)
 admin.site.register(Trailer, admin_class=TrailerAdmin)
 admin.site.register(Load, admin_class=LoadAdmin)
 admin.site.register(Contact, admin_class=ContactAdmin)
 admin.site.register(Offer, admin_class=OfferAdmin)
-admin.site.register(Shipment, admin_class=ShipmentAdmin)
+admin.site.register(Shipment, admin_class=ShipmentAdminSite)
+admin.site.register(ShipmentAdmin, admin_class=ShipmentAdminAdmin)

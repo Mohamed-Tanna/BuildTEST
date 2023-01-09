@@ -13,10 +13,11 @@ from authentication.models import AppUser
 
 class AppUserSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source="user.username")
+    email = serializers.ReadOnlyField(source="user.email")
 
     class Meta:
         model = AppUser
-        fields = ["user", "phone_number", "user_type", "username"]
+        fields = ["user", "phone_number", "user_type", "username", "email"]
 
 
 class BaseUserUpdateSerializer(serializers.ModelSerializer):

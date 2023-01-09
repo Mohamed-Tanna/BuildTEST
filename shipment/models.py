@@ -32,7 +32,9 @@ class Trailer(models.Model):
 
 
 class Shipment(models.Model):
-    created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE, related_name="customer")
+    created_by = models.ForeignKey(
+        to=AppUser, null=False, on_delete=models.CASCADE, related_name="customer"
+    )
     name = models.CharField(max_length=100, null=False)
     status = models.CharField(
         choices=[
@@ -48,6 +50,9 @@ class Shipment(models.Model):
 
     class Meta:
         unique_together = (("created_by", "name"),)
+    
+    def __str__(self):
+        return self.name
 
 
 class Load(models.Model):
@@ -76,12 +81,14 @@ class Load(models.Model):
     destination = models.ForeignKey(
         to=Facility, on_delete=models.CASCADE, related_name="destination"
     )
-    height = models.DecimalField(max_digits=12, decimal_places=2, null=False)
+    length = models.DecimalField(max_digits=12, decimal_places=2, null=False)
     width = models.DecimalField(max_digits=12, decimal_places=2, null=False)
-    depth = models.DecimalField(max_digits=12, decimal_places=2, null=False)
-    weight = models.DecimalField(max_digits=12, decimal_places=4, null=False)
+    height = models.DecimalField(max_digits=12, decimal_places=2, null=False)
+    weight = models.DecimalField(max_digits=12, decimal_places=2, null=False)
     quantity = models.DecimalField(max_digits=12, decimal_places=2, default=1)
-    goods_info = models.TextField(null=True)
+    goods_info = models.CharField(
+        choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
+    )
     load_type = models.CharField(
         choices=[("LTL", "LTL"), ("FTL", "FTL")],
         max_length=3,
@@ -137,8 +144,12 @@ class Contact(models.Model):
 
 
 class Offer(models.Model):
-    party_1 = models.ForeignKey(to=Broker, null=False, on_delete=models.CASCADE, related_name="bidder")
-    party_2 = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE, related_name="receiver")
+    party_1 = models.ForeignKey(
+        to=Broker, null=False, on_delete=models.CASCADE, related_name="bidder"
+    )
+    party_2 = models.ForeignKey(
+        to=AppUser, null=False, on_delete=models.CASCADE, related_name="receiver"
+    )
     initial = models.DecimalField(null=False, max_digits=8, decimal_places=2)
     current = models.DecimalField(null=False, max_digits=8, decimal_places=2)
     status = models.CharField(

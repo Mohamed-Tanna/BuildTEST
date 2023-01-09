@@ -12,8 +12,8 @@ urlpatterns = [
     path("filter-load/", LoadFilterView.as_view()),
     path("filter-shipment/", ShipmentFilterView.as_view()),
     path("load-details/<id>/", RetrieveLoadView.as_view()),
-    path("", ShipmentView.as_view()),
-    path("<id>/", ShipmentView.as_view()),
     path("admin/", ShipmentAdminView.as_view()),
     path("admin/<id>/", ShipmentAdminView.as_view()),
+    path("", ShipmentView.as_view()),
+    path("<id>/", ShipmentView.as_view()),
 ]
