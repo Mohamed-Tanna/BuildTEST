@@ -1046,6 +1046,8 @@ class ShipmentAdminView(
         return self.partial_update(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
 
         try:
             app_user = AppUser.objects.get(user=request.user.id)
@@ -1057,13 +1059,29 @@ class ShipmentAdminView(
         try:
             shipment_id = request.data["shipment"]
             shipment = Shipment.objects.get(id=shipment_id)
+            
         except Shipment.DoesNotExist:
             return Response(
                 {"detail": ["shipment does not exist."]},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if shipment.created_by == app_user.id:
+        if "admin" in request.data:
+            try:
+                admin = User.objects.get(username=request.data["admin"])
+            except User.DoesNotExist:
+                return Response({"detail": ["User does not exist."]}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                admin = AppUser.objects.get(user=admin.id)
+            except AppUser.DoesNotExist:
+                return Response({"detail": ["User does not exist."]}, status=status.HTTP_404_NOT_FOUND)
+
+            request.data["admin"] = admin.id
+        else:
+            return Response({"detail": ["admin is not specfied."]}, status=status.HTTP_400_BAD_REQUEST)
+        
+        print(shipment.created_by, app_user.id, type(shipment.created_by), type(app_user.id))
+        if shipment.created_by.id == app_user.id:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
