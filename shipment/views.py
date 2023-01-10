@@ -1024,7 +1024,7 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
 
 class ShipmentAdminView(
-    GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin
+    GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin, DestroyModelMixin
 ):
 
     permission_classes = [
@@ -1035,15 +1035,28 @@ class ShipmentAdminView(
     queryset = ShipmentAdmin.objects.all()
 
     def get(self, request, *args, **kwargs):
+        """
+        Get all shipment admins of a specific admin
+
+            Provide a shipment id in the form of a query parameter and get a list of app users which are these shipment admins
+        """
         return self.list(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
+        """
+        Create a shipment admin and attach a shipment to it
 
+            provide a username in the key **admin** and shipment id in the key **shipment** 
+        """
         return self.create(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
 
         return self.partial_update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+
+        return self.destroy(request, *args, **kwargs)
 
     # override
     def create(self, request, *args, **kwargs):
