@@ -962,14 +962,14 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
 
 
 class LoadFilterView(GenericAPIView, ListModelMixin):
-    
+
     permission_classes = [
         IsAuthenticated,
         IsShipmentPartyOrBroker,
     ]
     serializer_class = LoadListSerializer
     queryset = Load.objects.all()
-    
+
     def post(self, request, *args, **kwargs):
         """List all loads depending on a certain value of a field
 
@@ -981,29 +981,33 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
             list of loads: this endpoint will return a list of load objects
         """
         return self.list(request, *args, **kwargs)
-    
+
     def get_queryset(self):
-    
+
         assert self.queryset is not None, (
             "'%s' should either include a `queryset` attribute, "
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
-        
+
         if "shipment" in self.request.data:
             shipment_id = self.request.data["shipment"]
             queryset = Load.objects.filter(shipment=shipment_id)
         elif "keyword" in self.request.data and "keyword" in self.request.data:
             keyword = self.request.data["keyword"]
             shipment_id = self.request.data["shipment"]
-            queryset = Load.objects.filter(name__icontains=keyword, shipment=shipment_id)
+            queryset = Load.objects.filter(
+                name__icontains=keyword, shipment=shipment_id
+            )
         elif "keyword" in self.request.data:
             keyword = self.request.data["keyword"]
             app_user = AppUser.objects.get(user=self.request.user.id)
-            queryset = Load.objects.filter(created_by=app_user.id, name__icontains=keyword)
+            queryset = Load.objects.filter(
+                created_by=app_user.id, name__icontains=keyword
+            )
         else:
             queryset = []
             return queryset
-        
+
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -1024,7 +1028,11 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
 
 class ShipmentAdminView(
-    GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin, DestroyModelMixin
+    GenericAPIView,
+    CreateModelMixin,
+    ListModelMixin,
+    UpdateModelMixin,
+    DestroyModelMixin,
 ):
 
     permission_classes = [
@@ -1034,6 +1042,12 @@ class ShipmentAdminView(
     serializer_class = ShipmentAdminSerializer
     queryset = ShipmentAdmin.objects.all()
 
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: "ShipmentAdminSerializer",
+            status.HTTP_404_NOT_FOUND: "Not Found",
+        }
+    )
     def get(self, request, *args, **kwargs):
         """
         Get all shipment admins of a specific admin
@@ -1042,19 +1056,41 @@ class ShipmentAdminView(
         """
         return self.list(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        request_body=ShipmentAdminSerializer,
+        responses={
+            status.HTTP_201_CREATED: "ShipmentAdminSerializer",
+            status.HTTP_400_BAD_REQUEST: "Validation Error",
+            status.HTTP_404_NOT_FOUND: "Not Found",
+        },
+    )
     def post(self, request, *args, **kwargs):
         """
         Create a shipment admin and attach a shipment to it
 
-            provide a username in the key **admin** and shipment id in the key **shipment** 
+            provide a username in the key **admin** and shipment id in the key **shipment**
         """
         return self.create(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        request_body=ShipmentAdminSerializer,
+        responses={
+            status.HTTP_201_CREATED: "ShipmentAdminSerializer",
+            status.HTTP_400_BAD_REQUEST: "Validation Error",
+            status.HTTP_404_NOT_FOUND: "Not Found",
+        },
+    )
     def put(self, request, *args, **kwargs):
-
+        """
+        Update a shipment admin
+            **(CANCELED FEATURE)**
+        """
         return self.partial_update(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
+        """
+        Delete a shipment admin
+        """
 
         return self.destroy(request, *args, **kwargs)
 
@@ -1073,7 +1109,7 @@ class ShipmentAdminView(
 
         try:
             shipment_id = request.data["shipment"]
-            shipment = Shipment.objects.get(id=shipment_id)       
+            shipment = Shipment.objects.get(id=shipment_id)
         except Shipment.DoesNotExist:
             return Response(
                 {"detail": ["shipment does not exist."]},
@@ -1084,7 +1120,10 @@ class ShipmentAdminView(
             admin = get_app_user_by_username(request.data["admin"])
             request.data["admin"] = admin.id
         else:
-            return Response({"detail": ["admin is not specfied."]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": ["admin is not specfied."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if shipment.created_by.id == app_user.id:
             serializer = self.get_serializer(data=request.data)
@@ -1113,7 +1152,7 @@ class ShipmentAdminView(
             queryset = ShipmentAdmin.objects.filter(shipment=shipment_id)
         else:
             queryset = []
-        
+
         return queryset
 
     # override
@@ -1126,16 +1165,15 @@ class ShipmentAdminView(
             admin = get_app_user_by_username(request.data["admin"])
             request.data["admin"] = admin.id
 
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        if getattr(instance, '_prefetched_objects_cache', None):
+        if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
-        
