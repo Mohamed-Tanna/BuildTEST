@@ -1045,6 +1045,7 @@ class ShipmentAdminView(
 
         return self.partial_update(request, *args, **kwargs)
 
+    # override
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -1086,6 +1087,7 @@ class ShipmentAdminView(
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+    # override
     def get_queryset(self):
 
         assert self.queryset is not None, (
@@ -1101,6 +1103,7 @@ class ShipmentAdminView(
         
         return queryset
 
+    # override
     def update(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
