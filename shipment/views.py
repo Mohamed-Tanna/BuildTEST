@@ -718,7 +718,10 @@ class ShipmentView(
             "or override the `get_queryset()` method." % self.__class__.__name__
         )
         app_user = AppUser.objects.get(user=self.request.user.id)
-        queryset = Shipment.objects.filter(created_by=app_user.id)
+        shipments = ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
+            "shipment", flat=True
+        )
+        queryset = Shipment.objects.filter(created_by=app_user.id) | Shipment.objects.filter(id__in=shipments)
 
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
