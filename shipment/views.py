@@ -695,23 +695,27 @@ class ShipmentView(
         """
         return self.partial_update(request, *args, **kwargs)
 
+    # override
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         app_user = AppUser.objects.get(user=request.user.id)
+        admins = ShipmentAdmin.objects.filter(shipment=self.kwargs["id"]).values_list("admin", flat=True)
 
-        if str(instance.created_by) == app_user.user.username:
+        if str(instance.created_by) == app_user.user.username or app_user.id in admins:
             return Response(serializer.data)
+
         else:
             return Response(
                 {
                     "detail": [
-                        "You are not the creator of this Load",
+                        "You are not the creator nor and admin of this Load",
                     ]
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+    # override
     def get_queryset(self):
         assert self.queryset is not None, (
             "'%s' should either include a `queryset` attribute, "
@@ -727,6 +731,7 @@ class ShipmentView(
             queryset = queryset.all()
         return queryset
 
+    # override
     def create(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
@@ -743,6 +748,11 @@ class ShipmentView(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    # override
+    def update(self, request, *args, **kwargs):
+        app_user = AppUser.objects.get(request.user.id)
+
+        str
 
 class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
