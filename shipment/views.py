@@ -729,7 +729,7 @@ class ShipmentView(
 
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
-        return queryset
+        return queryset.order_by("-id")
 
     # override
     def create(self, request, *args, **kwargs):
@@ -753,6 +753,7 @@ class ShipmentView(
         app_user = AppUser.objects.get(request.user.id)
 
         str
+
 
 class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
