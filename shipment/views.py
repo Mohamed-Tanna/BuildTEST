@@ -1044,8 +1044,35 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
         return self.list(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "party_1": openapi.Schema(type=openapi.TYPE_STRING),
+                "party_2": openapi.Schema(type=openapi.TYPE_STRING),
+                "initial": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "current": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "load": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required={"party_1", "party_2", "initial", "current", "load"},
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.", OfferSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def post(self, request, *args, **kwargs):
+        """
+        Create an offer on a load
 
+            Create an offer on a load if you are the broker assigned to this load you can create an offer for both shipper and carrier
+            using this endpoint.
+        """
         return self.create(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
@@ -1074,10 +1101,13 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
             if load.broker != None:
                 if load.broker == broker:
                     if load.status == "Created":
-                        shipper = get_shipment_party_by_username(request.data["party_2"])
+                        shipper = get_shipment_party_by_username(
+                            request.data["party_2"]
+                        )
 
                         if isinstance(shipper, ShipmentParty):
                             if load.shipper == shipper or load.created_by == shipper:
+                                request.data["current"] = request.data["initial"]
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
@@ -1113,6 +1143,7 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
                         if isinstance(carrier, Carrier):
                             if load.carrier != None and load.carrier == carrier:
+                                request.data["current"] = request.data["initial"]
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
@@ -1124,7 +1155,7 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
                                     status=status.HTTP_201_CREATED,
                                     headers=headers,
                                 )
-                                
+
                             else:
                                 return Response(
                                     [
@@ -1147,13 +1178,11 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
                     else:
                         return Response(
-                                [
-                                    {
-                                        "details": "This load is no longer open for bidding"
-                                    },
-                                ],
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
+                            [
+                                {"details": "This load is no longer open for bidding"},
+                            ],
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                 else:
                     return Response(
@@ -1167,13 +1196,13 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
             else:
                 return Response(
-                        [
-                            {
-                                "details": "Please add a broker to this load before creating a bid on it"
-                            },
-                        ],
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    [
+                        {
+                            "details": "Please add a broker to this load before creating a bid on it"
+                        },
+                    ],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         else:
             return Response(
