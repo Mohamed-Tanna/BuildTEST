@@ -85,9 +85,11 @@ class FacilityFilterSerializer(serializers.ModelSerializer):
 
 class OfferSerializer(serializers.ModelSerializer):
     class Meta:
+        model = Offer
         fields = "__all__"
         extra_kwargs = {
             "status": {"required": False},
+            "current": {"required": False},
         }
         read_only_fields = ("id",)
 

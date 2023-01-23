@@ -700,7 +700,9 @@ class ShipmentView(
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         app_user = AppUser.objects.get(user=request.user.id)
-        admins = ShipmentAdmin.objects.filter(shipment=self.kwargs["id"]).values_list("admin", flat=True)
+        admins = ShipmentAdmin.objects.filter(shipment=self.kwargs["id"]).values_list(
+            "admin", flat=True
+        )
 
         if str(instance.created_by) == app_user.user.username or app_user.id in admins:
             return Response(serializer.data)
@@ -725,7 +727,9 @@ class ShipmentView(
         shipments = ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
             "shipment", flat=True
         )
-        queryset = Shipment.objects.filter(created_by=app_user.id) | Shipment.objects.filter(id__in=shipments)
+        queryset = Shipment.objects.filter(
+            created_by=app_user.id
+        ) | Shipment.objects.filter(id__in=shipments)
 
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
@@ -1028,6 +1032,14 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
 
 
 class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAppUser,
+    ]
+    serializer_class = OfferSerializer
+    queryset = Offer.objects.all()
+
     def get(self, request, *args, **kwargs):
 
         return self.list(request, *args, **kwargs)
@@ -1039,6 +1051,137 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
     def put(self, request, *args, **kwargs):
 
         return self.partial_update(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        broker = get_broker_by_username(username=request.user.username)
+
+        if isinstance(broker, Response):
+            return Response(
+                [
+                    {
+                        "details": "you cannot create an offer since your are not a broker"
+                    },
+                ],
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if isinstance(broker, Broker):
+            request.data["party_1"] = broker.id
+            load = Load.objects.get(id=request.data["load"])
+            if load.broker != None:
+                if load.broker == broker:
+                    if load.status == "Created":
+                        shipper = get_shipment_party_by_username(request.data["party_2"])
+
+                        if isinstance(shipper, ShipmentParty):
+                            if load.shipper == shipper or load.created_by == shipper:
+                                serializer = self.get_serializer(data=request.data)
+                                serializer.is_valid(raise_exception=True)
+                                self.perform_create(serializer)
+                                load.status = "Awaiting shipper"
+                                load.save()
+                                headers = self.get_success_headers(serializer.data)
+                                return Response(
+                                    serializer.data,
+                                    status=status.HTTP_201_CREATED,
+                                    headers=headers,
+                                )
+                            else:
+                                return Response(
+                                    [
+                                        {
+                                            "details": "This user is not the shipper nor the creator of this load"
+                                        },
+                                    ],
+                                    status=status.HTTP_403_FORBIDDEN,
+                                )
+                        else:
+                            return Response(
+                                [
+                                    {
+                                        "details": "The first bid has to have the 'shipper' as the second party"
+                                    },
+                                ],
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                    elif load.status == "Awaiting shipper":
+                        carrier = get_carrier_by_username(request.data["party_2"])
+
+                        if isinstance(carrier, Carrier):
+                            if load.carrier != None and load.carrier == carrier:
+                                serializer = self.get_serializer(data=request.data)
+                                serializer.is_valid(raise_exception=True)
+                                self.perform_create(serializer)
+                                load.status = "Awaiting carrier"
+                                load.save()
+                                headers = self.get_success_headers(serializer.data)
+                                return Response(
+                                    serializer.data,
+                                    status=status.HTTP_201_CREATED,
+                                    headers=headers,
+                                )
+                                
+                            else:
+                                return Response(
+                                    [
+                                        {
+                                            "details": "This load does not have a carrier yet or this carrier is not the carrier assigned to this load"
+                                        },
+                                    ],
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                )
+
+                        else:
+                            return Response(
+                                [
+                                    {
+                                        "details": "The second bid has to have the 'carrier' as the second party"
+                                    },
+                                ],
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                    else:
+                        return Response(
+                                [
+                                    {
+                                        "details": "This load is no longer open for bidding"
+                                    },
+                                ],
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                else:
+                    return Response(
+                        [
+                            {
+                                "details": "you cannot create an offer since you're not the broker assigned to this load"
+                            },
+                        ],
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            else:
+                return Response(
+                        [
+                            {
+                                "details": "Please add a broker to this load before creating a bid on it"
+                            },
+                        ],
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        else:
+            return Response(
+                [
+                    {"details": "unknown error has occured please try again"},
+                ],
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ShipmentAdminView(
