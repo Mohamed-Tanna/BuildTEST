@@ -21,7 +21,7 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
 email_host_password = client.access_secret_version(
     request={
-        "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('EMAIL_HOST_PASS')}/versions/1"
+        "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('EMAIL_HOST_PASS')}/versions/2"
     }
 )
 
