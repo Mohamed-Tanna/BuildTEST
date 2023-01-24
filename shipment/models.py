@@ -50,7 +50,7 @@ class Shipment(models.Model):
 
     class Meta:
         unique_together = (("created_by", "name"),)
-    
+
     def __str__(self):
         return self.name
 
@@ -59,6 +59,12 @@ class Load(models.Model):
 
     created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, unique=False, null=False, blank=False)
+    customer = models.ForeignKey(
+        to=ShipmentParty,
+        null=False,
+        on_delete=models.CASCADE,
+        related_name="customer",
+    )
     shipper = models.ForeignKey(
         to=ShipmentParty,
         null=False,
@@ -163,6 +169,9 @@ class Offer(models.Model):
         default="Pending",
     )
     load = models.ForeignKey(to=Load, null=False, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (("party_1", "party_2", "load"),)
 
 
 class ShipmentAdmin(models.Model):

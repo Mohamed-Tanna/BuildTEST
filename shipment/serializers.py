@@ -130,6 +130,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["created_by"] = instance.created_by.user.username
+        rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
         try:

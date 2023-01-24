@@ -1031,7 +1031,7 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
+class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
@@ -1040,9 +1040,35 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
     serializer_class = OfferSerializer
     queryset = Offer.objects.all()
 
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                "Return the contact list of a specific type.", OfferSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def get(self, request, *args, **kwargs):
+        queryset = Offer.objects.filter(load=self.kwargs["id"])
+        party = get_app_user_by_username(username=request.user.username)
+        if isinstance(party, AppUser):
+            if party.user_type == "broker":
+                party = get_broker_by_username(username=request.user.username)
+                if isinstance(party, Broker):
+                    queryset = queryset.filter(party_1=party.id)
+                else:
+                    return party
+            else:
+                queryset = queryset.filter(party_2=party.id)
 
-        return self.list(request, *args, **kwargs)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+        else:
+            return party
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -1054,7 +1080,7 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
                 "current": openapi.Schema(type=openapi.TYPE_INTEGER),
                 "load": openapi.Schema(type=openapi.TYPE_STRING),
             },
-            required={"party_1", "party_2", "initial", "current", "load"},
+            required=["party_1", "party_2", "initial", "current", "load"],
         ),
         responses={
             200: openapi.Response(
@@ -1079,6 +1105,7 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
 
         return self.partial_update(request, *args, **kwargs)
 
+    # override
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -1212,7 +1239,7 @@ class OfferView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMix
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-
+        
 class ShipmentAdminView(
     GenericAPIView,
     CreateModelMixin,
