@@ -273,9 +273,11 @@ class LoadView(
         request.data["created_by"] = str(app_user.id)
 
         if "shipper" in request.data:
-            username = request.data["shipper"]
-            shipper = get_shipment_party_by_username(username=username)
-            request.data["shipper"] = str(shipper.id)
+            shipper = get_shipment_party_by_username(username=request.data["shipper"])
+            if isinstance(shipper, ShipmentParty):
+                request.data["shipper"] = str(shipper.id)
+            else:
+                return shipper
 
         else:
             return Response(
@@ -283,9 +285,11 @@ class LoadView(
             )
 
         if "consignee" in request.data:
-            username = request.data["consignee"]
-            consignee = get_shipment_party_by_username(username=username)
-            request.data["consignee"] = str(consignee.id)
+            consignee = get_shipment_party_by_username(username=request.data["consignee"])
+            if isinstance(consignee, ShipmentParty):
+                request.data["consignee"] = str(consignee.id)
+            else:
+                return consignee
 
         else:
             return Response(
@@ -293,10 +297,25 @@ class LoadView(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if "customer" in request.data:
+            customer = get_shipment_party_by_username(username=request.data["customer"])
+            if isinstance(consignee, ShipmentParty):
+                request.data["customer"] = str(customer.id)
+            else:
+                return consignee
+
+        else:
+            return Response(
+                {"detail": ["customer is requried."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if "broker" in request.data:
-            username = request.data["broker"]
-            broker = get_broker_by_username(username=username)
-            request.data["broker"] = str(broker.id)
+            broker = get_broker_by_username(username=request.data["broker"])
+            if isinstance(broker, Broker):
+                request.data["broker"] = str(broker.id)
+            else:
+                return broker
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
