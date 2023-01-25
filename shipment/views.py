@@ -405,6 +405,14 @@ class LoadView(
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
+        if "customer" in request.data:
+            username = request.data["customer"]
+            customer = get_shipment_party_by_username(username=username)
+            if isinstance(customer, Response):
+                return customer
+            else:
+                request.data["customer"] = str(customer.id)
+
         if "shipper" in request.data:
             username = request.data["shipper"]
             shipper = get_shipment_party_by_username(username=username)
