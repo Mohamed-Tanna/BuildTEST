@@ -302,7 +302,7 @@ class LoadView(
             if isinstance(consignee, ShipmentParty):
                 request.data["customer"] = str(customer.id)
             else:
-                return consignee
+                return customer
 
         else:
             return Response(
