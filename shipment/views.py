@@ -1182,7 +1182,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                         )
 
                         if isinstance(shipper, ShipmentParty):
-                            if load.shipper == shipper or load.created_by == shipper:
+                            if load.customer == shipper or load.created_by == shipper:
                                 request.data["current"] = request.data["initial"]
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
@@ -1199,7 +1199,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 return Response(
                                     [
                                         {
-                                            "details": "This user is not the shipper nor the creator of this load"
+                                            "details": "This user is not the customer nor the creator of this load"
                                         },
                                     ],
                                     status=status.HTTP_403_FORBIDDEN,
@@ -1208,7 +1208,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                             return Response(
                                 [
                                     {
-                                        "details": "The first bid has to have the 'shipper' as the second party"
+                                        "details": "The first bid has to have the 'customer' as the second party"
                                     },
                                 ],
                                 status=status.HTTP_400_BAD_REQUEST,
