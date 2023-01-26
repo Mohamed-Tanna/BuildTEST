@@ -35,7 +35,7 @@ class Shipment(models.Model):
     created_by = models.ForeignKey(
         to=AppUser, null=False, on_delete=models.CASCADE, related_name="customer"
     )
-    name = models.CharField(max_length=100, null=False)
+    name = models.CharField(max_length=100, null=False, unique=True)
     status = models.CharField(
         choices=[
             ("Created", "Created"),
@@ -58,7 +58,7 @@ class Shipment(models.Model):
 class Load(models.Model):
 
     created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, unique=False, null=False, blank=False)
+    name = models.CharField(max_length=255, unique=True, null=False, blank=False)
     customer = models.ForeignKey(
         to=ShipmentParty,
         null=False,

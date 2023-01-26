@@ -1,6 +1,7 @@
 from authentication.models import *
 from rest_framework import status
 from rest_framework.response import Response
+import string, random
 
 
 def get_shipment_party_by_username(username):
@@ -76,3 +77,21 @@ def get_app_user_by_username(username):
             {"detail": [f"{e.args[0]}"]},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+def generate_load_name() -> string:
+    name = "L-" + (
+                "".join(
+                    random.choice(string.ascii_uppercase + string.digits)
+                    for i in range(5)
+                )
+            )
+    return name
+
+def generate_shipment_name() -> string:
+    name = "SH-" + (
+                "".join(
+                    random.choice(string.ascii_uppercase + string.digits)
+                    for i in range(5)
+                )
+            )
+    return name

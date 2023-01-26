@@ -7,6 +7,7 @@ from authentication.permissions import *
 # Django imports
 from django.db.models import Q
 from django.http import QueryDict
+from django.db import IntegrityError
 from django.db.models.query import QuerySet
 
 # DRF imports
@@ -271,6 +272,7 @@ class LoadView(
 
         app_user = AppUser.objects.get(user=request.user)
         request.data["created_by"] = str(app_user.id)
+        request.data["name"] = generate_load_name()
 
         if "shipper" in request.data:
             shipper = get_shipment_party_by_username(username=request.data["shipper"])
@@ -285,7 +287,9 @@ class LoadView(
             )
 
         if "consignee" in request.data:
-            consignee = get_shipment_party_by_username(username=request.data["consignee"])
+            consignee = get_shipment_party_by_username(
+                username=request.data["consignee"]
+            )
             if isinstance(consignee, ShipmentParty):
                 request.data["consignee"] = str(consignee.id)
             else:
@@ -320,43 +324,47 @@ class LoadView(
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # check database constraints
-        try:
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
+        while True:
+            try:
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
 
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-        except BaseException as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-
-            if "delivery_date_check" in str(e.__cause__) or "pick_up_date" in str(
-                e.__cause__
-            ):
                 return Response(
-                    {
-                        "detail": [
-                            "Invalid pick up or drop off date's, please double check the dates and try again"
-                        ]
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+                    serializer.data, status=status.HTTP_201_CREATED, headers=headers
                 )
+            except IntegrityError:
+                request.data["name"] = generate_load_name()
+                continue
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
 
-            elif "pick up location" in str(e.__cause__):
-                return Response(
-                    {
-                        "detail": [
-                            "pick up location and drop off location cannot be equal, please double check the locations and try again"
-                        ]
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                if "delivery_date_check" in str(e.__cause__) or "pick_up_date" in str(
+                    e.__cause__
+                ):
+                    return Response(
+                        {
+                            "detail": [
+                                "Invalid pick up or drop off date's, please double check the dates and try again"
+                            ]
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-            else:
-                return Response(
-                    {"detail": [f"{e.args[0]}"]},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                elif "pick up location" in str(e.__cause__):
+                    return Response(
+                        {
+                            "detail": [
+                                "pick up location and drop off location cannot be equal, please double check the locations and try again"
+                            ]
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                else:
+                    return Response(
+                        {"detail": [f"{e.args[0]}"]},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
     # override
     def get_queryset(self):
@@ -771,13 +779,27 @@ class ShipmentView(
         app_user = AppUser.objects.get(user=request.user)
         request.data["created_by"] = str(app_user.id)
         request.data["status"] = "Created"
+        request.data["name"] = generate_shipment_name()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+
+        while True:
+            try:
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                )
+            except IntegrityError:
+                request.data["name"] = generate_shipment_name()
+                continue
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                return Response(
+                    {"detail": [f"{e.args[0]}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
     # override
     def update(self, request, *args, **kwargs):
@@ -1266,7 +1288,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        
+
 class ShipmentAdminView(
     GenericAPIView,
     CreateModelMixin,
