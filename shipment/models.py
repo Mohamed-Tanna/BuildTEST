@@ -106,8 +106,10 @@ class Load(models.Model):
     status = models.CharField(
         choices=[
             ("Created", "Created"),
-            ("Awaiting shipper", "Awaiting shipper"),
-            ("Awaiting carrier", "Awaiting carrier"),
+            ("Awaiting Shipper", "Awaiting Shipper"),
+            ("Assigning Carrier", "Assigning Carrier"),
+            ("Awaiting Carrier", "Awaiting Carrier"),
+            ("Awaiting Broker", "Awaiting Broker"),
             ("Ready For Pick Up", "Ready For Pick Up"),
             ("In Transit", "In Transit"),
             ("Delivered", "Delivered"),

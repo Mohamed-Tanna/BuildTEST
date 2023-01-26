@@ -723,7 +723,7 @@ class ShipmentView(
     def put(self, request, *args, **kwargs):
         """
         Update a shipment.
-            update a shipment by changing the user who created this shipment or changing the shipments name or status
+            update a shipment by changing the user who created this shipment status
 
             **Example**
             >>> "created_by": "username#00000"
@@ -801,7 +801,7 @@ class ShipmentView(
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-    # override
+    # override -- UNCOMPLETED
     def update(self, request, *args, **kwargs):
         app_user = AppUser.objects.get(request.user.id)
 
@@ -1092,7 +1092,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     @swagger_auto_schema(
         responses={
             200: openapi.Response(
-                "Return the contact list of a specific type.", OfferSerializer
+                "Return the offer related to a load, you need to specify the load id in the kwargs", OfferSerializer
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -1121,7 +1121,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 return party
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-    
+
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -1136,7 +1136,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         ),
         responses={
             200: openapi.Response(
-                "Return the contact list of a specific type.", OfferSerializer
+                "Return the created offer.", OfferSerializer
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -1153,6 +1153,27 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         """
         return self.create(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "current": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "action": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=[
+                "action",
+            ],
+        ),
+        responses={
+            200: openapi.Response(
+                "Return the updated offer.", OfferSerializer
+            ),
+            400: "BAD REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
     def put(self, request, *args, **kwargs):
 
         return self.partial_update(request, *args, **kwargs)
@@ -1291,6 +1312,101 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     {"details": "unknown error has occured please try again"},
                 ],
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    # override
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        load = Load.objects.get(id=instance.load)
+
+        if request.data["action"]:
+            if request.data["action"] == "accept":
+                if load.status == "Awaiting Shipper":
+                    load.status = "Assigning Carrier"
+                    load.save()
+                elif load.status == "Awaiting Carrier":
+                    load.status = "Ready For Pick Up"
+                    load.save()
+
+                if isinstance(request.data, QueryDict):
+                    request.data._mutable = True
+
+                del request.data["action"]
+                request.data["status"] = "Accepted"
+                serializer = self.get_serializer(
+                    instance, data=request.data, partial=partial
+                )
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer)
+
+                if getattr(instance, "_prefetched_objects_cache", None):
+                    # If 'prefetch_related' has been applied to a queryset, we need to
+                    # forcibly invalidate the prefetch cache on the instance.
+                    instance._prefetched_objects_cache = {}
+
+                return Response(serializer.data)
+
+            elif request.data["action"] == "reject":
+                load.status = "Canceled"
+                load.save()
+
+                if isinstance(request.data, QueryDict):
+                    request.data._mutable = True
+
+                del request.data["action"]
+                request.data["status"] = "Rejected"
+                serializer = self.get_serializer(
+                    instance, data=request.data, partial=partial
+                )
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer)
+
+                if getattr(instance, "_prefetched_objects_cache", None):
+                    # If 'prefetch_related' has been applied to a queryset, we need to
+                    # forcibly invalidate the prefetch cache on the instance.
+                    instance._prefetched_objects_cache = {}
+
+                return Response(serializer.data)
+
+            elif request.data["action"] == "counter":
+                app_user = get_app_user_by_username(request.user.username)
+                if (
+                    app_user.user_type == "shipment party"
+                    or app_user.user_type == "carrier"
+                ):
+                    load.status = "Awaiting Broker"
+                    load.save()
+                elif app_user.user_type == "broker":
+                    if instance.party_2.user_type == "shipment party":
+                        load.status = "Awaiting Shipper"
+                        load.save()
+                    elif instance.party_2.user_type == "carrier":
+                        load.status = "Awaiting Carrier"
+                        load.save()
+
+                del request.data["action"]
+                serializer = self.get_serializer(
+                    instance, data=request.data, partial=partial
+                )
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer)
+
+                if getattr(instance, "_prefetched_objects_cache", None):
+                    # If 'prefetch_related' has been applied to a queryset, we need to
+                    # forcibly invalidate the prefetch cache on the instance.
+                    instance._prefetched_objects_cache = {}
+
+                return Response(serializer.data)
+
+            else:
+                return Response(
+                    [{"details": "Unknown action"}], status=status.HTTP_400_BAD_REQUEST
+                )
+
+        else:
+            return Response(
+                [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
             )
 
 

@@ -4,7 +4,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOWED_ORIGINS = ["https://dev.freightslayer.com/"]
 
 # settings for sending email to the users
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

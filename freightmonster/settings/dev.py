@@ -15,7 +15,7 @@ secret_key = client.access_secret_version(
 SECRET_KEY = secret_key.payload.data.decode("UTF-8")
 
 ALLOWED_HOSTS = ["10.138.0.5", "app-dev.freightslayer.com"]
-CSRF_TRUSTED_ORIGINS = ["https://app-dev.freightslayer.com"]
+CSRF_TRUSTED_ORIGINS = ["https://app-dev.freightslayer.com/"]
 
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
