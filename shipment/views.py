@@ -1184,6 +1184,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                         if isinstance(shipper, ShipmentParty):
                             if load.customer == shipper or load.created_by == shipper:
                                 request.data["current"] = request.data["initial"]
+                                request.data["parrty_2"] = shipper.id
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
@@ -1220,6 +1221,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                         if isinstance(carrier, Carrier):
                             if load.carrier != None and load.carrier == carrier:
                                 request.data["current"] = request.data["initial"]
+                                request.data["party_2"] = carrier.id
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
