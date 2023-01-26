@@ -1101,24 +1101,27 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         },
     )
     def get(self, request, *args, **kwargs):
-        queryset = Offer.objects.filter(load=self.kwargs["id"])
-        party = get_app_user_by_username(username=request.user.username)
-        if isinstance(party, AppUser):
-            if party.user_type == "broker":
-                party = get_broker_by_username(username=request.user.username)
-                if isinstance(party, Broker):
-                    queryset = queryset.filter(party_1=party.id)
+        if self.kwargs:
+            queryset = Offer.objects.filter(load=self.kwargs["id"])
+            party = get_app_user_by_username(username=request.user.username)
+            if isinstance(party, AppUser):
+                if party.user_type == "broker":
+                    party = get_broker_by_username(username=request.user.username)
+                    if isinstance(party, Broker):
+                        queryset = queryset.filter(party_1=party.id)
+                    else:
+                        return party
                 else:
-                    return party
+                    queryset = queryset.filter(party_2=party.id)
+
+                serializer = self.get_serializer(queryset, many=True)
+                return Response(status=status.HTTP_200_OK, data=serializer.data)
+
             else:
-                queryset = queryset.filter(party_2=party.id)
-
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
-
+                return party
         else:
-            return party
-
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+    
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -1184,7 +1187,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                         if isinstance(shipper, ShipmentParty):
                             if load.customer == shipper or load.created_by == shipper:
                                 request.data["current"] = request.data["initial"]
-                                request.data["parrty_2"] = shipper.id
+                                request.data["party_2"] = shipper.id
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
