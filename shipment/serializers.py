@@ -30,6 +30,7 @@ class LoadListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "customer",
             "shipper",
             "consignee",
             "broker",
@@ -46,6 +47,7 @@ class LoadListSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
+        rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
         try:
