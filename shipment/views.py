@@ -1319,7 +1319,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
-        load = Load.objects.get(id=instance.load)
+        load = Load.objects.get(id=instance.load.id)
 
         if request.data["action"]:
             if request.data["action"] == "accept":
