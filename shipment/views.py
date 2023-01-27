@@ -403,7 +403,9 @@ class LoadView(
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        queryset = Load.objects.filter(filter_query).exclude(status="Canceled").order_by("-id")
+        queryset = (
+            Load.objects.filter(filter_query).exclude(status="Canceled").order_by("-id")
+        )
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -1094,7 +1096,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     @swagger_auto_schema(
         responses={
             200: openapi.Response(
-                "Return the offer related to a load, you need to specify the load id in the kwargs", OfferSerializer
+                "Return the offer related to a load, you need to specify the load id in the kwargs",
+                OfferSerializer,
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -1137,9 +1140,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             required=["party_1", "party_2", "initial", "current", "load"],
         ),
         responses={
-            200: openapi.Response(
-                "Return the created offer.", OfferSerializer
-            ),
+            200: openapi.Response("Return the created offer.", OfferSerializer),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
             403: "FORBIDDEN",
@@ -1167,9 +1168,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             ],
         ),
         responses={
-            200: openapi.Response(
-                "Return the updated offer.", OfferSerializer
-            ),
+            200: openapi.Response("Return the updated offer.", OfferSerializer),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
             403: "FORBIDDEN",
@@ -1214,7 +1213,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
-                                load.status = "Awaiting shipper"
+                                load.status = "Awaiting Customer"
                                 load.save()
                                 headers = self.get_success_headers(serializer.data)
                                 return Response(
@@ -1241,7 +1240,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
 
-                    elif load.status == "Awaiting shipper":
+                    elif load.status == "Awaiting Customer":
                         carrier = get_carrier_by_username(request.data["party_2"])
 
                         if isinstance(carrier, Carrier):
@@ -1324,7 +1323,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         if request.data["action"]:
             if request.data["action"] == "accept":
-                if load.status == "Awaiting Shipper":
+                if load.status == "Awaiting Customer":
                     load.status = "Assigning Carrier"
                     load.save()
                 elif load.status == "Awaiting Carrier":
@@ -1381,7 +1380,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     load.save()
                 elif app_user.user_type == "broker":
                     if instance.party_2.user_type == "shipment party":
-                        load.status = "Awaiting Shipper"
+                        load.status = "Awaiting Customer"
                         load.save()
                     elif instance.party_2.user_type == "carrier":
                         load.status = "Awaiting Carrier"
