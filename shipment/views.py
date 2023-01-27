@@ -381,6 +381,7 @@ class LoadView(
                 shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
                 filter_query.add(Q(shipper=shipment_party.id), Q.OR)
                 filter_query.add(Q(consignee=shipment_party.id), Q.OR)
+                filter_query.add(Q(customer=shipment_party.id), Q.OR)
             except ShipmentParty.DoesNotExist as e:
                 print(f"Unexpected {e=}, {type(e)=}")
             except BaseException as e:
@@ -402,7 +403,7 @@ class LoadView(
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        queryset = Load.objects.filter(filter_query).order_by("-id")
+        queryset = Load.objects.filter(filter_query).exclude(status="Canceled").order_by("-id")
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
