@@ -1088,6 +1088,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     ]
     serializer_class = OfferSerializer
     queryset = Offer.objects.all()
+    lookup_field = "id"
 
     @swagger_auto_schema(
         responses={
