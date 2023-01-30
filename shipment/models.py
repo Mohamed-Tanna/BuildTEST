@@ -36,17 +36,6 @@ class Shipment(models.Model):
         to=AppUser, null=False, on_delete=models.CASCADE, related_name="customer"
     )
     name = models.CharField(max_length=100, null=False, unique=True)
-    status = models.CharField(
-        choices=[
-            ("Created", "Created"),
-            ("Signed", "Signed"),
-            ("Completed", "Completed"),
-            ("Canceled", "Canceled"),
-        ],
-        max_length=20,
-        null=False,
-        default="Created",
-    )
 
     class Meta:
         unique_together = (("created_by", "name"),)

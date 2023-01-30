@@ -1321,93 +1321,113 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         instance = self.get_object()
         load = Load.objects.get(id=instance.load.id)
 
-        if request.data["action"]:
-            if request.data["action"] == "accept":
-                if load.status == "Awaiting Customer":
-                    load.status = "Assigning Carrier"
-                    load.save()
-                elif load.status == "Awaiting Carrier":
-                    load.status = "Ready For Pick Up"
-                    load.save()
+        if instance.status == "Pending":
 
-                if isinstance(request.data, QueryDict):
-                    request.data._mutable = True
-
-                del request.data["action"]
-                request.data["status"] = "Accepted"
-                serializer = self.get_serializer(
-                    instance, data=request.data, partial=partial
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
-
-                if getattr(instance, "_prefetched_objects_cache", None):
-                    # If 'prefetch_related' has been applied to a queryset, we need to
-                    # forcibly invalidate the prefetch cache on the instance.
-                    instance._prefetched_objects_cache = {}
-
-                return Response(serializer.data)
-
-            elif request.data["action"] == "reject":
-                load.status = "Canceled"
-                load.save()
-
-                if isinstance(request.data, QueryDict):
-                    request.data._mutable = True
-
-                del request.data["action"]
-                request.data["status"] = "Rejected"
-                serializer = self.get_serializer(
-                    instance, data=request.data, partial=partial
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
-
-                if getattr(instance, "_prefetched_objects_cache", None):
-                    # If 'prefetch_related' has been applied to a queryset, we need to
-                    # forcibly invalidate the prefetch cache on the instance.
-                    instance._prefetched_objects_cache = {}
-
-                return Response(serializer.data)
-
-            elif request.data["action"] == "counter":
-                app_user = get_app_user_by_username(request.user.username)
-                if (
-                    app_user.user_type == "shipment party"
-                    or app_user.user_type == "carrier"
-                ):
-                    load.status = "Awaiting Broker"
-                    load.save()
-                elif app_user.user_type == "broker":
-                    if instance.party_2.user_type == "shipment party":
-                        load.status = "Awaiting Customer"
+            if request.data["action"]:
+                if request.data["action"] == "accept":
+                    if load.status == "Awaiting Customer":
+                        load.status = "Assigning Carrier"
                         load.save()
-                    elif instance.party_2.user_type == "carrier":
-                        load.status = "Awaiting Carrier"
+                    elif load.status == "Awaiting Carrier":
+                        load.status = "Ready For Pick Up"
                         load.save()
+                    elif load.status == "Awaiting Broker":
+                        if instance.party_2.user_type == "shipment party":
+                            load.status = "Assigning Carrier"
+                            load.save()
+                        elif instance.party_2.user_type == "carrier":
+                            load.status = "Ready For Pick Up"
+                            load.save()
 
-                del request.data["action"]
-                serializer = self.get_serializer(
-                    instance, data=request.data, partial=partial
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
+                    if isinstance(request.data, QueryDict):
+                        request.data._mutable = True
 
-                if getattr(instance, "_prefetched_objects_cache", None):
-                    # If 'prefetch_related' has been applied to a queryset, we need to
-                    # forcibly invalidate the prefetch cache on the instance.
-                    instance._prefetched_objects_cache = {}
+                    del request.data["action"]
+                    request.data["status"] = "Accepted"
+                    serializer = self.get_serializer(
+                        instance, data=request.data, partial=partial
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_update(serializer)
 
-                return Response(serializer.data)
+                    if getattr(instance, "_prefetched_objects_cache", None):
+                        # If 'prefetch_related' has been applied to a queryset, we need to
+                        # forcibly invalidate the prefetch cache on the instance.
+                        instance._prefetched_objects_cache = {}
+
+                    return Response(serializer.data)
+
+                elif request.data["action"] == "reject":
+                    load.status = "Canceled"
+                    load.save()
+
+                    if isinstance(request.data, QueryDict):
+                        request.data._mutable = True
+
+                    del request.data["action"]
+                    request.data["status"] = "Rejected"
+                    serializer = self.get_serializer(
+                        instance, data=request.data, partial=partial
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_update(serializer)
+
+                    if getattr(instance, "_prefetched_objects_cache", None):
+                        # If 'prefetch_related' has been applied to a queryset, we need to
+                        # forcibly invalidate the prefetch cache on the instance.
+                        instance._prefetched_objects_cache = {}
+
+                    return Response(serializer.data)
+
+                elif request.data["action"] == "counter":
+                    app_user = get_app_user_by_username(request.user.username)
+                    if (
+                        app_user.user_type == "shipment party"
+                        or app_user.user_type == "carrier"
+                    ):
+                        load.status = "Awaiting Broker"
+                        load.save()
+                    elif app_user.user_type == "broker":
+                        if instance.party_2.user_type == "shipment party":
+                            load.status = "Awaiting Customer"
+                            load.save()
+                        elif instance.party_2.user_type == "carrier":
+                            load.status = "Awaiting Carrier"
+                            load.save()
+
+                    del request.data["action"]
+                    serializer = self.get_serializer(
+                        instance, data=request.data, partial=partial
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_update(serializer)
+
+                    if getattr(instance, "_prefetched_objects_cache", None):
+                        # If 'prefetch_related' has been applied to a queryset, we need to
+                        # forcibly invalidate the prefetch cache on the instance.
+                        instance._prefetched_objects_cache = {}
+
+                    return Response(serializer.data)
+
+                else:
+                    return Response(
+                        [{"details": "Unknown action"}],
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             else:
                 return Response(
-                    [{"details": "Unknown action"}], status=status.HTTP_400_BAD_REQUEST
+                    [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
                 )
 
         else:
             return Response(
-                [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
+                [
+                    {
+                        "details": "You cannot edit this load",
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
 
