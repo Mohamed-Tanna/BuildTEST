@@ -140,7 +140,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     serializer_class = LoadCreateRetrieveSerializer
     queryset = Load.objects.all()
     lookup_field = "id"
-    
+
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -516,7 +516,7 @@ class RetrieveLoadView(
         },
     )
     def get(self, request, *args, **kwargs):
-        
+
         return self.retrieve(request, *args, **kwargs)
 
 
@@ -524,7 +524,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
 
     permission_classes = [
         IsAuthenticated,
-        IsAppUser,
+        HasRole,
     ]
     queryset = Contact.objects.all()
 
@@ -593,7 +593,30 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             else:
+                origin = get_app_user_by_username(request.user.username)
                 contact = AppUser.objects.get(user=contact.id)
+                if origin.user_type == "carrier":
+                    if contact.user_type == "shipment party":
+                        return Response(
+                            [
+                                {
+                                    "details": "You cannot add customers or shipment parties to your contact list."
+                                },
+                            ],
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+                        
+                elif origin.user_type == "shipment party":
+                    if contact.user_type == "carrier":
+                        return Response(
+                            [
+                                {
+                                    "details": "You cannot add carriers to your contact list."
+                                },
+                            ],
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+                
                 request.data["contact"] = contact.id
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
@@ -603,6 +626,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
                 return Response(
                     serializer.data, status=status.HTTP_201_CREATED, headers=headers
                 )
+
         except AppUser.DoesNotExist as e:
             return Response(
                 {
