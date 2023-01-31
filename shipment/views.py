@@ -131,41 +131,16 @@ class FacilityView(
         )
 
 
-class LoadView(
-    GenericAPIView,
-    CreateModelMixin,
-    UpdateModelMixin,
-    ListModelMixin,
-):
+class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
         IsShipmentPartyOrBroker,
     ]
+    serializer_class = LoadCreateRetrieveSerializer
     queryset = Load.objects.all()
     lookup_field = "id"
-
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Returns a load list.",
-                LoadListSerializer,
-            ),
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
-    def get(self, request, *args, **kwargs):
-        """
-        List all loads related to a user to be represented in a table.
-
-            taking the authenticated user and listing all of the loads that he is a part of either a shipper,
-            a consignee, a broker or even the ones he created.
-        """
-
-        return self.list(request, *args, **kwargs)
-
+    
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -367,50 +342,6 @@ class LoadView(
                     )
 
     # override
-    def get_queryset(self):
-
-        assert self.queryset is not None, (
-            "'%s' should either include a `queryset` attribute, "
-            "or override the `get_queryset()` method." % self.__class__.__name__
-        )
-        app_user = AppUser.objects.get(user=self.request.user.id)
-        filter_query = Q()
-        filter_query.add(Q(created_by=app_user.id), Q.OR)
-        if app_user.user_type == "shipment party":
-            try:
-                shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
-                filter_query.add(Q(shipper=shipment_party.id), Q.OR)
-                filter_query.add(Q(consignee=shipment_party.id), Q.OR)
-                filter_query.add(Q(customer=shipment_party.id), Q.OR)
-            except ShipmentParty.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-        elif app_user.user_type == "broker":
-            try:
-                broker = Broker.objects.get(app_user=app_user.id)
-                filter_query.add(Q(broker=broker.id), Q.OR)
-            except Broker.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-        elif app_user.user_type == "carrier":
-            try:
-                carrier = Carrier.objects.get(app_user=app_user.id)
-                filter_query.add(Q(carrier=carrier.id), Q.OR)
-            except Carrier.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-
-        queryset = (
-            Load.objects.filter(filter_query).exclude(status="Canceled").order_by("-id")
-        )
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
-        return queryset
-
-    # override
     def update(self, request, *args, **kwargs):
 
         if isinstance(request.data, QueryDict):
@@ -483,14 +414,80 @@ class LoadView(
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
 
+
+class ListLoadView(GenericAPIView, ListModelMixin):
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRole,
+    ]
+    serializer_class = LoadListSerializer
+    queryset = Load.objects.all()
+
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                "Returns a load list.",
+                LoadListSerializer,
+            ),
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """
+        List all loads related to a user to be represented in a table.
+
+            taking the authenticated user and listing all of the loads that he is a part of either a shipper,
+            a consignee, a broker or even the ones he created.
+        """
+
+        return self.list(request, *args, **kwargs)
+
     # override
-    def get_serializer_class(self):
-        if self.request.method == "GET":
-            return LoadListSerializer
-        elif self.request.method == "POST":
-            return LoadCreateRetrieveSerializer
-        else:
-            return LoadCreateRetrieveSerializer
+    def get_queryset(self):
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        app_user = AppUser.objects.get(user=self.request.user.id)
+        filter_query = Q()
+        filter_query.add(Q(created_by=app_user.id), Q.OR)
+        if app_user.user_type == "shipment party":
+            try:
+                shipment_party = ShipmentParty.objects.get(app_user=app_user.id)
+                filter_query.add(Q(shipper=shipment_party.id), Q.OR)
+                filter_query.add(Q(consignee=shipment_party.id), Q.OR)
+                filter_query.add(Q(customer=shipment_party.id), Q.OR)
+            except ShipmentParty.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+        elif app_user.user_type == "broker":
+            try:
+                broker = Broker.objects.get(app_user=app_user.id)
+                filter_query.add(Q(broker=broker.id), Q.OR)
+            except Broker.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+        elif app_user.user_type == "carrier":
+            try:
+                carrier = Carrier.objects.get(app_user=app_user.id)
+                filter_query.add(Q(carrier=carrier.id), Q.OR)
+            except Carrier.DoesNotExist as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+            except BaseException as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+
+        queryset = (
+            Load.objects.filter(filter_query).exclude(status="Canceled").order_by("-id")
+        )
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+        return queryset
 
 
 class RetrieveLoadView(
@@ -500,7 +497,7 @@ class RetrieveLoadView(
 
     permission_classes = [
         IsAuthenticated,
-        IsShipmentPartyOrBroker,
+        HasRole,
     ]
     serializer_class = LoadCreateRetrieveSerializer
     queryset = Load.objects.all()
@@ -519,6 +516,7 @@ class RetrieveLoadView(
         },
     )
     def get(self, request, *args, **kwargs):
+        
         return self.retrieve(request, *args, **kwargs)
 
 

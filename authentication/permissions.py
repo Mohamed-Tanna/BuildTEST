@@ -61,3 +61,17 @@ class IsShipmentPartyOrBroker(permissions.BasePermission):
             )
         except AppUser.DoesNotExist:
             return False
+
+class HasRole(permissions.BasePermission):
+
+    message = "This user does not have a specified role; please complete your account and try again later."
+
+    def has_permission(self, request, view):
+        try:
+             app_user = AppUser.objects.get(user=request.user)
+             return (
+                ShipmentParty.objects.filter(app_user=app_user).exists()
+                or Broker.objects.filter(app_user=app_user).exists() or Carrier.objects.filter(app_user=app_user).exists()
+            )
+        except AppUser.DoesNotExist:
+            return False
