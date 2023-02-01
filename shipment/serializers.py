@@ -34,6 +34,7 @@ class LoadListSerializer(serializers.ModelSerializer):
             "shipper",
             "consignee",
             "broker",
+            "carrier",
             "pick_up_location",
             "destination",
             "pick_up_date",
@@ -50,6 +51,7 @@ class LoadListSerializer(serializers.ModelSerializer):
         rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
+        rep["carrier"] = instance.carrier.app_user.user.username
         try:
             rep["broker"] = instance.broker.app_user.user.username
         except BaseException as e:

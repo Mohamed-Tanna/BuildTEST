@@ -347,72 +347,145 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
-        if "customer" in request.data:
-            username = request.data["customer"]
-            customer = get_shipment_party_by_username(username=username)
-            if isinstance(customer, Response):
-                return customer
-            else:
-                request.data["customer"] = str(customer.id)
-
-        if "shipper" in request.data:
-            username = request.data["shipper"]
-            shipper = get_shipment_party_by_username(username=username)
-            if isinstance(shipper, Response):
-                return shipper
-            else:
-                request.data["shipper"] = str(shipper.id)
-
-        if "consignee" in request.data:
-            username = request.data["consignee"]
-            consignee = get_shipment_party_by_username(username=username)
-            if isinstance(consignee, Response):
-                return consignee
-            else:
-                request.data["consignee"] = str(consignee.id)
-
-        if "broker" in request.data:
-            username = request.data["broker"]
-            broker = get_broker_by_username(username=username)
-            if isinstance(broker, Response):
-                return broker
-            else:
-                request.data["broker"] = str(broker.id)
-
-        if "carrier" in request.data:
-            username = request.data["carrier"]
-            carrier = get_carrier_by_username(username=username)
-            if isinstance(carrier, Response):
-                return carrier
-            else:
-                request.data["carrier"] = str(carrier.id)
-
-        partial = kwargs.pop("partial", False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
 
-        # check that the user requesting to update the load is the one who created it
-        user = AppUser.objects.get(user=self.request.user.id)
+        if instance.status == "Created":
+            if "customer" in request.data:
+                customer = get_shipment_party_by_username(
+                    username=request.data["customer"]
+                )
+                if isinstance(customer, Response):
+                    return customer
+                else:
+                    request.data["customer"] = str(customer.id)
 
-        if Load.objects.filter(id=instance.id, created_by=user.id).exists():
-            self.perform_update(serializer)
+            if "shipper" in request.data:
+                shipper = get_shipment_party_by_username(
+                    username=request.data["shipper"]
+                )
+                if isinstance(shipper, Response):
+                    return shipper
+                else:
+                    request.data["shipper"] = str(shipper.id)
+
+            if "consignee" in request.data:
+                consignee = get_shipment_party_by_username(
+                    username=request.data["consignee"]
+                )
+                if isinstance(consignee, Response):
+                    return consignee
+                else:
+                    request.data["consignee"] = str(consignee.id)
+
+            if "broker" in request.data:
+                broker = get_broker_by_username(username=request.data["broker"])
+                if isinstance(broker, Response):
+                    return broker
+                else:
+                    request.data["broker"] = str(broker.id)
+
+            partial = kwargs.pop("partial", False)
+            serializer = self.get_serializer(
+                instance, data=request.data, partial=partial
+            )
+            serializer.is_valid(raise_exception=True)
+
+            # check that the user requesting to update the load is the one who created it
+            user = AppUser.objects.get(user=self.request.user.id)
+
+            if instance.created_by == user.id:
+                self.perform_update(serializer)
+
+            else:
+                return Response(
+                    {
+                        "detail": [
+                            "The load you are trying to update does not exist or you are not the creator of this load."
+                        ]
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if getattr(instance, "_prefetched_objects_cache", None):
+                # If 'prefetch_related' has been applied to a queryset, we need to
+                # forcibly invalidate the prefetch cache on the instance.
+                instance._prefetched_objects_cache = {}
+            return Response(serializer.data)
+
+        elif instance.status == "Assigning Carrier":
+            if "carrier" in request.data:
+                if (
+                    "action" in request.data
+                    and request.data["action"] == "assign carrier"
+                ):
+                    editor = get_broker_by_username(username=request.user.username)
+
+                    if isinstance(editor, Response):
+                        return editor
+
+                    else:
+                        carrier = get_carrier_by_username(
+                            username=request.data["carrier"]
+                        )
+                        if isinstance(carrier, Response):
+                            return carrier
+                        else:
+                            del request.data["action"]
+                            request.data["carrier"] = str(carrier.id)
+                            partial = kwargs.pop("partial", False)
+                            serializer = self.get_serializer(
+                                instance, data=request.data, partial=partial
+                            )
+                            serializer.is_valid(raise_exception=True)
+
+                            if instance.broker == broker.id:
+                                self.perform_update(serializer)
+
+                            else:
+                                return Response(
+                                    {
+                                        "detail": [
+                                            "You cannot add a carrier to this load because you are not the assigend broker."
+                                        ]
+                                    },
+                                    status=status.HTTP_403_FORBIDDEN,
+                                )
+
+                            if getattr(instance, "_prefetched_objects_cache", None):
+                                # If 'prefetch_related' has been applied to a queryset, we need to
+                                # forcibly invalidate the prefetch cache on the instance.
+                                instance._prefetched_objects_cache = {}
+                            return Response(serializer.data)
+
+                else:
+                    return Response(
+                        [
+                            {
+                                "details": "You cannot update the carrier unless you specify the action."
+                            },
+                        ],
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            else:
+                return Response(
+                        [
+                            {
+                                "details": "Carrier is required."
+                            },
+                        ],
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
         else:
             return Response(
-                {
-                    "detail": [
-                        "The load you are trying to update does not exist or you are not the creator of this load."
-                    ]
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if getattr(instance, "_prefetched_objects_cache", None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
-            instance._prefetched_objects_cache = {}
-        return Response(serializer.data)
+                        [
+                            {
+                                "details": "You cannot update this load."
+                            },
+                        ],
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
 
 
 class ListLoadView(GenericAPIView, ListModelMixin):
@@ -605,7 +678,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
                             ],
                             status=status.HTTP_403_FORBIDDEN,
                         )
-                        
+
                 elif origin.user_type == "shipment party":
                     if contact.user_type == "carrier":
                         return Response(
@@ -616,7 +689,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
                             ],
                             status=status.HTTP_403_FORBIDDEN,
                         )
-                
+
                 request.data["contact"] = contact.id
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
@@ -1380,8 +1453,14 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     return Response(serializer.data)
 
                 elif request.data["action"] == "reject":
-                    load.status = "Canceled"
-                    load.save()
+                    user = get_app_user_by_username(username=request.user.username)
+                    if user.user_type == "carrier":
+                        load.status = "Assigning Carrier"
+                        load.carrier = None
+                        load.save()
+                    else:
+                        load.status = "Canceled"
+                        load.save()
 
                     if isinstance(request.data, QueryDict):
                         request.data._mutable = True
