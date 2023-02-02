@@ -438,7 +438,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                             )
                             serializer.is_valid(raise_exception=True)
 
-                            if instance.broker == editor.id:
+                            if instance.broker == editor:
                                 self.perform_update(serializer)
 
                             else:
@@ -469,23 +469,19 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
             else:
                 return Response(
-                        [
-                            {
-                                "details": "Carrier is required."
-                            },
-                        ],
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    [
+                        {"details": "Carrier is required."},
+                    ],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         else:
             return Response(
-                        [
-                            {
-                                "details": "You cannot update this load."
-                            },
-                        ],
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                [
+                    {"details": "You cannot update this load."},
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class ListLoadView(GenericAPIView, ListModelMixin):
