@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "dj_rest_auth.registration",
     "authentication",
     "shipment",
+    "document",
     "defender",
     "corsheaders",
     "drf_yasg",

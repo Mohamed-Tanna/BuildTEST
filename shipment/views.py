@@ -438,7 +438,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                             )
                             serializer.is_valid(raise_exception=True)
 
-                            if instance.broker == broker.id:
+                            if instance.broker == editor.id:
                                 self.perform_update(serializer)
 
                             else:
@@ -484,7 +484,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 "details": "You cannot update this load."
                             },
                         ],
-                        status=status.HTTP_403_FORBIDDEN,
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
 
 

@@ -30,4 +30,5 @@ urlpatterns = [
     path("freight-slayer-admin-sos-portal/", admin.site.urls),
     path("authentication/", include("authentication.urls")),
     path("shipment/", include("shipment.urls")),
+    path("docs/", include("document.urls")),
 ]
