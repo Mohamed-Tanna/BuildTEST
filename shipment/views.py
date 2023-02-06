@@ -1210,6 +1210,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 else:
                     queryset = queryset.filter(party_2=party.id)
 
+                queryset = queryset.order_by("id")
                 serializer = self.get_serializer(queryset, many=True)
                 return Response(status=status.HTTP_200_OK, data=serializer.data)
 
