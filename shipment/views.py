@@ -393,7 +393,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # check that the user requesting to update the load is the one who created it
             user = AppUser.objects.get(user=self.request.user.id)
 
-            if instance.created_by == user.id:
+            if instance.created_by == user:
                 self.perform_update(serializer)
 
             else:
