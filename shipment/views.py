@@ -1338,7 +1338,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                         if isinstance(carrier, Carrier):
                             if load.carrier != None and load.carrier == carrier:
                                 request.data["current"] = request.data["initial"]
-                                request.data["party_2"] = carrier.id
+                                request.data["party_2"] = str(carrier.id)
                                 serializer = self.get_serializer(data=request.data)
                                 serializer.is_valid(raise_exception=True)
                                 self.perform_create(serializer)
