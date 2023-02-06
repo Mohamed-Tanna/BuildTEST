@@ -1331,7 +1331,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
 
-                    elif load.status == "Awaiting Customer":
+                    elif load.status == "Assigning Carrier":
                         carrier = get_carrier_by_username(request.data["party_2"])
 
                         if isinstance(carrier, Carrier):
