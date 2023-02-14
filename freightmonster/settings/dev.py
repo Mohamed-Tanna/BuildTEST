@@ -1,4 +1,4 @@
-from .base import *
+import settings.base
 import os
 from google.cloud import secretmanager
 

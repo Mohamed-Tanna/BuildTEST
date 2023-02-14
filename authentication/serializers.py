@@ -1,14 +1,5 @@
-from .models import *
 from rest_framework import serializers
-from authentication.models import AppUser
-
-
-# def valid_phone_number(phone_number):
-#     phone_number_pattern = re.compile(
-#         "^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$"
-#     )
-#     if not phone_number_pattern.match(phone_number):
-#         raise serializers.ValidationError("invalid phone number")
+import authentication.models as models
 
 
 class AppUserSerializer(serializers.ModelSerializer):
@@ -16,30 +7,30 @@ class AppUserSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source="user.email")
 
     class Meta:
-        model = AppUser
+        model = models.AppUser
         fields = ["user", "phone_number", "user_type", "username", "email"]
 
 
 class BaseUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
+        model = models.User
         fields = ["first_name", "last_name"]
 
 
 class ShipmentPartySerializer(serializers.ModelSerializer):
     class Meta:
-        model = ShipmentParty
+        model = models.ShipmentParty
         fields = ["app_user"]
 
 
 class CarrierSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Carrier
+        model = models.Carrier
         fields = ["app_user", "DOT_number", "MC_number"]
         extra_kwargs = {"MC_number": {"required": False}}
 
 
 class BrokerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Broker
+        model = models.Broker
         fields = ["app_user", "MC_number"]

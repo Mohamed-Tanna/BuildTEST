@@ -1,11 +1,11 @@
-from .models import *
+import shipment.models as models
 from rest_framework import serializers
 from authentication.serializers import AppUserSerializer
 
 
 class FacilitySerializer(serializers.ModelSerializer):
     class Meta:
-        model = Facility
+        model = models.Facility
         fields = [
             "id",
             "owner",
@@ -26,7 +26,7 @@ class FacilitySerializer(serializers.ModelSerializer):
 
 class LoadListSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Load
+        model = models.Load
         fields = [
             "id",
             "name",
@@ -53,12 +53,12 @@ class LoadListSerializer(serializers.ModelSerializer):
         rep["consignee"] = instance.consignee.app_user.user.username
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
-        except BaseException as e:
+        except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             rep["carrier"] = None
         try:
             rep["broker"] = instance.broker.app_user.user.username
-        except BaseException as e:
+        except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             rep["broker"] = None
         rep["pick_up_location"] = instance.pick_up_location.building_name
@@ -70,7 +70,7 @@ class ContactListSerializer(serializers.ModelSerializer):
     contact = AppUserSerializer()
 
     class Meta:
-        model = Contact
+        model = models.Contact
         fields = [
             "contact",
         ]
@@ -78,7 +78,7 @@ class ContactListSerializer(serializers.ModelSerializer):
 
 class ContactCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Contact
+        model = models.Contact
         fields = [
             "origin",
             "contact",
@@ -87,13 +87,13 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 
 class FacilityFilterSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Facility
+        model = models.Facility
         fields = ["id", "building_name", "state", "city"]
 
 
 class OfferSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Offer
+        model = models.Offer
         fields = "__all__"
         extra_kwargs = {
             "status": {"required": False},
@@ -110,7 +110,7 @@ class OfferSerializer(serializers.ModelSerializer):
 
 class ShipmentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Shipment
+        model = models.Shipment
         fields = "__all__"
         read_only_fields = ("id",)
 
@@ -123,7 +123,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
 
 class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Load
+        model = models.Load
         fields = "__all__"
         extra_kwargs = {
             "carrier": {"required": False},
@@ -143,12 +143,12 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         rep["consignee"] = instance.consignee.app_user.user.username
         try:
             rep["broker"] = instance.broker.app_user.user.username
-        except BaseException as e:
+        except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             rep["broker"] = None
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
-        except BaseException as e:
+        except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             rep["carrier"] = None
         rep["pick_up_location"] = FacilitySerializer(instance.pick_up_location).data
@@ -160,7 +160,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
 
 class ShipmentAdminSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ShipmentAdmin
+        model = models.ShipmentAdmin
         fields = "__all__"
 
     def to_representation(self, instance):

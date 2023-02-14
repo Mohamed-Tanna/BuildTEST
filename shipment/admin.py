@@ -1,6 +1,5 @@
 from django.contrib import admin
-from .models import *
-
+import shipment.models as models
 
 class FacilityAdmin(admin.ModelAdmin):
 
@@ -55,10 +54,10 @@ class ShipmentAdminAdmin(admin.ModelAdmin):
 
     list_display = ["id", "shipment", "admin"]
 
-admin.site.register(Facility, admin_class=FacilityAdmin)
-admin.site.register(Trailer, admin_class=TrailerAdmin)
-admin.site.register(Load, admin_class=LoadAdmin)
-admin.site.register(Contact, admin_class=ContactAdmin)
-admin.site.register(Offer, admin_class=OfferAdmin)
-admin.site.register(Shipment, admin_class=ShipmentAdminSite)
-admin.site.register(ShipmentAdmin, admin_class=ShipmentAdminAdmin)
+admin.site.register(models.Facility, admin_class=FacilityAdmin)
+admin.site.register(models.Trailer, admin_class=TrailerAdmin)
+admin.site.register(models.Load, admin_class=LoadAdmin)
+admin.site.register(models.Contact, admin_class=ContactAdmin)
+admin.site.register(models.Offer, admin_class=OfferAdmin)
+admin.site.register(models.Shipment, admin_class=ShipmentAdminSite)
+admin.site.register(models.ShipmentAdmin, admin_class=ShipmentAdminAdmin)

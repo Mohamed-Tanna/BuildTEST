@@ -1,6 +1,6 @@
 from django.urls import path, include
 from dj_rest_auth.registration.views import VerifyEmailView
-from .views import *
+import authentication.views as views
 from dj_rest_auth.views import PasswordResetConfirmView, PasswordResetView
 
 
@@ -25,10 +25,10 @@ urlpatterns = [
         name="account_confirm_email",
     ),
     path("allauth/", include("allauth.urls")),
-    path("app-user/", AppUserView.as_view()),
-    path("base-user/<id>/", BaseUserView.as_view()),
-    path("hc/", HealthCheckView.as_view()),
-    path("shipment-party/", ShipmentPartyView.as_view()),
-    path("carrier/", CarrierView.as_view()),
-    path("broker/", BrokerView.as_view())
+    path("app-user/", views.AppUserView.as_view()),
+    path("base-user/<id>/", views.BaseUserView.as_view()),
+    path("hc/", views.HealthCheckView.as_view()),
+    path("shipment-party/", views.ShipmentPartyView.as_view()),
+    path("carrier/", views.CarrierView.as_view()),
+    path("broker/", views.BrokerView.as_view())
 ]

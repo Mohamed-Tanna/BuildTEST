@@ -1,9 +1,9 @@
 import os
 import requests
 # Module imports
-from .models import *
-from .serializers import *
-from .permissions import *
+import authentication.models as models
+import authentication.serializers as serializers
+import authentication.permissions as permissions
 # Django imports
 from django.http import QueryDict
 from django.contrib.auth.models import User
@@ -42,8 +42,8 @@ class AppUserView(GenericAPIView, CreateModelMixin):
     permission_classes = [
         IsAuthenticated,
     ]
-    serializer_class = AppUserSerializer
-    queryset = AppUser.objects.all()
+    serializer_class = serializers.AppUserSerializer
+    queryset = models.AppUser.objects.all()
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -87,14 +87,14 @@ class AppUserView(GenericAPIView, CreateModelMixin):
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
 
-        except BaseException as e:
+        except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_400_BAD_REQUEST, data=e.args[0])
 
     @swagger_auto_schema(
         responses={
             200: openapi.Response(
-                "App user exists.", AppUserSerializer
+                "App user exists.", serializers.AppUserSerializer
             ),
             400: "Bad Request",
             404: "Not Found",
@@ -104,8 +104,8 @@ class AppUserView(GenericAPIView, CreateModelMixin):
     def get(self, request, *args, **kwargs):
 
         try:
-            app_user = AppUser.objects.get(user=request.user)
-            data = AppUserSerializer(app_user).data
+            app_user = models.AppUser.objects.get(user=request.user)
+            data = serializers.AppUserSerializer(app_user).data
             return Response(data=data, status=status.HTTP_200_OK)
 
         except ObjectDoesNotExist:
@@ -114,7 +114,7 @@ class AppUserView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        except BaseException as e:
+        except (BaseException) as e:
             return Response(
                 {"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -140,7 +140,7 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
     permission_classes = [
         IsAuthenticated,
     ]
-    serializer_class = BaseUserUpdateSerializer
+    serializer_class = serializers.BaseUserUpdateSerializer
     queryset = User.objects.all()
     lookup_field = "id"
 
@@ -180,10 +180,10 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        IsAppUser,
+        permissions.IsAppUser,
     ]
-    serializer_class = ShipmentPartySerializer
-    queryset = ShipmentParty.objects.all()
+    serializer_class = serializers.ShipmentPartySerializer
+    queryset = models.ShipmentParty.objects.all()
             
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -215,7 +215,7 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
     # override
     def create(self, request, *args, **kwargs):
 
-        app_user = AppUser.objects.get(user=request.user)
+        app_user = models.AppUser.objects.get(user=request.user)
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -235,10 +235,10 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        IsAppUser,
+        permissions.IsAppUser,
     ]
-    serializer_class = CarrierSerializer
-    queryset = Carrier.objects.all()
+    serializer_class = serializers.CarrierSerializer
+    queryset = models.Carrier.objects.all()
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -275,7 +275,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             }
         )
         webkey = webkey.payload.data.decode("UTF-8")
-        app_user = AppUser.objects.get(user=request.user)
+        app_user = models.AppUser.objects.get(user=request.user)
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -283,8 +283,8 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if app_user.user_type == "carrier":
-            DOT_number = request.data.get("DOT_number")
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{DOT_number}?webKey={webkey}"
+            dot_number = request.data.get("DOT_number")
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
             try:
                 res = requests.get(url=URL)
                 data = res.json()
@@ -305,7 +305,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                     )
                     raise exceptions.PermissionDenied(msg)
 
-            except BaseException as e:
+            except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
         else:
@@ -319,10 +319,10 @@ class BrokerView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        IsAppUser,
+        permissions.IsAppUser,
     ]
-    serializer_class = BrokerSerializer
-    queryset = Broker.objects.all()
+    serializer_class = serializers.BrokerSerializer
+    queryset = models.Broker.objects.all()
 
     
     @swagger_auto_schema(
@@ -360,7 +360,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             }
         )
         webkey = webkey.payload.data.decode("UTF-8")
-        app_user = AppUser.objects.get(user=request.user)
+        app_user = models.AppUser.objects.get(user=request.user)
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -368,8 +368,8 @@ class BrokerView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if app_user.user_type == "broker":
-            MC_number = request.data.get("MC_number")
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{MC_number}?webKey={webkey}"
+            mc_number = request.data.get("MC_number")
+            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{mc_number}?webKey={webkey}"
             try:
                 res = requests.get(url=URL)
                 data = res.json()
@@ -390,7 +390,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
                     )
                     raise exceptions.PermissionDenied(msg)
 
-            except BaseException as e:
+            except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
         else:

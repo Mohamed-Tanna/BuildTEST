@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import *
+import authentication.models as models
 
 class AppUserAdmin(admin.ModelAdmin):
 
@@ -18,8 +18,8 @@ class ShipmentPartyAdmin(admin.ModelAdmin):
     list_display = ["id", "app_user"]
 
 
-admin.site.register(AppUser, admin_class=AppUserAdmin)
-admin.site.register(Carrier, admin_class=CarrierAdmin)
-admin.site.register(Broker, admin_class=BrokerAdmin)
-admin.site.register(ShipmentParty, admin_class=ShipmentPartyAdmin)
+admin.site.register(models.AppUser, admin_class=AppUserAdmin)
+admin.site.register(models.Carrier, admin_class=CarrierAdmin)
+admin.site.register(models.Broker, admin_class=BrokerAdmin)
+admin.site.register(models.ShipmentParty, admin_class=ShipmentPartyAdmin)
 

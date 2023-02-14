@@ -1,7 +1,7 @@
 from datetime import date
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
-from authentication.models import *
+from authentication.models import User, AppUser, ShipmentParty, Broker, Carrier
 
 
 class Facility(models.Model):

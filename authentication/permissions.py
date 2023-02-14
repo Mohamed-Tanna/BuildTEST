@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from .models import *
+import authentication.models as models
 
 
 class IsAppUser(permissions.BasePermission):
@@ -8,7 +8,7 @@ class IsAppUser(permissions.BasePermission):
 
     def has_permission(self, request, view):
 
-        return AppUser.objects.filter(user=request.user).exists()
+        return models.AppUser.objects.filter(user=request.user).exists()
 
 
 class IsBroker(permissions.BasePermission):
@@ -17,9 +17,9 @@ class IsBroker(permissions.BasePermission):
 
     def has_permission(self, request, view):
         try:
-            app_user = AppUser.objects.get(user=request.user)
-            return Broker.objects.filter(app_user=app_user).exists()
-        except AppUser.DoesNotExist:
+            app_user = models.AppUser.objects.get(user=request.user)
+            return models.Broker.objects.filter(app_user=app_user).exists()
+        except models.AppUser.DoesNotExist:
             return False
 
 
@@ -29,9 +29,9 @@ class IsCarrier(permissions.BasePermission):
 
     def has_permission(self, request, view):
         try:
-            app_user = AppUser.objects.get(user=request.user)
-            return Carrier.objects.filter(app_user=app_user).exists()
-        except AppUser.DoesNotExist:
+            app_user = models.AppUser.objects.get(user=request.user)
+            return models.Carrier.objects.filter(app_user=app_user).exists()
+        except models.AppUser.DoesNotExist:
             return False
 
 
@@ -41,9 +41,9 @@ class IsShipmentParty(permissions.BasePermission):
 
     def has_permission(self, request, view):
         try:
-            app_user = AppUser.objects.get(user=request.user)
-            return ShipmentParty.objects.filter(app_user=app_user).exists()
-        except AppUser.DoesNotExist:
+            app_user = models.AppUser.objects.get(user=request.user)
+            return models.ShipmentParty.objects.filter(app_user=app_user).exists()
+        except models.AppUser.DoesNotExist:
             return False
 
 
@@ -53,13 +53,13 @@ class IsShipmentPartyOrBroker(permissions.BasePermission):
 
     def has_permission(self, request, view):
         try:
-            app_user = AppUser.objects.get(user=request.user)
+            app_user = models.AppUser.objects.get(user=request.user)
 
             return (
-                ShipmentParty.objects.filter(app_user=app_user).exists()
-                or Broker.objects.filter(app_user=app_user).exists()
+                models.ShipmentParty.objects.filter(app_user=app_user).exists()
+                or models.Broker.objects.filter(app_user=app_user).exists()
             )
-        except AppUser.DoesNotExist:
+        except models.AppUser.DoesNotExist:
             return False
 
 class HasRole(permissions.BasePermission):
@@ -68,10 +68,10 @@ class HasRole(permissions.BasePermission):
 
     def has_permission(self, request, view):
         try:
-             app_user = AppUser.objects.get(user=request.user)
+             app_user = models.AppUser.objects.get(user=request.user)
              return (
-                ShipmentParty.objects.filter(app_user=app_user).exists()
-                or Broker.objects.filter(app_user=app_user).exists() or Carrier.objects.filter(app_user=app_user).exists()
+                models.ShipmentParty.objects.filter(app_user=app_user).exists()
+                or models.Broker.objects.filter(app_user=app_user).exists() or models.Carrier.objects.filter(app_user=app_user).exists()
             )
-        except AppUser.DoesNotExist:
+        except models.AppUser.DoesNotExist:
             return False

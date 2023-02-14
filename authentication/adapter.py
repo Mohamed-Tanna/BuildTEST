@@ -44,7 +44,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
             + (
                 "".join(
                     random.choice(string.ascii_uppercase + string.digits)
-                    for i in range(5)
+                    for _ in range(5)
                 )
             )
         )
@@ -63,14 +63,14 @@ class CustomAccountAdapter(DefaultAccountAdapter):
                     + (
                         "".join(
                             random.choice(string.ascii_uppercase + string.digits)
-                            for i in range(5)
+                            for _ in range(5)
                         )
                     )
                 )
                 user.username = modified_username
                 continue
 
-            except BaseException as e:
+            except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 break
 

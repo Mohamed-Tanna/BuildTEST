@@ -1,10 +1,14 @@
-import io
-from dj_rest_auth.forms import AllAuthPasswordResetForm
-from dj_rest_auth.serializers import PasswordResetSerializer
-from rest_framework import serializers
+#django imports
+from django.urls import reverse
 from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
-from django.urls import reverse
+
+#DRF imports
+from rest_framework import serializers
+from dj_rest_auth.forms import AllAuthPasswordResetForm
+from dj_rest_auth.serializers import PasswordResetSerializer
+
+#third party imports
 from allauth.account import app_settings
 from allauth.account.adapter import get_adapter
 from allauth.account.forms import default_token_generator
@@ -27,8 +31,8 @@ class CustomAllAuthPasswordResetForm(AllAuthPasswordResetForm):
                 'password_reset_confirm',
                 args=[user_pk_to_url_str(user), temp_key],
             )
-            myDomain = Site.objects.get(id=1)
-            url = "https://"+f'{myDomain}'+ path
+            my_domain = Site.objects.get(id=1)
+            url = "https://"+f'{my_domain}'+ path
 
             context = {
                 'current_site': current_site,
@@ -47,9 +51,15 @@ class CustomAllAuthPasswordResetForm(AllAuthPasswordResetForm):
 
 class CustomPasswordResetSerializer(PasswordResetSerializer):
     def update(self, instance, validated_data):
+        """
+            TODO
+        """
         pass
 
     def create(self, validated_data):
+        """
+            TODO
+        """
         pass
 
     def validate_email(self, value):
