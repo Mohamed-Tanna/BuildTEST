@@ -151,8 +151,20 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             rep["carrier"] = None
-        rep["pick_up_location"] = FacilitySerializer(instance.pick_up_location).data
-        rep["destination"] = FacilitySerializer(instance.destination).data
+        rep["pick_up_location"] = (
+            instance.pick_up_location.building_name
+            + ", "
+            + instance.pick_up_location.city
+            + ", "
+            + instance.pick_up_location.state
+        )
+        rep["destination"] = (
+            instance.destination.building_name
+            + ", "
+            + instance.destination.city
+            + ", "
+            + instance.destination.state
+        )
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
         return rep
