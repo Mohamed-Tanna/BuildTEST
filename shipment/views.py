@@ -294,10 +294,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         instance = self.get_object()
 
         if instance.status == "Created":
-            self._update_created_load(request, instance, kwargs)
+            return self._update_created_load(request, instance, kwargs)
 
         elif instance.status == ASSINING_CARRIER:
-            self._update_assigning_carrier_load(request, instance, kwargs)
+            return self._update_assigning_carrier_load(request, instance, kwargs)
 
         else:
             return Response(
