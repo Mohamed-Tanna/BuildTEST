@@ -364,7 +364,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if "action" not in request.data or request.data["action"] == "assign carrier":
+        if "action" not in request.data or request.data["action"] != "assign carrier":
             return Response(
                 [
                     {
