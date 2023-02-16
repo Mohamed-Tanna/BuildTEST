@@ -288,23 +288,27 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             try:
                 res = requests.get(url=URL)
                 data = res.json()
-                allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
+                if "allowedToOperate" in data["content"]["carrier"]:
+                    allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
 
-                if allowed_to_operate == "Y":
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    return Response(
-                        serializer.data, status=status.HTTP_201_CREATED, headers=headers
-                    )
+                    if allowed_to_operate == "Y":
+                        serializer = self.get_serializer(data=request.data)
+                        serializer.is_valid(raise_exception=True)
+                        self.perform_create(serializer)
+                        headers = self.get_success_headers(serializer.data)
+                        return Response(
+                            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                        )
 
+                    else:
+                        msg = gettext_lazy(
+                            "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                        )
+                        raise exceptions.PermissionDenied(msg)
                 else:
-                    msg = gettext_lazy(
-                        "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                    )
-                    raise exceptions.PermissionDenied(msg)
-
+                        app_user = models.AppUser.objects.get(user=request.user.id)
+                        app_user.delete()
+                        
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
@@ -373,23 +377,27 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             try:
                 res = requests.get(url=URL)
                 data = res.json()
-                allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
+                if "allowedToOperate" in data["content"][0]["carrier"]:
+                    allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
 
-                if allowed_to_operate == "Y":
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    return Response(
-                        serializer.data, status=status.HTTP_201_CREATED, headers=headers
-                    )
+                    if allowed_to_operate == "Y":
+                        serializer = self.get_serializer(data=request.data)
+                        serializer.is_valid(raise_exception=True)
+                        self.perform_create(serializer)
+                        headers = self.get_success_headers(serializer.data)
+                        return Response(
+                            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                        )
 
+                    else:
+                        msg = gettext_lazy(
+                            "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                        )
+                        raise exceptions.PermissionDenied(msg)
                 else:
-                    msg = gettext_lazy(
-                        "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                    )
-                    raise exceptions.PermissionDenied(msg)
-
+                    app_user = models.AppUser.objects.get(user=request.user.id)
+                    app_user.delete()
+                    
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
