@@ -34,6 +34,7 @@ SHIPMENT_PARTY = "shipment party"
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
 ERR_SECOND_PART = "or override the `get_queryset()` method."
 
+
 class FacilityView(
     GenericAPIView, CreateModelMixin, ListModelMixin, RetrieveModelMixin
 ):
@@ -112,8 +113,7 @@ class FacilityView(
     def get_queryset(self):
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         queryset = models.Facility.objects.filter(owner=self.request.user.id)
 
@@ -258,7 +258,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         for field in required_fields:
             if field not in request.data:
                 return Response(
-                    {"detail": [f"{field} is required."]}, status=status.HTTP_400_BAD_REQUEST
+                    {"detail": [f"{field} is required."]},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             party = utils.get_shipment_party_by_username(username=request.data[field])
             if not isinstance(party, models.ShipmentParty):
@@ -281,20 +282,22 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             self.perform_create(serializer)
 
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
     # override
     def update(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
+
         instance = self.get_object()
-        partial = kwargs.pop("partial", False)
-        response = None
 
         if instance.status == "Created":
-            response = self._update_created_instance(request, instance, partial, kwargs)
+            self._update_created_load(request, instance, kwargs)
 
         elif instance.status == ASSINING_CARRIER:
-            response = self._update_assigning_carrier_instance(request, instance, partial, kwargs)
+            self._update_assigning_carrier_load(request, instance, kwargs)
 
         else:
             return Response(
@@ -304,18 +307,36 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if getattr(instance, "_prefetched_objects_cache", None):
-            instance._prefetched_objects_cache = {}
 
-        return response
+    def _update_created_load(self, request, instance, kwargs):
+        party_types = ["customer", "shipper", "consignee"]
+        for party_type in party_types:
+            if party_type in request.data:
+                party = utils.get_shipment_party_by_username(
+                    username=request.data[party_type]
+                )
+                if isinstance(party, Response):
+                    return party
 
+                request.data[party_type] = str(party.id)
 
-    def _update_created_instance(self, request, instance, partial, kwargs):
+        if "broker" in request.data:
+            broker = utils.get_broker_by_username(username=request.data["broker"])
+            if isinstance(broker, Response):
+                return broker
+            else:
+                request.data["broker"] = str(broker.id)
+
+        partial = kwargs.pop("partial", False)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        if self._is_creator(request.user, instance):
+        # check that the user requesting to update the load is the one who created it
+        user = models.AppUser.objects.get(user=self.request.user.id)
+
+        if instance.created_by == user:
             self.perform_update(serializer)
+
         else:
             return Response(
                 {
@@ -326,30 +347,29 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        if getattr(instance, "_prefetched_objects_cache", None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
         return Response(serializer.data)
 
 
-    def _update_assigning_carrier_instance(self, request, instance, partial, kwargs):
+    def _update_assigning_carrier_load(self, request, instance, kwargs):
+
         if "carrier" not in request.data:
             return Response(
-                [{"details": "Carrier is required."}],
+                [
+                    {"details": "Carrier is required."},
+                ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not self._is_assigning_broker(request.user, instance):
-            return Response(
-                {
-                    "detail": [
-                        "You cannot add a carrier to this load because you are not the assigned broker."
-                    ]
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if "action" not in request.data or request.data["action"] != "assign carrier":
+        if "action" not in request.data or request.data["action"] == "assign carrier":
             return Response(
                 [
-                    {"details": "You cannot update the carrier unless you specify the action."},
+                    {
+                        "details": "You cannot update the carrier unless you specify an action."
+                    },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -363,26 +383,34 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         if isinstance(carrier, Response):
             return carrier
-
+        
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
-
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        partial = kwargs.pop("partial", False)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
 
+        if instance.broker == editor:
+            self.perform_update(serializer)
+
+        else:
+            return Response(
+                {
+                    "detail": [
+                        "You cannot add a carrier to this load because you are not the assigend broker."
+                    ]
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if getattr(instance, "_prefetched_objects_cache", None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
         return Response(serializer.data)
-
-
-    def _is_creator(self, user, instance):
-        app_user = models.AppUser.objects.get(user=user.id)
-        return instance.created_by == app_user
-
-
-    def _is_assigning_broker(self, user, instance):
-        app_user = models.AppUser.objects.get(user=user.id)
-        return instance.broker == app_user
-
+            
 
 class ListLoadView(GenericAPIView, ListModelMixin):
 
@@ -419,8 +447,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         queryset = self.queryset
 
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         app_user = models.AppUser.objects.get(user=self.request.user.id)
@@ -429,7 +456,11 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         if app_user.user_type == SHIPMENT_PARTY:
             try:
                 shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)
-                filter_query |= Q(shipper=shipment_party.id) | Q(consignee=shipment_party.id) | Q(customer=shipment_party.id)
+                filter_query |= (
+                    Q(shipper=shipment_party.id)
+                    | Q(consignee=shipment_party.id)
+                    | Q(customer=shipment_party.id)
+                )
             except models.ShipmentParty.DoesNotExist as e:
                 print(f"Unexpected {e=}, {type(e)=}")
             except (BaseException) as e:
@@ -453,7 +484,9 @@ class ListLoadView(GenericAPIView, ListModelMixin):
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        queryset = queryset.filter(filter_query).exclude(status="Canceled").order_by("-id")
+        queryset = (
+            queryset.filter(filter_query).exclude(status="Canceled").order_by("-id")
+        )
 
         return queryset
 
@@ -499,7 +532,8 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
     @swagger_auto_schema(
         responses={
             200: openapi.Response(
-                "Return the contact list of a specific type.", serializers.ContactListSerializer
+                "Return the contact list of a specific type.",
+                serializers.ContactListSerializer,
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -522,7 +556,8 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
         ),
         responses={
             200: openapi.Response(
-                "Return the created contact object.", serializers.ContactCreateSerializer
+                "Return the created contact object.",
+                serializers.ContactCreateSerializer,
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -617,8 +652,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
     def get_queryset(self):
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         queryset = models.Contact.objects.filter(origin=self.request.user.id)
         if isinstance(queryset, QuerySet):
@@ -650,7 +684,9 @@ class ShipmentView(
 
     @swagger_auto_schema(
         responses={
-            200: openapi.Response("Returns a list of shipments.", serializers.ShipmentSerializer),
+            200: openapi.Response(
+                "Returns a list of shipments.", serializers.ShipmentSerializer
+            ),
             401: "UNAUTHORIZED",
             403: "FORBIDDEN",
             500: "INTERNAL SERVER ERROR",
@@ -728,9 +764,9 @@ class ShipmentView(
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         app_user = models.AppUser.objects.get(user=request.user.id)
-        admins = models.ShipmentAdmin.objects.filter(shipment=self.kwargs["id"]).values_list(
-            "admin", flat=True
-        )
+        admins = models.ShipmentAdmin.objects.filter(
+            shipment=self.kwargs["id"]
+        ).values_list("admin", flat=True)
 
         if str(instance.created_by) == app_user.user.username or app_user.id in admins:
             return Response(serializer.data)
@@ -748,8 +784,7 @@ class ShipmentView(
     # override
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         shipments = models.ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
@@ -797,7 +832,7 @@ class ShipmentView(
     # override -- UNCOMPLETED
     def update(self, request, *args, **kwargs):
         """
-            For future implementation 
+        For future implementation
         """
         pass
 
@@ -820,7 +855,8 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
         ),
         responses={
             200: openapi.Response(
-                "Return the contact list of a specific type.", serializers.ShipmentSerializer
+                "Return the contact list of a specific type.",
+                serializers.ShipmentSerializer,
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -841,8 +877,7 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         try:
@@ -887,7 +922,8 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
         ),
         responses={
             200: openapi.Response(
-                "Return the facility name, state and city.", serializers.FacilityFilterSerializer
+                "Return the facility name, state and city.",
+                serializers.FacilityFilterSerializer,
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -911,8 +947,7 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         keyword = ""
         if "keyword" in self.request.data:
@@ -965,7 +1000,8 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
         ),
         responses={
             200: openapi.Response(
-                "Return the contact list of a specific type.", serializers.ContactListSerializer
+                "Return the contact list of a specific type.",
+                serializers.ContactListSerializer,
             ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
@@ -987,8 +1023,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         if "type" in self.request.data:
@@ -1047,8 +1082,7 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
         data = self.request.data
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         if "shipment" in data:
@@ -1133,7 +1167,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             required=["party_1", "party_2", "initial", "current", "load"],
         ),
         responses={
-            200: openapi.Response("Return the created offer.", serializers.OfferSerializer),
+            200: openapi.Response(
+                "Return the created offer.", serializers.OfferSerializer
+            ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
             403: "FORBIDDEN",
@@ -1161,7 +1197,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             ],
         ),
         responses={
-            200: openapi.Response("Return the updated offer.", serializers.OfferSerializer),
+            200: openapi.Response(
+                "Return the updated offer.", serializers.OfferSerializer
+            ),
             400: "BAD REQUEST",
             401: "UNAUTHORIZED",
             403: "FORBIDDEN",
@@ -1216,7 +1254,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return self._create_offer_for_customer(request, load)
 
         elif load.status == ASSINING_CARRIER:
-            return self._create_offer_for_carrier(request, load)       
+            return self._create_offer_for_carrier(request, load)
 
         else:
             return Response(
@@ -1261,11 +1299,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 [{"details": "Unknown action"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            
+
     def _process_accept_action(self, request, load, instance, partial):
         if load.status == AWAITING_CUSTOMER:
-                load.status = ASSINING_CARRIER
-                load.save()
+            load.status = ASSINING_CARRIER
+            load.save()
         elif load.status == AWAITING_CARRIER:
             load.status = "Ready For Pick Up"
             load.save()
@@ -1282,9 +1320,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         del request.data["action"]
         request.data["status"] = "Accepted"
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -1292,13 +1328,13 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
-            
-        return Response(serializer.data) 
+
+        return Response(serializer.data)
 
     def _process_reject_action(self, request, load, instance, partial):
         user = utils.get_app_user_by_username(username=request.user.username)
         if user.user_type == "carrier":
-            load.status = "Assigning Carrier"
+            load.status = ASSINING_CARRIER
             load.carrier = None
             load.save()
         else:
@@ -1310,9 +1346,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         del request.data["action"]
         request.data["status"] = "Rejected"
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -1325,10 +1359,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     def _proccess_counter_action(self, request, load, instance, partial):
         app_user = utils.get_app_user_by_username(request.user.username)
-        if (
-            app_user.user_type == SHIPMENT_PARTY
-            or app_user.user_type == "carrier"
-        ):
+        if app_user.user_type == SHIPMENT_PARTY or app_user.user_type == "carrier":
             load.status = "Awaiting Broker"
             load.save()
         elif app_user.user_type == "broker":
@@ -1340,9 +1371,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.save()
 
         del request.data["action"]
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -1354,9 +1383,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _create_offer_for_customer(self, request, load):
-        shipper = utils.get_shipment_party_by_username(
-                request.data["party_2"]
-            )
+        shipper = utils.get_shipment_party_by_username(request.data["party_2"])
 
         if isinstance(shipper, models.ShipmentParty):
             if load.customer == shipper or load.created_by == shipper:
@@ -1433,7 +1460,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
-            ) 
+            )
 
 
 class ShipmentAdminView(
@@ -1552,8 +1579,7 @@ class ShipmentAdminView(
     def get_queryset(self):
 
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}"
-            f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         if self.request.GET.get("id"):

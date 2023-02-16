@@ -88,7 +88,7 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 class FacilityFilterSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Facility
-        fields = ["id", "building_name", "state", "city"]
+        fields = ["id", "building_name", "city", "state"]
 
 
 class OfferSerializer(serializers.ModelSerializer):
@@ -151,20 +151,18 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             rep["carrier"] = None
-        rep["pick_up_location"] = (
-            instance.pick_up_location.building_name
-            + ", "
-            + instance.pick_up_location.city
-            + ", "
-            + instance.pick_up_location.state
-        )
-        rep["destination"] = (
-            instance.destination.building_name
-            + ", "
-            + instance.destination.city
-            + ", "
-            + instance.destination.state
-        )
+        rep["pick_up_location"] = {
+            "id": instance.pick_up_location.id,
+            "building_name": instance.pick_up_location.building_name,
+            "city": instance.pick_up_location.city,
+            "state": instance.pick_up_location.state
+        }
+        rep["destination"] = {
+            "id": instance.destination.id,
+            "building_name": instance.destination.building_name,
+            "city": instance.destination.city,
+            "state": instance.destination.state
+        }
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
         return rep
