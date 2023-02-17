@@ -288,6 +288,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             try:
                 res = requests.get(url=URL)
                 data = res.json()
+                print(data["content"]["carrier"]["allowedToOperate"])
                 if "allowedToOperate" in data["content"]["carrier"]:
                     allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
 
@@ -377,6 +378,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             try:
                 res = requests.get(url=URL)
                 data = res.json()
+                print(["content"][0]["carrier"]["allowedToOperate"])
                 if "allowedToOperate" in data["content"][0]["carrier"]:
                     allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
 
