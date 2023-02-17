@@ -290,9 +290,20 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
             res = requests.get(url=URL)
             data = res.json()
+            
             if "allowedToOperate" not in data["content"]["carrier"]:
                 app_user = models.AppUser.objects.get(user=request.user.id)
                 app_user.delete()
+                return Response(
+                    [
+                        {
+                            "details": """This DOT number is not registered in the FMCSA, 
+                                            if you think this is a mistake please double check the number or contact the FMCSA"""
+                        },
+                    ],
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
             if "allowedToOperate" in data["content"]["carrier"]:
                 allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
 
@@ -317,19 +328,6 @@ class CarrierView(GenericAPIView, CreateModelMixin):
                         ],
                         status=status.HTTP_403_FORBIDDEN,
                     )
-
-            else:
-                app_user = models.AppUser.objects.get(user=request.user.id)
-                app_user.delete()
-                return Response(
-                    [
-                        {
-                            "details": """This DOT number is not registered in the FMCSA, 
-                                            if you think this is a mistake please double check the number or contact the FMCSA"""
-                        },
-                    ],
-                    status=status.HTTP_404_NOT_FOUND,
-                )
 
         else:
             return Response(
@@ -411,32 +409,27 @@ class BrokerView(GenericAPIView, CreateModelMixin):
                 allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
 
                 if allowed_to_operate.upper() == "Y":
-                    try:
-                        serializer = self.get_serializer(data=request.data)
-                        serializer.is_valid(raise_exception=True)
-                        self.perform_create(serializer)
-                        headers = self.get_success_headers(serializer.data)
-                        return Response(
-                            serializer.data,
-                            status=status.HTTP_201_CREATED,
-                            headers=headers,
-                        )
-
-                    except (BaseException) as e:
-                        print(f"Unexpected {e=}, {type(e)=}")
-                        app_user = models.AppUser.objects.get(user=request.user.id)
-                        app_user.delete()
-                        return Response(
-                            status=status.HTTP_403_FORBIDDEN, data=e.args[0]
-                        )
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    return Response(
+                        serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=headers,
+                    )
 
                 else:
-                    msg = gettext_lazy(
-                        "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                    )
                     app_user = models.AppUser.objects.get(user=request.user.id)
                     app_user.delete()
-                    raise exceptions.PermissionDenied(msg)
+                    return Response(
+                        [
+                            {
+                                "details": "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                            }
+                        ],
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
 
         else:
             return Response(
