@@ -1,14 +1,17 @@
 import os
 import requests
+
 # Module imports
 import authentication.models as models
 import authentication.serializers as serializers
 import authentication.permissions as permissions
+
 # Django imports
 from django.http import QueryDict
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+
 # DRF imports
 from rest_framework import status
 from rest_framework import exceptions
@@ -17,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
+
 # third party imports
 from drf_yasg import openapi
 from google.cloud import secretmanager
@@ -93,9 +97,7 @@ class AppUserView(GenericAPIView, CreateModelMixin):
 
     @swagger_auto_schema(
         responses={
-            200: openapi.Response(
-                "App user exists.", serializers.AppUserSerializer
-            ),
+            200: openapi.Response("App user exists.", serializers.AppUserSerializer),
             400: "Bad Request",
             404: "Not Found",
             500: "Internal Server Error",
@@ -184,7 +186,7 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
     ]
     serializer_class = serializers.ShipmentPartySerializer
     queryset = models.ShipmentParty.objects.all()
-            
+
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -285,38 +287,54 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         if app_user.user_type == "carrier":
             dot_number = request.data.get("DOT_number")
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
-            try:
-                res = requests.get(url=URL)
-                data = res.json()
-                print(data, "carrier")
-                if "allowedToOperate" in data["content"]["carrier"]:
-                    allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
 
-                    if allowed_to_operate == "Y":
-                        serializer = self.get_serializer(data=request.data)
-                        serializer.is_valid(raise_exception=True)
-                        self.perform_create(serializer)
-                        headers = self.get_success_headers(serializer.data)
-                        return Response(
-                            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-                        )
+            res = requests.get(url=URL)
+            data = res.json()
+            if "allowedToOperate" not in data["content"]["carrier"]:
+                app_user = models.AppUser.objects.get(user=request.user.id)
+                app_user.delete()
+            if "allowedToOperate" in data["content"]["carrier"]:
+                allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
 
-                    else:
-                        msg = gettext_lazy(
-                            "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                        )
-                        raise exceptions.PermissionDenied(msg)
+                if allowed_to_operate == "Y":
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    return Response(
+                        serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=headers,
+                    )
+
                 else:
-                        app_user = models.AppUser.objects.get(user=request.user.id)
-                        app_user.delete()
-                        
-            except (BaseException) as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
+
+                    return Response(
+                        [
+                            {
+                                "details": "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                            },
+                        ],
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            else:
+                app_user = models.AppUser.objects.get(user=request.user.id)
+                app_user.delete()
+                return Response(
+                    [
+                        {
+                            "details": """This DOT number is not registered in the FMCSA, 
+                                            if you think this is a mistake please double check the number or contact the FMCSA"""
+                        },
+                    ],
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
         else:
             return Response(
                 {"user role": ["User is not registered as a carrier"]},
-                status=status.HTTP_403_FORBIDDEN,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
 
@@ -329,7 +347,6 @@ class BrokerView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.BrokerSerializer
     queryset = models.Broker.objects.all()
 
-    
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -365,7 +382,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             }
         )
         webkey = webkey.payload.data.decode("UTF-8")
-        app_user = models.AppUser.objects.get(user=request.user)
+        app_user = models.AppUser.objects.get(user=request.user.id)
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -375,36 +392,54 @@ class BrokerView(GenericAPIView, CreateModelMixin):
         if app_user.user_type == "broker":
             mc_number = request.data.get("MC_number")
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{mc_number}?webKey={webkey}"
-            try:
-                res = requests.get(url=URL)
-                data = res.json()
-                print(data, "broker")
-                if "allowedToOperate" in data["content"][0]["carrier"]:
-                    allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
+            res = requests.get(url=URL)
+            data = res.json()
+            if len(data["content"]) == 0:
+                app_user = models.AppUser.objects.get(user=request.user.id)
+                app_user.delete()
+                return Response(
+                    [
+                        {
+                            "details": """This MC number is not registered in the FMCSA, 
+                                            if you think this is a mistake please double check the number or contact the FMCSA"""
+                        }
+                    ],
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-                    if allowed_to_operate == "Y":
+            if "allowedToOperate" in data["content"][0]["carrier"]:
+                allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
+
+                if allowed_to_operate.upper() == "Y":
+                    try:
                         serializer = self.get_serializer(data=request.data)
                         serializer.is_valid(raise_exception=True)
                         self.perform_create(serializer)
                         headers = self.get_success_headers(serializer.data)
                         return Response(
-                            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+                            serializer.data,
+                            status=status.HTTP_201_CREATED,
+                            headers=headers,
                         )
 
-                    else:
-                        msg = gettext_lazy(
-                            "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                    except (BaseException) as e:
+                        print(f"Unexpected {e=}, {type(e)=}")
+                        app_user = models.AppUser.objects.get(user=request.user.id)
+                        app_user.delete()
+                        return Response(
+                            status=status.HTTP_403_FORBIDDEN, data=e.args[0]
                         )
-                        raise exceptions.PermissionDenied(msg)
+
                 else:
+                    msg = gettext_lazy(
+                        "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                    )
                     app_user = models.AppUser.objects.get(user=request.user.id)
                     app_user.delete()
-                    
-            except (BaseException) as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
+                    raise exceptions.PermissionDenied(msg)
+
         else:
             return Response(
                 {"user role": ["User is not registered as a broker"]},
-                status=status.HTTP_403_FORBIDDEN,
+                status=status.HTTP_400_BAD_REQUEST,
             )
