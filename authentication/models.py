@@ -15,7 +15,6 @@ class AppUser(models.Model):
         max_length=14,
         null=False,
     )
-    is_deleted = models.BooleanField(null=False, blank=False, default=False)
 
     def __str__(self):
         return self.user.username
@@ -54,4 +53,32 @@ class ShipmentParty(models.Model):
     def __str__(self):
         return self.app_user.user.username
 
+class Address(models.Model):
+    building_number = models.CharField(max_length=100, null=False, blank=False)
+    street = models.CharField(max_length=100, null=False, blank=False)
+    city = models.CharField(max_length=100, null=False, blank=False)
+    state = models.CharField(max_length=100, null=False, blank=False)
+    zip_code = models.CharField(max_length=100, null=False, blank=False)
+    country = models.CharField(max_length=100, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.building_number}, {self.street}, {self.city}"
+    
+class Company(models.Model):
+    name = models.CharField(max_length=255, null=False, unique=True)
+    identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
+    EIN = models.CharField(max_length=9, null=False, blank=False, unique=True)
+    address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.name
+
+class CompanyEmployee(models.Model):
+    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
+    company = models.ForeignKey(to=Company, null=False, blank=False, on_delete=models.CASCADE)
+
+class UserTax(models.Model):
+    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
+    TIN = models.CharField(max_length=9, null=False, blank=False)
+    
 

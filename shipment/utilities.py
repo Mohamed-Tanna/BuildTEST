@@ -82,7 +82,7 @@ def generate_load_name() -> string:
     name = "L-" + (
                 "".join(
                     random.choice(string.ascii_uppercase + string.digits)
-                    for _ in range(5)
+                    for _ in range(6)
                 )
             )
     return name

@@ -34,3 +34,43 @@ class BrokerSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Broker
         fields = ["app_user", "MC_number"]
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Address
+        fields = ["building_number", "street", "city", "state", "zip_code", "country"]
+
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Company
+        fields = ["name", "EIN", "identifier", "address"]
+    
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["address"] = AddressSerializer(instance.address).data
+        return rep
+    
+
+class CompanyEmployeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CompanyEmployee
+        fields = ["app_user", "company"]
+    
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["app_user"] = AppUserSerializer(instance.app_user).data
+        rep["company"] = CompanySerializer(instance.company).data
+        return rep
+    
+
+class UserTaxSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.UserTax
+        fields = ["app_user", "TIN"]
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["app_user"] = AppUserSerializer(instance.app_user).data
+        return rep

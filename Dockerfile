@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # build stage
-FROM python:3.10.8-alpine AS build-stage
+FROM python:3.10.10-alpine3.17 AS build-stage
 
 WORKDIR /wheels
 
@@ -14,7 +14,7 @@ RUN pip install --upgrade pip
 RUN pip wheel -r requirements.txt
 
 #production stage
-FROM python:3.10.8-alpine AS production-stage
+FROM python:3.10.10-alpine3.17 AS production-stage
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1

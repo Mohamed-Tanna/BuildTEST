@@ -1,6 +1,7 @@
 # Module imports
 import shipment.models as models
 import shipment.utilities as utils
+from authentication.utilities import create_address
 import shipment.serializers as serializers
 import authentication.permissions as permissions
 
@@ -92,7 +93,7 @@ class FacilityView(
     @swagger_auto_schema(
         responses={
             200: openapi.Response(
-                "Return the contact list of a specific type.",
+                "Return a list of facilities or a specific facility based on a given ID.",
                 serializers.FacilitySerializer,
             ),
             401: "UNAUTHORIZED",
@@ -127,7 +128,34 @@ class FacilityView(
             request.data._mutable = True
 
         request.data["owner"] = request.user.id
-
+        address = create_address(
+            building_number=request.data["building_number"],
+            street=request.data["street"],
+            city=request.data["city"],
+            state=request.data["state"],
+            country=request.data["country"],
+            zip_code=request.data["zip_code"],
+        )
+        
+        if address == False:
+            return Response(
+                [
+                    {
+                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        del (
+            request.data["building_number"],
+            request.data["street"],
+            request.data["city"],
+            request.data["state"],
+            request.data["country"],
+            request.data["zip_code"],
+        )
+        request.data["address"] = str(address.id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

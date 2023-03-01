@@ -1,6 +1,6 @@
 import shipment.models as models
 from rest_framework import serializers
-from authentication.serializers import AppUserSerializer
+from authentication.serializers import AppUserSerializer, AddressSerializer
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -9,19 +9,19 @@ class FacilitySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "owner",
-            "building_number",
             "building_name",
-            "street",
-            "city",
-            "state",
-            "zip_code",
-            "country",
+            "address",
             "extra_info",
         ]
         extra_kwargs = {
             "extra_info": {"required": False},
         }
         read_only_fields = ("id",)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["address"] = AddressSerializer(instance.address).data
+        return rep
 
 
 class LoadListSerializer(serializers.ModelSerializer):
@@ -86,6 +86,8 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 
 
 class FacilityFilterSerializer(serializers.ModelSerializer):
+    city = serializers.ReadOnlyField(source=f"{models.Address.city}")
+    state = serializers.ReadOnlyField(source=f"{models.Address.state}")
     class Meta:
         model = models.Facility
         fields = ["id", "building_name", "city", "state"]

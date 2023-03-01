@@ -1,21 +1,16 @@
 from datetime import date
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
-from authentication.models import User, AppUser, ShipmentParty, Broker, Carrier
+from authentication.models import User, AppUser, ShipmentParty, Broker, Carrier, Address
 
 
 class Facility(models.Model):
 
     owner = models.ForeignKey(
         to=User, null=False, blank=False, on_delete=models.CASCADE
-    )
-    building_number = models.CharField(max_length=100)
-    building_name = models.CharField(max_length=100)
-    street = models.CharField(max_length=100)
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
-    zip_code = models.CharField(max_length=100)
-    country = models.CharField(max_length=100)
+    ) 
+    building_name = models.CharField(max_length=100, null=False, blank=False)
+    address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
     extra_info = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
@@ -66,7 +61,9 @@ class Load(models.Model):
         on_delete=models.CASCADE,
         related_name="consignee",
     )
-    broker = models.ForeignKey(to=Broker, null=True, on_delete=models.CASCADE)
+    broker = models.ForeignKey(
+        to=Broker, null=False, blank=False, on_delete=models.CASCADE
+    )
     carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.CASCADE)
     pick_up_date = models.DateField(null=False)
     delivery_date = models.DateField(null=False)
@@ -81,6 +78,7 @@ class Load(models.Model):
     height = models.DecimalField(max_digits=12, decimal_places=2, null=False)
     weight = models.DecimalField(max_digits=12, decimal_places=2, null=False)
     quantity = models.DecimalField(max_digits=12, decimal_places=2, default=1)
+    commodity = models.CharField(max_length=255, null=False, blank=False)
     goods_info = models.CharField(
         choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
     )
@@ -90,8 +88,6 @@ class Load(models.Model):
         null=False,
         default="FTL",
     )
-    did_shipper_sign = models.BooleanField(default=False)
-    did_carrier_sign = models.BooleanField(default=False)
     status = models.CharField(
         choices=[
             ("Created", "Created"),

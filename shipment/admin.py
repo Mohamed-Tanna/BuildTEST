@@ -1,24 +1,26 @@
 from django.contrib import admin
 import shipment.models as models
 
+
 class FacilityAdmin(admin.ModelAdmin):
 
     list_display = [
         "id",
         "owner",
-        "building_number",
         "building_name",
-        "street",
-        "city",
-        "state",
-        "zip_code",
-        "country",
+        "address",
     ]
 
 
 class TrailerAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "model", "max_height", "max_length", "max_width"]
+    list_display = [
+        "id",
+        "model",
+        "max_height",
+        "max_length",
+        "max_width",
+    ]
 
 
 class LoadAdmin(admin.ModelAdmin):
@@ -29,6 +31,7 @@ class LoadAdmin(admin.ModelAdmin):
         "created_by",
         "shipper",
         "consignee",
+        "broker",
         "pick_up_date",
         "delivery_date",
         "status",
@@ -38,21 +41,43 @@ class LoadAdmin(admin.ModelAdmin):
 
 class ContactAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "origin", "contact"]
+    list_display = [
+        "id",
+        "origin",
+        "contact",
+    ]
 
 
 class OfferAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "party_1", "party_2", "initial", "current", "load", "status"]
+    list_display = [
+        "id",
+        "party_1",
+        "party_2",
+        "initial",
+        "current",
+        "load",
+        "status",
+    ]
 
 
 class ShipmentAdminSite(admin.ModelAdmin):
 
-    list_display = ["id", "name", "created_by"]
+    list_display = [
+        "id",
+        "name",
+        "created_by",
+    ]
+
 
 class ShipmentAdminAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "shipment", "admin"]
+    list_display = [
+        "id",
+        "shipment",
+        "admin",
+    ]
+
 
 admin.site.register(models.Facility, admin_class=FacilityAdmin)
 admin.site.register(models.Trailer, admin_class=TrailerAdmin)

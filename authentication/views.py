@@ -1,14 +1,18 @@
+# Python imports
 import os
+import re
 import requests
 
 # Module imports
 import authentication.models as models
+import authentication.utilities as utils
 import authentication.serializers as serializers
 import authentication.permissions as permissions
 
 # Django imports
 from django.http import QueryDict
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 
@@ -286,11 +290,18 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
         if app_user.user_type == "carrier":
             dot_number = request.data.get("DOT_number")
+            dot_pattern = re.compile(r"^\d{5,8}$")
+            
+            if not dot_pattern.match(dot_number):
+                app_user = models.AppUser.objects.get(user=request.user.id)
+                app_user.delete()
+                return Response([{"details": "invalid dot number"}],status=status.HTTP_400_BAD_REQUEST)
+            
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
 
             res = requests.get(url=URL)
             data = res.json()
-            
+
             if "allowedToOperate" not in data["content"]["carrier"]:
                 app_user = models.AppUser.objects.get(user=request.user.id)
                 app_user.delete()
@@ -389,6 +400,13 @@ class BrokerView(GenericAPIView, CreateModelMixin):
 
         if app_user.user_type == "broker":
             mc_number = request.data.get("MC_number")
+            mc_number_pattern = re.compile(r"^\d{5,8}$")
+
+            if not mc_number_pattern.match(mc_number):
+                app_user = models.AppUser.objects.get(user=request.user.id)
+                app_user.delete()
+                return Response([{"details": "invalid mc number"}],status=status.HTTP_400_BAD_REQUEST)
+            
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{mc_number}?webKey={webkey}"
             res = requests.get(url=URL)
             data = res.json()
@@ -436,3 +454,172 @@ class BrokerView(GenericAPIView, CreateModelMixin):
                 {"user role": ["User is not registered as a broker"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class CompanyView(GenericAPIView, CreateModelMixin):
+
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    serializer_class = serializers.CompanySerializer
+    queryset = models.Company.objects.all()
+
+    @swagger_auto_schema(
+        request_body=serializers.CompanySerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                description="Company created",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company ID"
+                        ),
+                        "name": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company name"
+                        ),
+                        "address": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Address ID"
+                        ),
+                        "EIN": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Employer Identification Number"
+                        ),
+                    },
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="Address creation failed",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "details": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Error message"
+                        ),
+                    },
+                ),
+            ),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        app_user = models.AppUser.objects.get(user=request.user)
+        company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user)
+        company = get_object_or_404(models.Company, id=company_employee.company)
+
+        return Response(
+            status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
+        )
+
+    # override
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        address = utils.create_address(
+            building_number=request.data["building_number"],
+            street=request.data["street"],
+            city=request.data["city"],
+            state=request.data["state"],
+            country=request.data["country"],
+            zip_code=request.data["zip_code"],
+        )
+
+        if address == False:
+            return Response(
+                [
+                    {
+                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        del (
+            request.data["building_number"],
+            request.data["street"],
+            request.data["city"],
+            request.data["state"],
+            request.data["country"],
+            request.data["zip_code"],
+        )
+        request.data["address"] = str(address.id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        company = self.perform_create(serializer)
+        app_user = models.AppUser.objects.get(user=request.user)
+        company_employee = models.CompanyEmployee.objects.create(
+            app_user=app_user, company=company
+        )
+        company_employee.save()
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+
+class UserTaxView(GenericAPIView, CreateModelMixin):
+
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    serializer_class = serializers.UserTaxSerializer
+    queryset = models.UserTax.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        app_user = models.AppUser.objects.get(user=request.user)
+        user_tax = get_object_or_404(models.UserTax, app_user=app_user)
+
+        return Response(
+            status=status.HTTP_200_OK, data=serializers.UserTaxSerializer(user_tax).data
+        )
+
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
+
+    # override
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        app_user = models.AppUser.objects.get(user=request.user)
+        request.data["app_user"] = str(app_user.id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+
+class CompanyEmployee(GenericAPIView, CreateModelMixin):
+
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    serializer_class = serializers.CompanyEmployeeSerializer
+    queryset = models.CompanyEmployee.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        ein = request.query_params.get("ein")
+        company = get_object_or_404(models.Company, EIN=ein)
+
+        return Response(
+            status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
+        )
+
+    def post(self, request, *args, **kwargs):
+
+        self.create(request, *args, **kwargs)
+
+    # override
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        request.data["app_user"] = models.AppUser.objects.get(user=request.user)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
