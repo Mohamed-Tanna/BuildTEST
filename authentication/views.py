@@ -458,7 +458,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
 
 class CompanyView(GenericAPIView, CreateModelMixin):
 
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    permission_classes = [IsAuthenticated, permissions.HasRole]
     serializer_class = serializers.CompanySerializer
     queryset = models.Company.objects.all()
 
@@ -566,7 +566,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
 
 class UserTaxView(GenericAPIView, CreateModelMixin):
 
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    permission_classes = [IsAuthenticated, permissions.HasRole]
     serializer_class = serializers.UserTaxSerializer
     queryset = models.UserTax.objects.all()
 
@@ -600,7 +600,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
 
 class CompanyEmployee(GenericAPIView, CreateModelMixin):
 
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    permission_classes = [IsAuthenticated, permissions.HasRole]
     serializer_class = serializers.CompanyEmployeeSerializer
     queryset = models.CompanyEmployee.objects.all()
 
