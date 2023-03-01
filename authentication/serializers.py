@@ -46,24 +46,26 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Company
         fields = ["name", "EIN", "identifier", "address"]
-    
+        extra_kwargs = {"identifier": {"required": False}}
+        read_only_fields = ("identifier",)
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["address"] = AddressSerializer(instance.address).data
         return rep
-    
+
 
 class CompanyEmployeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CompanyEmployee
         fields = ["app_user", "company"]
-    
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["app_user"] = AppUserSerializer(instance.app_user).data
         rep["company"] = CompanySerializer(instance.company).data
         return rep
-    
+
 
 class UserTaxSerializer(serializers.ModelSerializer):
     class Meta:

@@ -74,8 +74,11 @@ class Company(models.Model):
         return self.name
 
 class CompanyEmployee(models.Model):
-    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
+    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, unique=True, on_delete=models.CASCADE)
     company = models.ForeignKey(to=Company, null=False, blank=False, on_delete=models.CASCADE)
+    
+    class Meta:
+        unique_together = (("app_user", "company"),)
 
 class UserTax(models.Model):
     app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
