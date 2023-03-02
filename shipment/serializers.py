@@ -151,19 +151,19 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
         except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
+            print(f"Unexpected {e=}, {type(e)=}", "Retrieve Serial")
             rep["carrier"] = None
         rep["pick_up_location"] = {
             "id": instance.pick_up_location.id,
             "building_name": instance.pick_up_location.building_name,
-            "city": instance.pick_up_location.city,
-            "state": instance.pick_up_location.state
+            "city": instance.pick_up_location.address.city,
+            "state": instance.pick_up_location.address.state
         }
         rep["destination"] = {
             "id": instance.destination.id,
             "building_name": instance.destination.building_name,
-            "city": instance.destination.city,
-            "state": instance.destination.state
+            "city": instance.destination.address.city,
+            "state": instance.destination.address.state
         }
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
