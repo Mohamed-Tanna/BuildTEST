@@ -505,7 +505,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     def get(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
         company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user)
-        company = get_object_or_404(models.Company, id=company_employee.company)
+        company = get_object_or_404(models.Company, id=company_employee.company.id)
 
         return Response(
             status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
@@ -544,15 +544,15 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             request.data["zip_code"],
         )
         request.data["address"] = str(address.id)
+        request.data["identifier"] = utils.generate_company_identiefier()
+        print(request.data["identifier"])
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         company = self.perform_create(serializer)
         app_user = models.AppUser.objects.get(user=request.user)
-        print("INNNN", company)
         company_employee = models.CompanyEmployee.objects.create(
             app_user=app_user, company=company
         )
-        print(company_employee)
         company_employee.save()
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -607,7 +607,6 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
     def get(self, request, *args, **kwargs):
         if "ein" in request.query_params:
             ein = request.query_params.get("ein")
-            print(ein)
             company = get_object_or_404(models.Company, EIN=ein)
         if "au-id" in request.query_params:
             app_user_id = request.query_params.get("au-id")

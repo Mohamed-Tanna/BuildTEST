@@ -46,8 +46,6 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Company
         fields = ["name", "EIN", "identifier", "address"]
-        extra_kwargs = {"identifier": {"required": False}}
-        read_only_fields = ("identifier",)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)

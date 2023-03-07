@@ -78,4 +78,4 @@ CHANNEL_LAYERS = {
     }
 }
 
-DEFENDER_REDIS_URL = f"redis://redis:6379/0"
+DEFENDER_REDIS_URL = "redis://redis:6379/0"

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinLengthValidator
 
 
 class AppUser(models.Model):
@@ -67,7 +68,7 @@ class Address(models.Model):
 class Company(models.Model):
     name = models.CharField(max_length=255, null=False, unique=True)
     identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
-    EIN = models.CharField(max_length=9, null=False, blank=False, unique=True)
+    EIN = models.CharField(max_length=9, null=False, blank=False, unique=True, validators=[MinLengthValidator(9)])
     address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -82,6 +83,6 @@ class CompanyEmployee(models.Model):
 
 class UserTax(models.Model):
     app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
-    TIN = models.CharField(max_length=9, null=False, blank=False)
+    TIN = models.CharField(max_length=9, null=False, blank=False, unique=True, validators=[MinLengthValidator(9)])
     
 
