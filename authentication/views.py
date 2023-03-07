@@ -626,7 +626,8 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
-        request.data["app_user"] = models.AppUser.objects.get(user=request.user)
+        app_user = models.AppUser.objects.get(user=request.user)
+        request.data["app_user"] = str(app_user.id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
