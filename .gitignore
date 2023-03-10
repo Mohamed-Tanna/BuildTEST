@@ -42,3 +42,4 @@ docker-compose.yml
 freightmonster/settings/local.py
 .local.env
 .dccache
+freightmonster-dev-d576053e3232.json

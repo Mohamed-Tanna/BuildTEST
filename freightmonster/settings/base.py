@@ -125,9 +125,13 @@ REST_AUTH_SERIALIZERS = {
     "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
 }
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 REST_USE_JWT = True
+
+STORAGES = {"default": "storages.backends.gcloud.GoogleCloudStorage"}
+
+GS_BUCKET_NAME = "dev_freight_uploaded_files"
 
 ACCOUNT_ADAPTER = "authentication.adapter.CustomAccountAdapter"
 

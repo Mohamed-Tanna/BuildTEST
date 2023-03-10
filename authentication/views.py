@@ -502,6 +502,32 @@ class CompanyView(GenericAPIView, CreateModelMixin):
 
         return self.create(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description="Company retrieved",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company ID"
+                        ),
+                        "name": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company name"
+                        ),
+                        "address": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Address ID"
+                        ),
+                        "EIN": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Employer Identification Number"
+                        ),
+                    },
+                ),
+            ),
+            404: "Company not found.",
+            500: "Internal server error.",
+        }
+    )
     def get(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
         company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user)
@@ -570,6 +596,16 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.UserTaxSerializer
     queryset = models.UserTax.objects.all()
 
+    @swagger_auto_schema(
+        responses={
+            200: serializers.UserTaxSerializer,
+            400: "Bad request.",
+            401: "Unauthorized.",
+            403: "Forbidden.",
+            404: "Not found.",
+            500: "Internal server error.",
+        },
+    )
     def get(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
         user_tax = get_object_or_404(models.UserTax, app_user=app_user)
@@ -578,6 +614,39 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             status=status.HTTP_200_OK, data=serializers.UserTaxSerializer(user_tax).data
         )
 
+    @swagger_auto_schema(
+        request_body=serializers.UserTaxSerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                description="User tax created",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="User tax ID"
+                        ),
+                        "app_user": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="App user ID"
+                        ),
+                        "tax_id": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Tax ID"
+                        ),
+                    },
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="User tax creation failed",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "details": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="either tax_id or app_user is missing"
+                        ),
+                    },
+                ),
+            ),
+        }
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
@@ -604,7 +673,41 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.CompanyEmployeeSerializer
     queryset = models.CompanyEmployee.objects.all()
 
+    @swagger_auto_schema(
+        operation_description="Get company employee",
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description="Company employee",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company employee ID"
+                        ),
+                        "company": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company ID"
+                        ),
+                        "app_user": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="App user ID"
+                        ),
+                    },
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="Company employee not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "details": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Error message"
+                        ),
+                    },
+                ),
+            ),
+        },
+    )
     def get(self, request, *args, **kwargs):
+        """Get company employee"""
         if "ein" in request.query_params:
             ein = request.query_params.get("ein")
             company = get_object_or_404(models.Company, EIN=ein)
@@ -617,6 +720,47 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
             status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
         )
 
+    @swagger_auto_schema(
+        operation_description="Create a company employee",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "company": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="Company ID"
+                ),
+                "app_user": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="App User ID"
+                ),
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                description="Company employee created",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "company": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company ID"
+                        ),
+                        "app_user": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="App User ID"
+                        ),
+                    },
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="Company employee creation failed",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "details": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="either company or app user is missing"
+                        ),
+                    },
+                ),
+            ),
+        }
+    )
     def post(self, request, *args, **kwargs):
 
         self.create(request, *args, **kwargs)

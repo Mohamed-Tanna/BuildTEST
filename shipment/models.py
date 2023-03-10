@@ -1,5 +1,5 @@
-from datetime import date
 from django.db import models
+from django.utils import timezone
 from django.db.models import CheckConstraint, Q, F
 from authentication.models import User, AppUser, ShipmentParty, Broker, Carrier, Address
 
@@ -113,7 +113,7 @@ class Load(models.Model):
                 name="delivery_date_check",
             ),
             CheckConstraint(
-                check=Q(pick_up_date__gte=date.today()),
+                check=Q(pick_up_date__gte=timezone.now().date()),
                 name="pick_up_date should be greater than or equal today's date",
             ),
             CheckConstraint(
