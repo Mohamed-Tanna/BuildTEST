@@ -129,10 +129,6 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 REST_USE_JWT = True
 
-STORAGES = {"default": "storages.backends.gcloud.GoogleCloudStorage"}
-
-GS_BUCKET_NAME = "dev_freight_uploaded_files"
-
 ACCOUNT_ADAPTER = "authentication.adapter.CustomAccountAdapter"
 
 JWT_AUTH_COOKIE = "my-app-auth"
@@ -167,6 +163,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+GS_BUCKET_NAME = "dev_freight_uploaded_files"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

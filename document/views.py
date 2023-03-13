@@ -15,7 +15,7 @@ import document.serializers as serializers
 import authentication.permissions as permissions
 
 
-class FileUploadView(GenericAPIView, CreateModelMixin):
+class FileUploadView(GenericAPIView):
     permission_classes = [
         IsAuthenticated,
         permissions.HasRole,
@@ -37,7 +37,10 @@ class FileUploadView(GenericAPIView, CreateModelMixin):
     )
     def post(self, request, *args, **kwargs):
         """Create a new file."""
-        return self.create(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return serializer.create(request.data)
+        
     
     @swagger_auto_schema(
         operation_description="Get all files related to a load.",
@@ -72,14 +75,11 @@ class FileUploadView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        urls = []
+        res = {}
         for file_name in file_names:
             url = utils.generate_signed_url(object_name=file_name)
             if url is not None:
-                urls.append(url)
+               res[file_name] = url
 
-        res = {}
-        for i in range(len(file_names)):
-            res[file_names[i]] = urls[i]
 
         return Response(data=res, status=status.HTTP_200_OK)

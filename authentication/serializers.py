@@ -8,7 +8,9 @@ class AppUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.AppUser
-        fields = ["user", "phone_number", "user_type", "username", "email"]
+        fields = ["id", "user", "phone_number", "user_type", "username", "email"]
+
+        read_only_fields = ("id",)
 
 
 class BaseUserUpdateSerializer(serializers.ModelSerializer):

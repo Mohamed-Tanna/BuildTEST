@@ -6,7 +6,6 @@ import shipment.models as ship_models
 
 class UploadedFile(models.Model):
     name = models.CharField(max_length=255, null=False, blank=False)
-    file = models.FileField(upload_to="pdfs/", null=False, blank=False)
     load = models.ForeignKey(to=Load, null=False, blank=False, on_delete=models.CASCADE)
     uploaded_by = models.ForeignKey(
         to=auth_models.AppUser, null=False, blank=False, on_delete=models.CASCADE
