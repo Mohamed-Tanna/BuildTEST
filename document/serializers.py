@@ -49,6 +49,7 @@ class UploadFileSerializer(serializers.Serializer):
                     name=name,
                     load=load,
                     uploaded_by=uploaded_by,
+                    size=validated_data["size"],
                 )
                 obj.save()
                 return Response(status=status.HTTP_201_CREATED)
