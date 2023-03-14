@@ -8,13 +8,24 @@ from django.shortcuts import get_object_or_404
 import document.utilities as utils
 
 
-class FileSerializer(serializers.Serializer):
+class UploadFileSerializer(serializers.Serializer):
     uploaded_file = serializers.FileField()
 
     class Meta:
         model = models.UploadedFile
-        fields = ["id", "name", "uploaded_file", "load", "uploaded_by"]
-        read_only_fields = ("id",)
+        fields = [
+            "id",
+            "name",
+            "uploaded_file",
+            "load",
+            "uploaded_by",
+            "uploaded_at",
+            "size",
+        ]
+        read_only_fields = (
+            "id",
+            "uploaded_at",
+        )
 
     def create(self, validated_data):
         uploaded_file = validated_data["uploaded_file"]
@@ -41,3 +52,22 @@ class FileSerializer(serializers.Serializer):
                 )
                 obj.save()
                 return Response(status=status.HTTP_201_CREATED)
+
+
+class RetrieveFileSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.UploadedFile
+        fields = [
+            "id",
+            "name",
+            "url",
+            "uploaded_by",
+            "uploaded_at",
+            "size",
+        ]
+        
+    def get_url(self, obj):
+        url = utils.generate_signed_url(object_name=obj.name)
+        return url if url else "unavailable"

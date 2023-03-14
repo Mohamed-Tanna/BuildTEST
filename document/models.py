@@ -10,6 +10,8 @@ class UploadedFile(models.Model):
     uploaded_by = models.ForeignKey(
         to=auth_models.AppUser, null=False, blank=False, on_delete=models.CASCADE
     )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    size = models.DecimalField(max_digits=5, decimal_places=3, null=False)
 
 
 class FinalAgreement(models.Model):

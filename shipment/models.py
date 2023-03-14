@@ -113,10 +113,6 @@ class Load(models.Model):
                 name="delivery_date_check",
             ),
             CheckConstraint(
-                check=Q(pick_up_date__gte=timezone.now().date()),
-                name="pick_up_date should be greater than or equal today's date",
-            ),
-            CheckConstraint(
                 check=~Q(pick_up_location=F("destination")),
                 name="pick up location and drop off location cannot be equal",
             ),

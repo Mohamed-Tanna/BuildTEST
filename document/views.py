@@ -1,21 +1,24 @@
 # DRF imports
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.mixins import CreateModelMixin
+from rest_framework.mixins import ListModelMixin
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
+
+# Django import
+from django.db.models.query import QuerySet
 
 # third party imports
 from drf_yasg.utils import swagger_auto_schema
 
 # module imports
 import document.models as models
-import document.utilities as utils
 import document.serializers as serializers
 import authentication.permissions as permissions
+import shipment.models as ship_models
 
 
-class FileUploadView(GenericAPIView):
+class FileUploadView(GenericAPIView, ListModelMixin):
     permission_classes = [
         IsAuthenticated,
         permissions.HasRole,
@@ -55,31 +58,35 @@ class FileUploadView(GenericAPIView):
     )
     def get(self, request, *args, **kwargs):
         """Get all files related to a load."""
-
         load_id = request.query_params.get("load")
-        if load_id is None:
-            return Response(
-                [
-                    {"detail": "load is required."},
-                ],
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        file_names = models.UploadedFile.objects.filter(load=load_id).values_list(
-            "name", flat=True
+        if load_id:
+            return self.list(request, *args, **kwargs)
+        else:
+            return Response([{"details": "load is required."}], status=status.HTTP_400_BAD_REQUEST)
+    
+    def get_queryset(self):
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method."
+            % self.__class__.__name__
         )
-
-        if len(file_names) == 0:
-            return Response(
-                {"detail": ["this load does not have any files attached."]},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        res = {}
-        for file_name in file_names:
-            url = utils.generate_signed_url(object_name=file_name)
-            if url is not None:
-               res[file_name] = url
-
-
-        return Response(data=res, status=status.HTTP_200_OK)
+        
+        load_id = self.request.query_params.get("load")
+        if load_id:
+            try:
+                load = ship_models.Load.objects.get(id=load_id)
+                queryset = models.UploadedFile.objects.filter(load=load)
+            except ship_models.Load.DoesNotExist:
+                queryset = models.UploadedFile.objects.none()
+        
+        queryset = []
+        if isinstance(queryset, QuerySet):
+            # Ensure queryset is re-evaluated on each request.
+            queryset = queryset.all()
+        return queryset
+    
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return serializers.RetrieveFileSerializer
+        elif self.request.method == "POST":
+            return serializers.UploadFileSerializer

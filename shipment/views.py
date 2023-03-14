@@ -136,7 +136,7 @@ class FacilityView(
             country=request.data["country"],
             zip_code=request.data["zip_code"],
         )
-        
+
         if address == False:
             return Response(
                 [
@@ -146,7 +146,7 @@ class FacilityView(
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         del (
             request.data["building_number"],
             request.data["street"],
@@ -309,6 +309,34 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             request.data["name"] = utils.generate_load_name()
             self.perform_create(serializer)
 
+        except (BaseException) as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+
+            if "delivery_date_check" in str(e.__cause__):
+                return Response(
+                    {
+                        "detail": [
+                            "Invalid pick up or drop off date's, please double check the dates and try again"
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            elif "pick up location" in str(e.__cause__):
+                return Response(
+                    {
+                        "detail": [
+                            "pick up location and drop off location cannot be equal, please double check the locations and try again"
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(
+                {"detail": [f"{e.args[0]}"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -334,7 +362,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
 
     def _update_created_load(self, request, instance, kwargs):
         party_types = ["customer", "shipper", "consignee"]
@@ -381,7 +408,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
 
-
     def _update_assigning_carrier_load(self, request, instance, kwargs):
 
         if "carrier" not in request.data:
@@ -411,13 +437,11 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         if isinstance(carrier, Response):
             return carrier
-        
+
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
         partial = kwargs.pop("partial", False)
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
         if instance.broker == editor:
@@ -438,7 +462,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
-            
+
 
 class ListLoadView(GenericAPIView, ListModelMixin):
 
