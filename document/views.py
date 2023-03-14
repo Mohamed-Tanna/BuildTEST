@@ -77,8 +77,8 @@ class FileUploadView(GenericAPIView, ListModelMixin):
                 queryset = models.UploadedFile.objects.filter(load=load)
             except ship_models.Load.DoesNotExist:
                 queryset = models.UploadedFile.objects.none()
-        
-        queryset = []
+        else:
+            queryset = []
         if isinstance(queryset, QuerySet):
             # Ensure queryset is re-evaluated on each request.
             queryset = queryset.all()

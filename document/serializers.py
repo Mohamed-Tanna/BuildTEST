@@ -57,7 +57,6 @@ class UploadFileSerializer(serializers.Serializer):
 
 class RetrieveFileSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
-
     class Meta:
         model = models.UploadedFile
         fields = [
@@ -72,3 +71,8 @@ class RetrieveFileSerializer(serializers.ModelSerializer):
     def get_url(self, obj):
         url = utils.generate_signed_url(object_name=obj.name)
         return url if url else "unavailable"
+    
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["uploaded_by"] = instance.uploaded_by.user.username
+        return rep
