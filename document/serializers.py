@@ -31,8 +31,8 @@ class UploadFileSerializer(serializers.Serializer):
         uploaded_file = validated_data["uploaded_file"]
         if uploaded_file.name == validated_data["name"]:
             load = get_object_or_404(ship_models.Load, id=validated_data["load"])
-            # BOL||L-123456.pdf
-            name = validated_data["name"].split(".")[0] + "||" + load.name + ".pdf"
+            # BOL_L-123456.pdf
+            name = validated_data["name"].split(".")[0] + "_" + load.name + ".pdf"
             conflict = models.UploadedFile.objects.filter(name=name).exists()
             if conflict:
                 return Response(

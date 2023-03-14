@@ -23,14 +23,13 @@ class FileUploadView(GenericAPIView, ListModelMixin):
         IsAuthenticated,
         permissions.HasRole,
     ]
-    serializer_class = serializers.FileSerializer
     queryset = models.UploadedFile.objects.all()
 
     @swagger_auto_schema(
         operation_description="Upload a file to a load.",
-        request_body=serializers.FileSerializer,
+        request_body=serializers.UploadFileSerializer,
         responses={
-            200: serializers.FileSerializer,
+            200: serializers.UploadFileSerializer,
             400: "Bad request.",
             401: "Unauthorized.",
             403: "Forbidden.",
@@ -48,7 +47,7 @@ class FileUploadView(GenericAPIView, ListModelMixin):
     @swagger_auto_schema(
         operation_description="Get all files related to a load.",
         responses={
-            200: serializers.FileSerializer,
+            200: serializers.RetrieveFileSerializer,
             400: "Bad request.",
             401: "Unauthorized.",
             403: "Forbidden.",
