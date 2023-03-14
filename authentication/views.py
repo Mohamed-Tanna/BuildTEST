@@ -463,46 +463,6 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     queryset = models.Company.objects.all()
 
     @swagger_auto_schema(
-        request_body=serializers.CompanySerializer,
-        responses={
-            status.HTTP_201_CREATED: openapi.Response(
-                description="Company created",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "id": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Company ID"
-                        ),
-                        "name": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Company name"
-                        ),
-                        "address": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Address ID"
-                        ),
-                        "EIN": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Employer Identification Number"
-                        ),
-                    },
-                ),
-            ),
-            status.HTTP_400_BAD_REQUEST: openapi.Response(
-                description="Address creation failed",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "details": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Error message"
-                        ),
-                    },
-                ),
-            ),
-        }
-    )
-    def post(self, request, *args, **kwargs):
-
-        return self.create(request, *args, **kwargs)
-
-    @swagger_auto_schema(
         responses={
             status.HTTP_200_OK: openapi.Response(
                 description="Company retrieved",
@@ -584,6 +544,48 @@ class CompanyView(GenericAPIView, CreateModelMixin):
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
+
+    @swagger_auto_schema(
+        request_body=serializers.CompanySerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                description="Company created",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company ID"
+                        ),
+                        "name": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Company name"
+                        ),
+                        "address": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Address ID"
+                        ),
+                        "EIN": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Employer Identification Number"
+                        ),
+                    },
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="Address creation failed",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "details": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Error message"
+                        ),
+                    },
+                ),
+            ),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+
+        return self.create(request, *args, **kwargs)
+ 
         
     def perform_create(self, serializer):
        instance = serializer.save()
@@ -711,14 +713,22 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
         if "ein" in request.query_params:
             ein = request.query_params.get("ein")
             company = get_object_or_404(models.Company, EIN=ein)
+            company_employees = models.CompanyEmployee.objects.filter(company=company).values_list("app_user", flat=True)
+            app_users = models.AppUser.objects.filter(id__in=company_employees)
+            data = {
+                "company": serializers.CompanySerializer(company).data,
+                "employees": serializers.AppUserSerializer(app_users, many=True)
+            }
+            
+            return Response(status=status.HTTP_200_OK, data=data)
         if "au-id" in request.query_params:
             app_user_id = request.query_params.get("au-id")
             company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user_id)
             company = get_object_or_404(models.Company, id=company_employee.company.id) 
 
-        return Response(
-            status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
-        )
+            return Response(
+                status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
+            )
 
     @swagger_auto_schema(
         operation_description="Create a company employee",
