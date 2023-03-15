@@ -11,7 +11,7 @@ class UploadedFile(models.Model):
         to=auth_models.AppUser, null=False, blank=False, on_delete=models.CASCADE
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    size = models.DecimalField(max_digits=5, decimal_places=3, null=False)
+    size = models.DecimalField(max_digits=4, decimal_places=2, null=False)
 
 
 class FinalAgreement(models.Model):
