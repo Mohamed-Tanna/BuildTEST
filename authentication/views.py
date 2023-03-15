@@ -717,7 +717,7 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
             app_users = models.AppUser.objects.filter(id__in=company_employees)
             data = {
                 "company": serializers.CompanySerializer(company).data,
-                "employees": serializers.AppUserSerializer(app_users, many=True)
+                "employees": serializers.AppUserSerializer(app_users, many=True).data
             }
             
             return Response(status=status.HTTP_200_OK, data=data)
