@@ -1,29 +1,33 @@
+# python imports
 import os
 import environ
 from datetime import datetime, timedelta
+# third party imports
 from google.cloud import storage
+from google.auth import compute_engine
 from google.oauth2 import service_account
+from google.auth.transport import requests
+# module imports
 from freightmonster.settings.base import GS_BUCKET_NAME, BASE_DIR
 
-# to be commented out when running on host
+
 
 def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600):
     """Generates a signed URL for downloading an object from a bucket."""
     try:
         storage_client = get_storage_client()
         bucket = storage_client.get_bucket(bucket_name)
-        print("bucket")
         blob = bucket.blob("pdfs/" + object_name)
-        print("blob")
         if not blob.exists():
             raise NameError
-        print("exists")
+        
+        signing_creds = get_signing_creds(storage_client._credentials)
         url = blob.generate_signed_url(
             version="v4",
             expiration=datetime.utcnow() + timedelta(seconds=expiration),
             method="GET",
+            credentials=signing_creds
         )
-        print("url")
 
         return url
 
@@ -57,3 +61,10 @@ def get_storage_client():
     else:
         storage_client = storage.Client()
         return storage_client
+    
+
+def get_signing_creds(credentials):
+    """Returns a signing credentials object."""
+    auth_request = requests.Request()
+    signing_credentials = compute_engine.IDTokenCredentials(auth_request, "", service_account_email=credentials.service_account_email)
+    return signing_credentials

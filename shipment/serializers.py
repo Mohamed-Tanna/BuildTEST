@@ -51,18 +51,13 @@ class LoadListSerializer(serializers.ModelSerializer):
         rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
-        try:
-            rep["carrier"] = instance.carrier.app_user.user.username
-        except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            rep["carrier"] = None
-        try:
-            rep["broker"] = instance.broker.app_user.user.username
-        except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            rep["broker"] = None
+        rep["broker"] = instance.broker.app_user.user.username
         rep["pick_up_location"] = instance.pick_up_location.building_name
         rep["destination"] = instance.destination.building_name
+        try:
+            rep["carrier"] = instance.carrier.app_user.user.username
+        except (BaseException):
+            rep["carrier"] = None
         return rep
 
 
