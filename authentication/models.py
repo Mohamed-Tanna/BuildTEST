@@ -70,6 +70,8 @@ class Company(models.Model):
     identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
     EIN = models.CharField(max_length=9, null=False, blank=False, unique=True, validators=[MinLengthValidator(9)])
     address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
+    fax_number = models.CharField(max_length=18, null=True, blank=True)
+    phone_number = models.CharField(max_length=18, null=True, blank=True)
 
     def __str__(self):
         return self.name

@@ -1,7 +1,13 @@
-from allauth.account.adapter import DefaultAccountAdapter
-from django.db import IntegrityError
+# Python imports
 import string, random
+
+# Django imports
+from django.db import IntegrityError
+
+# Third party imports
 from allauth.account.utils import user_field
+from allauth.account.adapter import DefaultAccountAdapter
+
 
 
 class CustomAccountAdapter(DefaultAccountAdapter):

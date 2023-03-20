@@ -123,6 +123,7 @@ AUTHENTICATION_BACKENDS = [
 
 REST_AUTH_SERIALIZERS = {
     "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
+    "REGISTER_SERIALIZER": "authentication.serializers.CustomRegisterSerializer",
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
