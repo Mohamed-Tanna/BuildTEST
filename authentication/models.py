@@ -40,7 +40,6 @@ class Carrier(models.Model):
 
     app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
     DOT_number = models.CharField(max_length=8, null=False, blank=False)
-    MC_number = models.CharField(max_length=8, null=True)
     allowed_to_operate = models.BooleanField(null=False, default=False)
 
     def __str__(self):

@@ -7,7 +7,7 @@ class AppUserAdmin(admin.ModelAdmin):
 
 class CarrierAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "app_user", "DOT_number", "MC_number", "allowed_to_operate"]
+    list_display = ["id", "app_user", "DOT_number", "allowed_to_operate"]
 
 class BrokerAdmin(admin.ModelAdmin):
 
