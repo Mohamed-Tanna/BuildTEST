@@ -1,15 +1,17 @@
 # Module imports
 import shipment.models as models
 import shipment.utilities as utils
-from authentication.utilities import create_address
 import shipment.serializers as serializers
+import document.models as doc_models
 import authentication.permissions as permissions
+from authentication.utilities import create_address
 
 # Django imports
 from django.db.models import Q
 from django.http import QueryDict
 from django.db import IntegrityError
 from django.db.models.query import QuerySet
+from django.shortcuts import get_object_or_404
 
 # DRF imports
 from rest_framework import status
@@ -360,7 +362,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 [
                     {"details": "You cannot update this load."},
                 ],
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_403_FORBIDDEN,
             )
 
     def _update_created_load(self, request, instance, kwargs):
@@ -1359,6 +1361,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         elif load.status == AWAITING_CARRIER:
             load.status = "Ready For Pick Up"
             load.save()
+            self._create_final_agreement(load=load)
         elif load.status == "Awaiting Broker":
             if instance.party_2.user_type == SHIPMENT_PARTY:
                 load.status = ASSINING_CARRIER
@@ -1366,6 +1369,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             elif instance.party_2.user_type == "carrier":
                 load.status = "Ready For Pick Up"
                 load.save()
+                self._create_final_agreement(load=load)
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -1513,6 +1517,120 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    def _create_final_agreement(self, load):
+        shipper = load.shipper
+        consignee = load.consignee
+        carrier = load.carrier
+        broker = load.broker
+        customer = load.customer
+        pickup_facility = load.pick_up_location
+        drop_off_facility = load.destination
+        broker_company = utils.get_company_by_employee(employee=broker)
+        carrier_company = utils.get_company_by_employee(employee=carrier)
+        customer_company = utils.get_company_by_employee(employee=customer)
+        customer_offer = get_object_or_404(
+            models.Offer, load=load, party_2=customer.app_user
+        )
+        carrier_offer = get_object_or_404(
+            models.Offer, load=load, party_2=carrier.app_user
+        )
+        doc_models.FinalAgreement.objects.create(
+            load_id=load.id,
+            shipper_username=shipper.app_user.user.username,
+            shipper_full_name=shipper.app_user.user.first_name
+            + " "
+            + shipper.app_user.user.last_name,
+            shipper_phone_number=shipper.app_user.phone_number,
+            consignee_username=consignee.app_user.user.username,
+            consignee_full_name=consignee.app_user.user.first_name
+            + " "
+            + consignee.app_user.user.last_name,
+            consignee_phone_number=consignee.app_user.phone_number,
+            broker_username=broker.app_user.user.username,
+            broker_full_name=broker.app_user.user.first_name
+            + " "
+            + broker.app_user.user.last_name,
+            broker_phone_number=broker.app_user.phone_number,
+            broker_email=broker.app_user.user.email,
+            customer_username=customer.app_user.user.username,
+            customer_full_name=customer.app_user.user.first_name
+            + " "
+            + customer.app_user.user.last_name,
+            customer_phone_number=customer.app_user.phone_number,
+            customer_email=customer.app_user.user.email,
+            carrier_username=carrier.app_user.user.username,
+            carrier_full_name=carrier.app_user.user.first_name
+            + " "
+            + carrier.app_user.user.last_name,
+            carrier_phone_number=carrier.app_user.phone_number,
+            carrier_email=carrier.app_user.user.email,
+            broker_company_name=broker_company.name,
+            broker_company_address=broker_company.address.building_number
+            + ", "
+            + broker_company.address.street
+            + ", "
+            + broker_company.address.city
+            + ", "
+            + broker_company.address.state
+            + ", "
+            + broker_company.address.zip_code,
+            broker_company_fax_number=broker_company.fax_number,
+            carrier_company_name=carrier_company.name,
+            carrier_company_address=carrier_company.address.building_number
+            + ", "
+            + carrier_company.address.street
+            + ", "
+            + carrier_company.address.city
+            + ", "
+            + carrier_company.address.state
+            + ", "
+            + carrier_company.address.zip_code,
+            carrier_company_fax_number=carrier_company.fax_number,
+            customer_company_name=customer_company.name,
+            customer_company_address=customer_company.address.building_number
+            + ", "
+            + customer_company.address.street
+            + ", "
+            + customer_company.address.city
+            + ", "
+            + customer_company.address.state
+            + ", "
+            + customer_company.address.zip_code,
+            customer_company_fax_number=customer_company.fax_number,
+            shipper_facility_name=pickup_facility.building_name,
+            shipper_facility_address=pickup_facility.building_number
+            + ", "
+            + pickup_facility.street
+            + ", "
+            + pickup_facility.city
+            + ", "
+            + pickup_facility.state
+            + ", "
+            + pickup_facility.zip_code,
+            consignee_facility_name=drop_off_facility.building_name,
+            consignee_facility_address=drop_off_facility.building_number
+            + ", "
+            + drop_off_facility.street
+            + ", "
+            + drop_off_facility.city
+            + ", "
+            + drop_off_facility.state
+            + ", "
+            + drop_off_facility.zip_code,
+            pickup_date=load.pick_up_date,
+            dropoff_date=load.delivery_date,
+            length=load.length,
+            width=load.width,
+            height=load.height,
+            weight=load.weight,
+            quantity=load.quantity,
+            commodity=load.commodity,
+            goods_info=load.goods_info,
+            customer_offer=customer_offer.current,
+            carrier_offer=carrier_offer.current,
+            load_type=load.load_type,
+        )
 
 
 class ShipmentAdminView(

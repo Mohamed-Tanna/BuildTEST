@@ -5,8 +5,13 @@ from django.core.validators import MinLengthValidator
 
 class AppUser(models.Model):
 
-    user = models.OneToOneField(to=User, null=False, unique=True, on_delete=models.CASCADE)
-    phone_number = models.CharField(max_length=18, unique=True) #nullable
+    user = models.OneToOneField(
+        to=User,
+        null=False,
+        unique=True,
+        on_delete=models.CASCADE,
+    )
+    phone_number = models.CharField(max_length=18, unique=True)  # nullable
     user_type = models.CharField(
         choices=[
             ("carrier", "carrier"),
@@ -27,7 +32,7 @@ class Broker(models.Model):
         to=AppUser,
         null=False,
         blank=False,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
     )
     MC_number = models.CharField(max_length=8, null=False, blank=False)
     allowed_to_operate = models.BooleanField(null=False, default=False)
@@ -38,20 +43,31 @@ class Broker(models.Model):
 
 class Carrier(models.Model):
 
-    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
+    app_user = models.OneToOneField(
+        to=AppUser,
+        null=False,
+        blank=False,
+        on_delete=models.CASCADE,
+    )
     DOT_number = models.CharField(max_length=8, null=False, blank=False)
     allowed_to_operate = models.BooleanField(null=False, default=False)
 
     def __str__(self):
         return self.app_user.user.username
-    
+
 
 class ShipmentParty(models.Model):
 
-    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
+    app_user = models.OneToOneField(
+        to=AppUser,
+        null=False,
+        blank=False,
+        on_delete=models.CASCADE,
+    )
 
     def __str__(self):
         return self.app_user.user.username
+
 
 class Address(models.Model):
     building_number = models.CharField(max_length=100, null=False, blank=False)
@@ -63,27 +79,48 @@ class Address(models.Model):
 
     def __str__(self):
         return f"{self.building_number}, {self.street}, {self.city}"
-    
+
+
 class Company(models.Model):
     name = models.CharField(max_length=255, null=False, unique=True)
     identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
-    EIN = models.CharField(max_length=9, null=False, blank=False, unique=True, validators=[MinLengthValidator(9)])
-    address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
+    EIN = models.CharField(
+        max_length=9,
+        null=False,
+        blank=False,
+        unique=True,
+        validators=[MinLengthValidator(9)],
+    )
+    address = models.OneToOneField(
+        to=Address, null=False, blank=False, on_delete=models.CASCADE
+    )
     fax_number = models.CharField(max_length=18, null=True, blank=True)
     phone_number = models.CharField(max_length=18, null=True, blank=True)
 
     def __str__(self):
         return self.name
 
+
 class CompanyEmployee(models.Model):
-    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, unique=True, on_delete=models.CASCADE)
-    company = models.ForeignKey(to=Company, null=False, blank=False, on_delete=models.CASCADE)
-    
+    app_user = models.OneToOneField(
+        to=AppUser, null=False, blank=False, unique=True, on_delete=models.CASCADE
+    )
+    company = models.ForeignKey(
+        to=Company, null=False, blank=False, on_delete=models.CASCADE
+    )
+
     class Meta:
         unique_together = (("app_user", "company"),)
 
-class UserTax(models.Model):
-    app_user = models.OneToOneField(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
-    TIN = models.CharField(max_length=9, null=False, blank=False, unique=True, validators=[MinLengthValidator(9)])
-    
 
+class UserTax(models.Model):
+    app_user = models.OneToOneField(
+        to=AppUser, null=False, blank=False, on_delete=models.CASCADE
+    )
+    TIN = models.CharField(
+        max_length=9,
+        null=False,
+        blank=False,
+        unique=True,
+        validators=[MinLengthValidator(9)],
+    )

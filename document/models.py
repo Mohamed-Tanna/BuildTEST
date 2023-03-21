@@ -245,6 +245,20 @@ class FinalAgreement(models.Model):
         default="No",
         editable=False,
     )
+    load_type = models.CharField(
+        choices=[("LTL", "LTL"), ("FTL", "FTL")],
+        max_length=3,
+        null=False,
+        default="FTL",
+        editable=False,
+    )
+    load_id = models.CharField(
+        max_length=255,
+        null=False,
+        blank=False,
+        unique=True,
+        editable=False,
+    )
     customer_offer = models.DecimalField(
         max_digits=8,
         decimal_places=2,
@@ -273,23 +287,4 @@ class FinalAgreement(models.Model):
     )
     generated_at = models.DateTimeField(auto_now_add=True, editable=False)
     verified_at = models.DateTimeField(null=True, blank=True)
-    commodity = models.CharField(
-        max_length=255,
-        null=False,
-        blank=False,
-        editable=False,
-    )
-    load_type = models.CharField(
-        choices=[("LTL", "LTL"), ("FTL", "FTL")],
-        max_length=3,
-        null=False,
-        default="FTL",
-        editable=False,
-    )
-    load_id = models.CharField(
-        max_length=255,
-        null=False,
-        blank=False,
-        unique=True,
-        editable=False,
-    )
+    
