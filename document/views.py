@@ -13,9 +13,10 @@ from drf_yasg.utils import swagger_auto_schema
 
 # module imports
 import document.models as models
+import shipment.models as ship_models
 import document.serializers as serializers
 import authentication.permissions as permissions
-import shipment.models as ship_models
+
 
 
 class FileUploadView(GenericAPIView, ListModelMixin):

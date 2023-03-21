@@ -123,6 +123,9 @@ AUTHENTICATION_BACKENDS = [
 
 REST_AUTH_SERIALIZERS = {
     "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
+}
+
+REST_AUTH_REGISTER_SERIALIZERS = {
     "REGISTER_SERIALIZER": "authentication.serializers.CustomRegisterSerializer",
 }
 

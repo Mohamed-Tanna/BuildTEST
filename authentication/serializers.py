@@ -1,11 +1,12 @@
-from rest_framework import serializers
+from rest_framework import serializers 
 from dj_rest_auth.registration.serializers import RegisterSerializer
 import authentication.models as models
+from django.core.validators import MinLengthValidator
 
 
 class CustomRegisterSerializer(RegisterSerializer):
-    first_name = serializers.CharField(required=False)
-    last_name = serializers.CharField(required=False)
+    first_name = serializers.CharField(required=True, allow_blank=False, max_length=30, validators=[MinLengthValidator(2)])
+    last_name = serializers.CharField(required=True, allow_blank=False, max_length=30, validators=[MinLengthValidator(2)])
 
     def custom_signup(self, request, user):
         user.first_name = self.validated_data.get("first_name", "")
