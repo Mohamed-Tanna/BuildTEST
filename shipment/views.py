@@ -1085,11 +1085,21 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             keyword = ""
             if "keyword" in self.request.data:
                 keyword = self.request.data["keyword"]
-            queryset = models.Contact.objects.filter(
-                origin=self.request.user.id,
-                contact__user_type=user_type,
-                contact__user__username__icontains=keyword,
-            )
+            if "customer" in self.request.data:
+                contacts = models.Contact.objects.filter(origin=self.request.user.id).values_list("contact" ,flat=True)
+                tax_query = (Q(companyemployee__app_user__in=contacts) & Q(companyemployee__isnull=False)) | (Q(usertax__app_user__in=contacts) & Q(usertax__isnull=False)) 
+                queryset = models.Contact.objects.filter(
+                    contact__user_type=user_type,
+                    contact__user__username__icontains=keyword,
+                ).filter(tax_query)
+            else:
+                queryset = models.Contact.objects.filter(
+                    origin=self.request.user.id,
+                    contact__user_type=user_type,
+                    contact__user__username__icontains=keyword,
+                )
+
+        # if the request is intended to add a shipment party or a broker as shipment admins to a shipment
         elif "shipment" in self.request.data:
             keyword = ""
             if "keyword" in self.request.data:
@@ -1526,9 +1536,16 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer = load.customer
         pickup_facility = load.pick_up_location
         drop_off_facility = load.destination
-        broker_company = utils.get_company_by_employee(employee=broker)
-        carrier_company = utils.get_company_by_employee(employee=carrier)
-        customer_company = utils.get_company_by_employee(employee=customer)
+        broker_company = utils.get_company_by_role(app_user=broker)
+        if isinstance(broker_company, Response):
+            return broker_company
+        carrier_company = utils.get_company_by_role(app_user=carrier)
+        if isinstance(carrier_company, Response):
+            return carrier_company
+        customer_company = utils.get_company_by_role(app_user=customer)
+        if isinstance(customer_company, Response):
+            return customer_company
+        
         customer_offer = get_object_or_404(
             models.Offer, load=load, party_2=customer.app_user
         )
@@ -1599,25 +1616,25 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + customer_company.address.zip_code,
             customer_company_fax_number=customer_company.fax_number,
             shipper_facility_name=pickup_facility.building_name,
-            shipper_facility_address=pickup_facility.building_number
+            shipper_facility_address=pickup_facility.address.building_number
             + ", "
-            + pickup_facility.street
+            + pickup_facility.address.street
             + ", "
-            + pickup_facility.city
+            + pickup_facility.address.city
             + ", "
-            + pickup_facility.state
+            + pickup_facility.address.state
             + ", "
-            + pickup_facility.zip_code,
+            + pickup_facility.address.zip_code,
             consignee_facility_name=drop_off_facility.building_name,
-            consignee_facility_address=drop_off_facility.building_number
+            consignee_facility_address=drop_off_facility.address.building_number
             + ", "
-            + drop_off_facility.street
+            + drop_off_facility.address.street
             + ", "
-            + drop_off_facility.city
+            + drop_off_facility.address.city
             + ", "
-            + drop_off_facility.state
+            + drop_off_facility.address.state
             + ", "
-            + drop_off_facility.zip_code,
+            + drop_off_facility.address.zip_code,
             pickup_date=load.pick_up_date,
             dropoff_date=load.delivery_date,
             length=load.length,

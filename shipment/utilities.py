@@ -97,13 +97,49 @@ def generate_shipment_name() -> string:
             )
     return name
 
-def get_company_by_employee(employee):
+def get_company_by_role(app_user):
     try:
-        company_employee = auth_models.CompanyEmployee.objects.get(employee=employee.app_user)
+        company_employee = auth_models.CompanyEmployee.objects.get(app_user=app_user)
         company = auth_models.Company.objects.get(id=company_employee.company.id)
         return company
     except auth_models.CompanyEmployee.DoesNotExist:
         return Response(
-            {"detail": ["company employee does not exist."]},
+            {"detail": ["user has no tax information"]},
             status=status.HTTP_404_NOT_FOUND,
         )
+    except (BaseException) as e:
+        print(f"Unexpected {e=}, {type(e)=}")
+        return Response(
+            {"detail": [f"{e.args[0]}"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+def get_user_tax_by_role(app_user):
+    try:
+        user_tax = auth_models.UserTax.objects.get(app_user=app_user)
+        return user_tax
+    except auth_models.UserTax.DoesNotExist:
+        return Response(
+            {"detail": ["user has no tax information"]},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except (BaseException) as e:
+        print(f"Unexpected {e=}, {type(e)=}")
+        return Response(
+            {"detail": [f"{e.args[0]}"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+def get_user_tax_or_company(app_user):
+    """Returns the company or user tax of the user"""
+    company = get_company_by_role(app_user)
+    user_tax = get_user_tax_by_role(app_user)
+
+    if isinstance(company, Response) and isinstance(user_tax, Response):
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    if isinstance(company, auth_models.Company):
+        return company
+    
+    return user_tax
+    

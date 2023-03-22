@@ -122,58 +122,58 @@ class FinalAgreement(models.Model):
         blank=False,
         editable=False,
     )
-    broker_company_name = models.CharField(
+    broker_billing_name = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_company_address = models.CharField(
+    broker_billing_address = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_company_fax_number = models.CharField(
+    broker_billing_phone_number = models.CharField(
         max_length=18,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
         editable=False,
     )
-    carrier_company_name = models.CharField(
+    carrier_billing_name = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    carrier_company_address = models.CharField(
+    carrier_billing_address = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    carrier_company_fax_number = models.CharField(
+    carrier_billing_phone_number = models.CharField(
         max_length=18,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
         editable=False,
     )
-    customer_company_name = models.CharField(
+    customer_billing_name = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    customer_company_address = models.CharField(
+    customer_billing_address = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    customer_company_fax_number = models.CharField(
+    customer_billing_phone_number = models.CharField(
         max_length=18,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
         editable=False,
     )
     shipper_facility_name = models.CharField(

@@ -94,8 +94,8 @@ class Company(models.Model):
     address = models.OneToOneField(
         to=Address, null=False, blank=False, on_delete=models.CASCADE
     )
-    fax_number = models.CharField(max_length=18, null=True, blank=True)
-    phone_number = models.CharField(max_length=18, null=True, blank=True)
+    fax_number = models.CharField(max_length=18, default="N/A")
+    phone_number = models.CharField(max_length=18, null=False, blank=False)
 
     def __str__(self):
         return self.name
@@ -124,3 +124,4 @@ class UserTax(models.Model):
         unique=True,
         validators=[MinLengthValidator(9)],
     )
+    address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)

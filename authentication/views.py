@@ -8,6 +8,7 @@ import authentication.models as models
 import authentication.utilities as utils
 import authentication.serializers as serializers
 import authentication.permissions as permissions
+import shipment.utilities as ship_utils
 
 # Django imports
 from django.http import QueryDict
@@ -497,55 +498,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
         )
 
-    # override
-    def create(self, request, *args, **kwargs):
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        address = utils.create_address(
-            building_number=request.data["building_number"],
-            street=request.data["street"],
-            city=request.data["city"],
-            state=request.data["state"],
-            country=request.data["country"],
-            zip_code=request.data["zip_code"],
-        )
-
-        if address == False:
-            return Response(
-                [
-                    {
-                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
-                    },
-                ],
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        del (
-            request.data["building_number"],
-            request.data["street"],
-            request.data["city"],
-            request.data["state"],
-            request.data["country"],
-            request.data["zip_code"],
-        )
-        request.data["address"] = str(address.id)
-        request.data["identifier"] = utils.generate_company_identiefier()
-        print(request.data["identifier"])
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        company = self.perform_create(serializer)
-        app_user = models.AppUser.objects.get(user=request.user)
-        company_employee = models.CompanyEmployee.objects.create(
-            app_user=app_user, company=company
-        )
-        company_employee.save()
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
-
-
+    
     @swagger_auto_schema(
         request_body=serializers.CompanySerializer,
         responses={
@@ -585,8 +538,56 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
- 
-        
+
+    # override
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+
+        address = utils.create_address(
+            building_number=request.data["building_number"],
+            street=request.data["street"],
+            city=request.data["city"],
+            state=request.data["state"],
+            country=request.data["country"],
+            zip_code=request.data["zip_code"],
+        )
+
+        if address == False:
+            return Response(
+                [
+                    {
+                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        del (
+            request.data["building_number"],
+            request.data["street"],
+            request.data["city"],
+            request.data["state"],
+            request.data["country"],
+            request.data["zip_code"],
+        )
+        request.data["address"] = str(address.id)
+        request.data["identifier"] = utils.generate_company_identiefier()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        company = self.perform_create(serializer)
+        app_user = models.AppUser.objects.get(user=request.user)
+        company_employee = models.CompanyEmployee.objects.create(
+            app_user=app_user, company=company
+        )
+        company_employee.save()
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+
+
     def perform_create(self, serializer):
        instance = serializer.save()
        return instance
@@ -658,6 +659,35 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
+        address = utils.create_address(
+            building_number=request.data["building_number"],
+            street=request.data["street"],
+            city=request.data["city"],
+            state=request.data["state"],
+            country=request.data["country"],
+            zip_code=request.data["zip_code"],
+        )
+
+        if address == False:
+            return Response(
+                [
+                    {
+                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        del (
+            request.data["building_number"],
+            request.data["street"],
+            request.data["city"],
+            request.data["state"],
+            request.data["country"],
+            request.data["zip_code"],
+        )
+        request.data["address"] = str(address.id)
+
         app_user = models.AppUser.objects.get(user=request.user)
         request.data["app_user"] = str(app_user.id)
         serializer = self.get_serializer(data=request.data)
@@ -669,7 +699,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         )
 
 
-class CompanyEmployee(GenericAPIView, CreateModelMixin):
+class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.HasRole]
     serializer_class = serializers.CompanyEmployeeSerializer
@@ -789,3 +819,24 @@ class CompanyEmployee(GenericAPIView, CreateModelMixin):
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
+
+class TaxInfoView(APIView):
+    def get(self, request, *args, **kwargs):
+        app_user = ship_utils.get_app_user_by_username(username=request.user.username)
+        res = ship_utils.get_user_tax_or_company(app_user=app_user)
+        if isinstance(res, Response):
+            return res
+        
+        if isinstance(res, models.Company):
+            return Response(
+                status=status.HTTP_200_OK,
+                data={"type": "company",}
+            )
+        
+        if isinstance(res, models.UserTax):
+            return Response(
+                status=status.HTTP_200_OK,
+                data={"type": "individual",}
+            )
+        
