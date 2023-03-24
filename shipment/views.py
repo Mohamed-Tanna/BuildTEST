@@ -1,4 +1,5 @@
 # Module imports
+from django.forms import ValidationError
 import shipment.models as models
 import shipment.utilities as utils
 import shipment.serializers as serializers
@@ -1075,6 +1076,14 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
         """
         return self.list(request, *args, **kwargs)
 
+    # override
+    def list(self, request, *args, **kwargs):
+            try:
+                return super().list(request, *args, **kwargs)
+            except ValidationError as e:
+                return Response({'detail': str(e)}, status=400)
+
+    # override
     def get_queryset(self):
 
         assert self.queryset is not None, (
@@ -1087,12 +1096,24 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             if "keyword" in self.request.data:
                 keyword = self.request.data["keyword"]
             if "customer" in self.request.data:
-                contacts = models.Contact.objects.filter(origin=self.request.user.id).values_list("contact" ,flat=True)
-                tax_query = (Q(companyemployee__app_user__in=contacts) & Q(companyemployee__isnull=False)) | (Q(usertax__app_user__in=contacts) & Q(usertax__isnull=False)) 
-                queryset = models.Contact.objects.filter(
+                if user_type != "shipment party":
+                    raise ValidationError(
+                        "The customer field is only applicable to shipment parties."
+                    )
+                contacts = models.Contact.objects.filter(
+                    origin=self.request.user.id,
                     contact__user_type=user_type,
                     contact__user__username__icontains=keyword,
-                ).filter(tax_query)
+                ).values_list("contact", flat=True)
+                tax_query = (
+                    Q(companyemployee__isnull=False) | Q(usertax__isnull=False)
+                ) & (Q(id__in=contacts))
+                tax_app_users = models.AppUser.objects.filter(tax_query).values_list(
+                    "id", flat=True
+                )
+                queryset = models.Contact.objects.filter(
+                    contact__in=tax_app_users,
+                )
             else:
                 queryset = models.Contact.objects.filter(
                     origin=self.request.user.id,
@@ -1546,7 +1567,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer_company = utils.get_company_by_role(app_user=customer)
         if isinstance(customer_company, Response):
             return customer_company
-        
+
         customer_offer = get_object_or_404(
             models.Offer, load=load, party_2=customer.app_user
         )
@@ -1807,9 +1828,7 @@ class BrokerRejectView(APIView):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                "load": openapi.Schema(
-                    type=openapi.TYPE_INTEGER, description="load id"
-                )
+                "load": openapi.Schema(type=openapi.TYPE_INTEGER, description="load id")
             },
         ),
         responses={

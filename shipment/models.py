@@ -121,6 +121,7 @@ class Load(models.Model):
     def __str__(self):
         return self.name
 
+
 class Contact(models.Model):
 
     origin = models.ForeignKey(
