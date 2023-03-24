@@ -292,12 +292,15 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         if app_user.user_type == "carrier":
             dot_number = request.data.get("DOT_number")
             dot_pattern = re.compile(r"^\d{5,8}$")
-            
+
             if not dot_pattern.match(dot_number):
                 app_user = models.AppUser.objects.get(user=request.user.id)
                 app_user.delete()
-                return Response([{"details": "invalid dot number"}],status=status.HTTP_400_BAD_REQUEST)
-            
+                return Response(
+                    [{"details": "invalid dot number"}],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
 
             res = requests.get(url=URL)
@@ -406,8 +409,11 @@ class BrokerView(GenericAPIView, CreateModelMixin):
             if not mc_number_pattern.match(mc_number):
                 app_user = models.AppUser.objects.get(user=request.user.id)
                 app_user.delete()
-                return Response([{"details": "invalid mc number"}],status=status.HTTP_400_BAD_REQUEST)
-            
+                return Response(
+                    [{"details": "invalid mc number"}],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{mc_number}?webKey={webkey}"
             res = requests.get(url=URL)
             data = res.json()
@@ -480,7 +486,8 @@ class CompanyView(GenericAPIView, CreateModelMixin):
                             type=openapi.TYPE_STRING, description="Address ID"
                         ),
                         "EIN": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Employer Identification Number"
+                            type=openapi.TYPE_STRING,
+                            description="Employer Identification Number",
                         ),
                     },
                 ),
@@ -498,7 +505,6 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
         )
 
-    
     @swagger_auto_schema(
         request_body=serializers.CompanySerializer,
         responses={
@@ -517,7 +523,8 @@ class CompanyView(GenericAPIView, CreateModelMixin):
                             type=openapi.TYPE_STRING, description="Address ID"
                         ),
                         "EIN": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="Employer Identification Number"
+                            type=openapi.TYPE_STRING,
+                            description="Employer Identification Number",
                         ),
                     },
                 ),
@@ -533,7 +540,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
                     },
                 ),
             ),
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
 
@@ -586,11 +593,9 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
-
-
     def perform_create(self, serializer):
-       instance = serializer.save()
-       return instance
+        instance = serializer.save()
+        return instance
 
 
 class UserTaxView(GenericAPIView, CreateModelMixin):
@@ -610,12 +615,30 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         },
     )
     def get(self, request, *args, **kwargs):
-        app_user = models.AppUser.objects.get(user=request.user)
-        user_tax = get_object_or_404(models.UserTax, app_user=app_user)
+        if "tin" in request.query_params:
+            tin = request.query_params["tin"]
+            try:
+                models.UserTax.objects.get(TIN=tin)
+                app_user = models.AppUser.objects.get(user=request.user)
+                app_user.delete()
+                return Response(
+                    [{"details": "Invalid Tax Identification Number"}],
+                    status=status.HTTP_409_CONFLICT,
+                )
+            except models.UserTax.DoesNotExist:
+                return Response(
+                    [{"details": "User tax identification number not found"}],
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except (BaseException) as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                return Response({"details": "U-T"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response(
-            status=status.HTTP_200_OK, data=serializers.UserTaxSerializer(user_tax).data
-        )
+        else:
+            app_user = get_object_or_404(models.AppUser, user=request.user)
+            user_tax = get_object_or_404(models.UserTax, app_user=app_user)
+            return Response(status=status.HTTP_200_OK, data=serializers.UserTaxSerializer(user_tax).data)
+
 
     @swagger_auto_schema(
         request_body=serializers.UserTaxSerializer,
@@ -643,12 +666,13 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "details": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="either tax_id or app_user is missing"
+                            type=openapi.TYPE_STRING,
+                            description="either tax_id or app_user is missing",
                         ),
                     },
                 ),
             ),
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
 
@@ -743,21 +767,26 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
         if "ein" in request.query_params:
             ein = request.query_params.get("ein")
             company = get_object_or_404(models.Company, EIN=ein)
-            company_employees = models.CompanyEmployee.objects.filter(company=company).values_list("app_user", flat=True)
+            company_employees = models.CompanyEmployee.objects.filter(
+                company=company
+            ).values_list("app_user", flat=True)
             app_users = models.AppUser.objects.filter(id__in=company_employees)
             data = {
                 "company": serializers.CompanySerializer(company).data,
-                "employees": serializers.AppUserSerializer(app_users, many=True).data
+                "employees": serializers.AppUserSerializer(app_users, many=True).data,
             }
-            
+
             return Response(status=status.HTTP_200_OK, data=data)
         if "au-id" in request.query_params:
             app_user_id = request.query_params.get("au-id")
-            company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user_id)
-            company = get_object_or_404(models.Company, id=company_employee.company.id) 
+            company_employee = get_object_or_404(
+                models.CompanyEmployee, app_user=app_user_id
+            )
+            company = get_object_or_404(models.Company, id=company_employee.company.id)
 
             return Response(
-                status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
+                status=status.HTTP_200_OK,
+                data=serializers.CompanySerializer(company).data,
             )
 
     @swagger_auto_schema(
@@ -794,12 +823,13 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "details": openapi.Schema(
-                            type=openapi.TYPE_STRING, description="either company or app user is missing"
+                            type=openapi.TYPE_STRING,
+                            description="either company or app user is missing",
                         ),
                     },
                 ),
             ),
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
 
@@ -827,16 +857,19 @@ class TaxInfoView(APIView):
         res = ship_utils.get_user_tax_or_company(app_user=app_user)
         if isinstance(res, Response):
             return res
-        
+
         if isinstance(res, models.Company):
             return Response(
                 status=status.HTTP_200_OK,
-                data={"type": "company",}
+                data={
+                    "type": "company",
+                },
             )
-        
+
         if isinstance(res, models.UserTax):
             return Response(
                 status=status.HTTP_200_OK,
-                data={"type": "individual",}
+                data={
+                    "type": "individual",
+                },
             )
-        

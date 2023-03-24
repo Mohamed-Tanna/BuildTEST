@@ -84,9 +84,10 @@ class CompanyEmployeeSerializer(serializers.ModelSerializer):
 class UserTaxSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserTax
-        fields = ["app_user", "TIN"]
+        fields = ["app_user", "TIN", "address"]
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["app_user"] = AppUserSerializer(instance.app_user).data
+        rep["address"] = AddressSerializer(instance.address).data
         return rep
