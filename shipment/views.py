@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404
 
 # DRF imports
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
@@ -1799,3 +1800,37 @@ class ShipmentAdminView(
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
+
+
+class BrokerRejectView(APIView):
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "load": openapi.Schema(
+                    type=openapi.TYPE_INTEGER, description="load id"
+                )
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: "load canceled.",
+            status.HTTP_400_BAD_REQUEST: "Validation Error",
+            status.HTTP_403_FORBIDDEN: "Forbidden",
+            status.HTTP_404_NOT_FOUND: "Not Found",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        Broker reject a load
+        """
+        load_id = request.data["load"]
+        load = get_object_or_404(models.Load, id=load_id)
+        broker = load.broker.app_user.user
+        if broker != request.user:
+            return Response(
+                {"detail": "This user is not the broker of this load."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        load.status = "Canceled"
+        load.save()
+        return Response({"detail": "load canceled."}, status=status.HTTP_200_OK)

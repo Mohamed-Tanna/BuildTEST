@@ -5,10 +5,10 @@ import requests
 
 # Module imports
 import authentication.models as models
+import shipment.utilities as ship_utils
 import authentication.utilities as utils
 import authentication.serializers as serializers
 import authentication.permissions as permissions
-import shipment.utilities as ship_utils
 
 # Django imports
 from django.http import QueryDict
@@ -632,6 +632,8 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 )
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
+                app_user = models.AppUser.objects.get(user=request.user)
+                app_user.delete()
                 return Response({"details": "U-T"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         else:
@@ -852,6 +854,33 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
 
 class TaxInfoView(APIView):
+    @swagger_auto_schema(
+        operation_description="Get tax info",
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description="Tax info",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "type": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="Tax info type"
+                        ),
+                    },
+                ),
+            ),
+            status.HTTP_404_NOT_FOUND: openapi.Response(
+                description="Tax info not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "details": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="No tax info found"
+                        ),
+                    },
+                ),
+            ),
+        },
+    )
     def get(self, request, *args, **kwargs):
         app_user = ship_utils.get_app_user_by_username(username=request.user.username)
         res = ship_utils.get_user_tax_or_company(app_user=app_user)
