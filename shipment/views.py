@@ -1407,6 +1407,15 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.status = "Ready For Pick Up"
                 load.save()
                 self._create_final_agreement(load=load)
+        else:
+            return Response(
+                [
+                    {
+                        "details": "This load is no longer open for bidding",
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
