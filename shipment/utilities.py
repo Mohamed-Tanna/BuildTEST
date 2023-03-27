@@ -143,3 +143,18 @@ def get_user_tax_or_company(app_user):
     
     return user_tax
     
+def get_parties_tax(customer_username, broker_username):
+    customer_app_user = get_app_user_by_username(customer_username)
+    broker_app_user = get_app_user_by_username(broker_username)
+    if isinstance(customer_app_user, Response):
+        return customer_app_user
+    if isinstance(broker_app_user, Response):
+        return broker_app_user
+    customer_tax = get_user_tax_or_company(customer_app_user)
+    broker_tax = get_user_tax_or_company(broker_app_user)
+    if isinstance(customer_tax, Response):
+        return Response({"details": "The customer does not have any tax information."} ,status=status.HTTP_400_BAD_REQUEST)
+    if isinstance(broker_tax, Response):
+        return Response({"details": "The broker does not have any tax information."} ,status=status.HTTP_400_BAD_REQUEST)
+    
+    return True

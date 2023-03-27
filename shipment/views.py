@@ -285,7 +285,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         app_user = models.AppUser.objects.get(user=request.user)
         request.data["created_by"] = str(app_user.id)
         request.data["name"] = utils.generate_load_name()
-
+        parties_tax_info = utils.get_parties_tax(customer_username=request.data["customer"], broker_username=request.data["broker"])
+        if isinstance(parties_tax_info, Response):
+            return parties_tax_info
+        
         required_fields = ["shipper", "consignee", "customer"]
         for field in required_fields:
             if field not in request.data:
@@ -294,19 +297,22 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             party = utils.get_shipment_party_by_username(username=request.data[field])
-            if not isinstance(party, models.ShipmentParty):
-                return party
             request.data[field] = str(party.id)
 
-        if "broker" in request.data:
-            broker = utils.get_broker_by_username(username=request.data["broker"])
-            if not isinstance(broker, models.Broker):
-                return broker
-            request.data["broker"] = str(broker.id)
-
+        if "broker" not in request.data:
+            return Response(
+                {"detail": ["broker is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        broker = utils.get_broker_by_username(username=request.data["broker"])
+        if not isinstance(broker, models.Broker):
+            return broker
+        request.data["broker"] = str(broker.id)
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
+        
         try:
             self.perform_create(serializer)
         except IntegrityError:
@@ -1077,13 +1083,6 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     # override
-    def list(self, request, *args, **kwargs):
-            try:
-                return super().list(request, *args, **kwargs)
-            except ValidationError as e:
-                return Response({'detail': str(e)}, status=400)
-
-    # override
     def get_queryset(self):
 
         assert self.queryset is not None, (
@@ -1095,11 +1094,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             keyword = ""
             if "keyword" in self.request.data:
                 keyword = self.request.data["keyword"]
-            if "customer" in self.request.data:
-                if user_type != "shipment party":
-                    raise ValidationError(
-                        "The customer field is only applicable to shipment parties."
-                    )
+            if "tax" in self.request.data:
                 contacts = models.Contact.objects.filter(
                     origin=self.request.user.id,
                     contact__user_type=user_type,
