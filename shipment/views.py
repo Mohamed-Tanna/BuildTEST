@@ -285,10 +285,13 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         app_user = models.AppUser.objects.get(user=request.user)
         request.data["created_by"] = str(app_user.id)
         request.data["name"] = utils.generate_load_name()
-        parties_tax_info = utils.get_parties_tax(customer_username=request.data["customer"], broker_username=request.data["broker"])
+        parties_tax_info = utils.get_parties_tax(
+            customer_username=request.data["customer"],
+            broker_username=request.data["broker"],
+        )
         if isinstance(parties_tax_info, Response):
             return parties_tax_info
-        
+
         required_fields = ["shipper", "consignee", "customer"]
         for field in required_fields:
             if field not in request.data:
@@ -304,15 +307,15 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 {"detail": ["broker is required."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         broker = utils.get_broker_by_username(username=request.data["broker"])
         if not isinstance(broker, models.Broker):
             return broker
         request.data["broker"] = str(broker.id)
-        
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             self.perform_create(serializer)
         except IntegrityError:
@@ -444,6 +447,13 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return editor
 
         carrier = utils.get_carrier_by_username(username=request.data["carrier"])
+        tax_info = utils.get_user_tax_or_company(carrier.app_user)
+
+        if isinstance(tax_info, Response):
+            return Response(
+                {"details": "Carrier does not have a tax id or company name."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if isinstance(carrier, Response):
             return carrier
