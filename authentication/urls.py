@@ -34,5 +34,6 @@ urlpatterns = [
     path("company/", views.CompanyView.as_view()),
     path("user-tax/", views.UserTaxView.as_view()),
     path("company-employee/", views.CompanyEmployeeView.as_view()),
+    path("company-check/", views.CompanyCheckView.as_view()),
     path("tax-info/", views.TaxInfoView.as_view()),
 ]

@@ -853,6 +853,21 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
         )
 
 
+class CompanyCheckView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        
+        if "ein" in request.query_params:
+            ein = request.query_params.get("ein")
+            company = get_object_or_404(models.Company, EIN=ein)
+            
+            return Response(status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data)
+            
+    
+
+
 class TaxInfoView(APIView):
     @swagger_auto_schema(
         operation_description="Get tax info",

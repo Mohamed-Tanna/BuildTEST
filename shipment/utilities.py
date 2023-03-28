@@ -158,3 +158,37 @@ def get_parties_tax(customer_username, broker_username):
         return Response({"details": "The broker does not have any tax information."} ,status=status.HTTP_400_BAD_REQUEST)
     
     return True
+
+def extract_billing_info(billing_info, party):
+    if isinstance(billing_info, auth_models.Company):
+        billing_info = {
+            "name": billing_info.name,
+            "address": billing_info.address.building_number
+            + " "
+            + billing_info.address.street
+            + " "
+            + billing_info.address.city
+            + " "
+            + billing_info.address.state
+            + " "
+            + billing_info.address.zip_code,
+            "phone_number": billing_info.phone_number,
+        }
+    if isinstance(billing_info, auth_models.UserTax):
+        billing_info = {
+            "name": party.app_user.user.first_name
+            + " "
+            + party.app_user.user.last_name,
+            "address": billing_info.address.building_number
+            + " "
+            + billing_info.address.street
+            + " "
+            + billing_info.address.city
+            + " "
+            + billing_info.address.state
+            + " "
+            + billing_info.address.zip_code,
+            "phone_number": party.app_user.phone_number,
+        }
+        
+    return billing_info

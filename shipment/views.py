@@ -1,9 +1,9 @@
 # Module imports
-from django.forms import ValidationError
 import shipment.models as models
 import shipment.utilities as utils
-import shipment.serializers as serializers
 import document.models as doc_models
+import shipment.serializers as serializers
+import authentication.models as auth_models
 import authentication.permissions as permissions
 from authentication.utilities import create_address
 
@@ -1572,15 +1572,17 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer = load.customer
         pickup_facility = load.pick_up_location
         drop_off_facility = load.destination
-        broker_company = utils.get_company_by_role(app_user=broker)
-        if isinstance(broker_company, Response):
-            return broker_company
-        carrier_company = utils.get_company_by_role(app_user=carrier)
-        if isinstance(carrier_company, Response):
-            return carrier_company
-        customer_company = utils.get_company_by_role(app_user=customer)
-        if isinstance(customer_company, Response):
-            return customer_company
+        broker_billing = utils.get_user_tax_or_company(app_user=broker)
+        if isinstance(broker_billing, Response):
+            return broker_billing
+        broker_billing = utils.extract_billing_info(broker_billing, broker)
+        carrier_billing = utils.get_user_tax_or_company(app_user=carrier)
+        if isinstance(carrier_billing, Response):
+            return carrier_billing
+        carrier_billing = utils.extract_billing_info(carrier_billing, carrier)
+        customer_billing = utils.get_user_tax_or_company(app_user=customer)
+        if isinstance(customer_billing, Response):
+            return customer_billing
 
         customer_offer = get_object_or_404(
             models.Offer, load=load, party_2=customer.app_user
@@ -1618,39 +1620,15 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + carrier.app_user.user.last_name,
             carrier_phone_number=carrier.app_user.phone_number,
             carrier_email=carrier.app_user.user.email,
-            broker_company_name=broker_company.name,
-            broker_company_address=broker_company.address.building_number
-            + ", "
-            + broker_company.address.street
-            + ", "
-            + broker_company.address.city
-            + ", "
-            + broker_company.address.state
-            + ", "
-            + broker_company.address.zip_code,
-            broker_company_fax_number=broker_company.fax_number,
-            carrier_company_name=carrier_company.name,
-            carrier_company_address=carrier_company.address.building_number
-            + ", "
-            + carrier_company.address.street
-            + ", "
-            + carrier_company.address.city
-            + ", "
-            + carrier_company.address.state
-            + ", "
-            + carrier_company.address.zip_code,
-            carrier_company_fax_number=carrier_company.fax_number,
-            customer_company_name=customer_company.name,
-            customer_company_address=customer_company.address.building_number
-            + ", "
-            + customer_company.address.street
-            + ", "
-            + customer_company.address.city
-            + ", "
-            + customer_company.address.state
-            + ", "
-            + customer_company.address.zip_code,
-            customer_company_fax_number=customer_company.fax_number,
+            broker_billing_name=broker_billing["name"],
+            broker_billing_address=broker_billing["address"],
+            broker_billing_phone_number=broker_billing["phone_number"],
+            carrier_billing_name=carrier_billing["name"],
+            carrier_billing_address=carrier_billing["address"],
+            carrier_billing_phone_number=carrier_billing["phone_number"],
+            customer_company_name=customer_billing["name"],
+            customer_company_address=customer_billing["address"],
+            customer_company_fax_number=customer_billing["phone_number"],
             shipper_facility_name=pickup_facility.building_name,
             shipper_facility_address=pickup_facility.address.building_number
             + ", "
