@@ -790,7 +790,15 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_200_OK,
                 data=serializers.CompanySerializer(company).data,
             )
-
+        else:
+            return Response(
+                [
+                    {
+                        "details": "Please provide either ein or au-id in the query params"
+                    },
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     @swagger_auto_schema(
         operation_description="Create a company employee",
         request_body=openapi.Schema(
@@ -835,7 +843,7 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
     )
     def post(self, request, *args, **kwargs):
 
-        self.create(request, *args, **kwargs)
+        return self.create(request, *args, **kwargs)
 
     # override
     def create(self, request, *args, **kwargs):
