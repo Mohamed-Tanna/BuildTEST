@@ -40,8 +40,7 @@ class ShipmentPartySerializer(serializers.ModelSerializer):
 class CarrierSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Carrier
-        fields = ["app_user", "DOT_number", "MC_number"]
-        extra_kwargs = {"MC_number": {"required": False}}
+        fields = ["app_user", "DOT_number"]
 
 
 class BrokerSerializer(serializers.ModelSerializer):

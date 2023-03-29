@@ -853,7 +853,7 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
         )
 
 
-class CompanyCheckView(APIView):
+class CheckCompanyView(APIView):
     
     permission_classes = [IsAuthenticated]
     
@@ -865,9 +865,7 @@ class CompanyCheckView(APIView):
             
             return Response(status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data)
             
-    
-
-
+            
 class TaxInfoView(APIView):
     @swagger_auto_schema(
         operation_description="Get tax info",
@@ -907,6 +905,7 @@ class TaxInfoView(APIView):
                 status=status.HTTP_200_OK,
                 data={
                     "type": "company",
+                    "company": serializers.CompanySerializer(res).data,
                 },
             )
 
@@ -915,5 +914,6 @@ class TaxInfoView(APIView):
                 status=status.HTTP_200_OK,
                 data={
                     "type": "individual",
+                    "user_tax": serializers.UserTaxSerializer(res).data,
                 },
             )
