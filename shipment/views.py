@@ -1626,9 +1626,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             carrier_billing_name=carrier_billing["name"],
             carrier_billing_address=carrier_billing["address"],
             carrier_billing_phone_number=carrier_billing["phone_number"],
-            customer_company_name=customer_billing["name"],
-            customer_company_address=customer_billing["address"],
-            customer_company_fax_number=customer_billing["phone_number"],
+            customer_billing_name=customer_billing["name"],
+            customer_billing_address=customer_billing["address"],
+            customer_billing_phone_number=customer_billing["phone_number"],
             shipper_facility_name=pickup_facility.building_name,
             shipper_facility_address=pickup_facility.address.building_number
             + ", "
