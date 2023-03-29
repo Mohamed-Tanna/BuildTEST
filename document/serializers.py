@@ -137,7 +137,7 @@ class BrokerFinalAgreementSerializer(serializers.ModelSerializer):
         )
 
 
-class CustomerFinalAgreement(serializers.ModelSerializer):
+class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FinalAgreement
         fields = [
@@ -227,7 +227,7 @@ class CustomerFinalAgreement(serializers.ModelSerializer):
         )
 
 
-class CarrierFinalAgreement(serializers.ModelSerializer):
+class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FinalAgreement
         fields = [
@@ -327,7 +327,7 @@ class CarrierFinalAgreement(serializers.ModelSerializer):
             "verified_at",
         )
 
-class BOLSerializer():
+class BOLSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FinalAgreement
         fields = [
