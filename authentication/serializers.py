@@ -17,10 +17,12 @@ class CustomRegisterSerializer(RegisterSerializer):
 class AppUserSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source="user.username")
     email = serializers.ReadOnlyField(source="user.email")
+    first_name = serializers.ReadOnlyField(source="user.first_name")
+    last_name = serializers.ReadOnlyField(source="user.last_name")
 
     class Meta:
         model = models.AppUser
-        fields = ["id", "user", "phone_number", "user_type", "username", "email"]
+        fields = ["id", "user", "phone_number", "user_type", "username", "email", "first_name", "last_name"]
 
         read_only_fields = ("id",)
 
