@@ -378,15 +378,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     def _update_created_load(self, request, instance, kwargs):
         party_types = ["customer", "shipper", "consignee"]
-        for party_type in party_types:
-            if party_type in request.data:
-                party = utils.get_shipment_party_by_username(
-                    username=request.data[party_type]
-                )
-                if isinstance(party, Response):
-                    return party
-
-                request.data[party_type] = str(party.id)
+        new_request = self._handle_shipment_parties(request, party_types)
+        if isinstance(new_request, Response):
+            return new_request
+        request = new_request
 
         if "broker" in request.data:
             broker = utils.get_broker_by_username(username=request.data["broker"])
@@ -483,6 +478,25 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             instance._prefetched_objects_cache = {}
         return Response(serializer.data)
 
+    def _handle_shipment_parties(self, request, party_types):
+        for party_type in party_types:
+            if party_type in request.data:
+                party = utils.get_shipment_party_by_username(
+                    username=request.data[party_type]
+                )
+                if isinstance(party, Response):
+                    return party
+
+                if party_type == "customer":
+                    app_user = utils.get_app_user_by_username(username=request.data[party_type])
+                    party_tax = utils.get_user_tax_or_company(app_user=app_user)
+                    if isinstance(party_tax, Response):
+                        return party_tax
+                    request.data[party_type] = str(party.id)
+
+                request.data[party_type] = str(party.id)
+
+        return request
 
 class ListLoadView(GenericAPIView, ListModelMixin):
 
