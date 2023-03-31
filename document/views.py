@@ -96,7 +96,7 @@ class FileUploadView(GenericAPIView, ListModelMixin):
 
 
 class BillingDocumnetsView(APIView):
-    permission_classes = [IsAuthenticated ,permissions.HasRole]
+    permission_classes = [IsAuthenticated, permissions.HasRole]
     
     def get(self, request, *args, **kwargs):
         """Get all billing documents related to a load."""
