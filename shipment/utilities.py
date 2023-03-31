@@ -136,7 +136,7 @@ def get_user_tax_or_company(app_user):
     user_tax = get_user_tax_by_role(app_user)
 
     if isinstance(company, Response) and isinstance(user_tax, Response):
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"details": "no tax info"}, status=status.HTTP_404_NOT_FOUND)
     
     if isinstance(company, auth_models.Company):
         return company

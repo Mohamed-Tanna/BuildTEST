@@ -498,6 +498,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return request
 
+
 class ListLoadView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
@@ -1586,17 +1587,20 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer = load.customer
         pickup_facility = load.pick_up_location
         drop_off_facility = load.destination
-        broker_billing = utils.get_user_tax_or_company(app_user=broker)
+        broker_billing = utils.get_user_tax_or_company(app_user=broker.app_user)
         if isinstance(broker_billing, Response):
             return broker_billing
         broker_billing = utils.extract_billing_info(broker_billing, broker)
-        carrier_billing = utils.get_user_tax_or_company(app_user=carrier)
+
+        carrier_billing = utils.get_user_tax_or_company(app_user=carrier.app_user)
         if isinstance(carrier_billing, Response):
             return carrier_billing
         carrier_billing = utils.extract_billing_info(carrier_billing, carrier)
-        customer_billing = utils.get_user_tax_or_company(app_user=customer)
+
+        customer_billing = utils.get_user_tax_or_company(app_user=customer.app_user)
         if isinstance(customer_billing, Response):
             return customer_billing
+        customer_billing = utils.extract_billing_info(customer_billing, customer)
 
         customer_offer = get_object_or_404(
             models.Offer, load=load, party_2=customer.app_user

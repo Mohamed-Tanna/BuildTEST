@@ -20,7 +20,6 @@ import document.serializers as serializers
 import authentication.permissions as permissions
 
 
-
 class FileUploadView(GenericAPIView, ListModelMixin):
     permission_classes = [
         IsAuthenticated,
