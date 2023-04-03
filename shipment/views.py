@@ -285,70 +285,64 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         app_user = models.AppUser.objects.get(user=request.user)
         request.data["created_by"] = str(app_user.id)
         request.data["name"] = utils.generate_load_name()
+
+        missing_fields = [field for field in ["broker", "customer", "shipper", "consignee"] if field not in request.data]
+        if missing_fields:
+            return Response({"detail": [f"{field} is required." for field in missing_fields]}, status=status.HTTP_400_BAD_REQUEST)
+        
         parties_tax_info = utils.get_parties_tax(
             customer_username=request.data["customer"],
             broker_username=request.data["broker"],
         )
+
         if isinstance(parties_tax_info, Response):
             return parties_tax_info
 
         required_fields = ["shipper", "consignee", "customer"]
         for field in required_fields:
-            if field not in request.data:
-                return Response(
-                    {"detail": [f"{field} is required."]},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
             party = utils.get_shipment_party_by_username(username=request.data[field])
             request.data[field] = str(party.id)
 
-        if "broker" not in request.data:
-            return Response(
-                {"detail": ["broker is required."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         broker = utils.get_broker_by_username(username=request.data["broker"])
-        if not isinstance(broker, models.Broker):
-            return broker
         request.data["broker"] = str(broker.id)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        while True:
+            try:
+                self.perform_create(serializer)
+                break
+            except IntegrityError:
+                request.data["name"] = utils.generate_load_name()
+                continue
 
-        try:
-            self.perform_create(serializer)
-        except IntegrityError:
-            request.data["name"] = utils.generate_load_name()
-            self.perform_create(serializer)
+            except (BaseException) as e:
+                print(f"Unexpected {e=}, {type(e)=}")
 
-        except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
+                if "delivery_date_check" in str(e.__cause__):
+                    return Response(
+                        {
+                            "detail": [
+                                "Invalid pick up or drop off date's, please double check the dates and try again"
+                            ]
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-            if "delivery_date_check" in str(e.__cause__):
+                elif "pick up location" in str(e.__cause__):
+                    return Response(
+                        {
+                            "detail": [
+                                "pick up location and drop off location cannot be equal, please double check the locations and try again"
+                            ]
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 return Response(
-                    {
-                        "detail": [
-                            "Invalid pick up or drop off date's, please double check the dates and try again"
-                        ]
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+                    {"detail": [f"{e.args[0]}"]},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-
-            elif "pick up location" in str(e.__cause__):
-                return Response(
-                    {
-                        "detail": [
-                            "pick up location and drop off location cannot be equal, please double check the locations and try again"
-                        ]
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            return Response(
-                {"detail": [f"{e.args[0]}"]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -1610,6 +1604,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         )
         doc_models.FinalAgreement.objects.create(
             load_id=load.id,
+            equipment=load.equipment,
+            load_name=load.name,
+            shipment_name=load.shipment.name,
             shipper_username=shipper.app_user.user.username,
             shipper_full_name=shipper.app_user.user.first_name
             + " "

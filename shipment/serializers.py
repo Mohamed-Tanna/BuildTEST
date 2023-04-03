@@ -124,7 +124,6 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         fields = "__all__"
         extra_kwargs = {
             "carrier": {"required": False},
-            "broker": {"required": False},
             "quantity": {"required": False},
         }
         read_only_fields = (

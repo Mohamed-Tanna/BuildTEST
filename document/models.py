@@ -252,7 +252,27 @@ class FinalAgreement(models.Model):
         default="FTL",
         editable=False,
     )
+    equipment = models.CharField(
+        max_length=255,
+        null=False,
+        blank=False,
+        editable=False,
+    )
     load_id = models.CharField(
+        max_length=255,
+        null=False,
+        blank=False,
+        unique=True,
+        editable=False,
+    )
+    load_name = models.CharField(
+        max_length=255,
+        null=False,
+        blank=False,
+        unique=True,
+        editable=False,
+    )
+    shipment_name = models.CharField(
         max_length=255,
         null=False,
         blank=False,

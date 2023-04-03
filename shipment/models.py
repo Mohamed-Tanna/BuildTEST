@@ -79,6 +79,7 @@ class Load(models.Model):
     weight = models.DecimalField(max_digits=12, decimal_places=2, null=False)
     quantity = models.DecimalField(max_digits=12, decimal_places=2, default=1)
     commodity = models.CharField(max_length=255, null=False, blank=False)
+    equipment = models.CharField(max_length=255, null=False, blank=False)
     goods_info = models.CharField(
         choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
     )
