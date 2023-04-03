@@ -1,3 +1,6 @@
+# python imports
+import uuid
+
 # DRF imports
 from rest_framework import status
 from rest_framework.views import APIView
@@ -7,7 +10,9 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 
 # Django import
+from django.utils import timezone
 from django.db.models.query import QuerySet
+from django.shortcuts import get_object_or_404
 
 # third party imports
 from drf_yasg.utils import swagger_auto_schema
@@ -94,7 +99,7 @@ class FileUploadView(GenericAPIView, ListModelMixin):
             return serializers.UploadFileSerializer
 
 
-class BillingDocumnetsView(APIView):
+class BillingDocumentsView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
     
     def get(self, request, *args, **kwargs):
@@ -148,3 +153,34 @@ class BillingDocumnetsView(APIView):
             return Response(serializers.CustomerFinalAgreementSerializer(final_agreement).data)
         
         return Response(serializers.BOLSerializer(final_agreement).data)
+    
+
+class ValidateFinalAgreementView(APIView):
+    permission_classes = [IsAuthenticated, permissions.IsShipmentPartyOrCarrier]
+    
+    def post(self, request, *args, **kwargs):
+        """Validate a final agreement."""
+        if "load" not in request.data:
+            return Response([{"details": "load is required."}], status=status.HTTP_400_BAD_REQUEST)
+        load = request.data["load"]
+
+        load = get_object_or_404(ship_models.Load, id=load)
+        final_agreement = get_object_or_404(models.FinalAgreement, load_id=load.id)
+        app_user = ship_utils.get_app_user_by_username(request.user.username)
+        if app_user.user_type == "shipment party":
+            customer = ship_utils.get_shipment_party_by_username(request.user.username)
+            if customer != load.customer:
+                return Response([{"details": "You are not authorized to validate this document."}], status=status.HTTP_403_FORBIDDEN)
+            final_agreement.did_customer_agree = True
+            final_agreement.customer_uuid = uuid.uuid4()
+            final_agreement.save()
+        elif app_user.user_type == "carrier":
+            carrier = ship_utils.get_carrier_by_username(request.user.username)
+            if carrier != load.carrier:
+                return Response([{"details": "You are not authorized to validate this document."}], status=status.HTTP_403_FORBIDDEN)
+            final_agreement.did_carrier_agree = True
+            final_agreement.carrier_uuid = uuid.uuid4()
+            final_agreement.save()
+
+        final_agreement.verified_at = timezone.now()
+        final_agreement.save()

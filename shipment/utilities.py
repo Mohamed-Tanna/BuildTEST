@@ -23,7 +23,6 @@ def get_shipment_party_by_username(username):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
 def get_carrier_by_username(username):
     try:
         user = auth_models.User.objects.get(username=username)
@@ -42,7 +41,6 @@ def get_carrier_by_username(username):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
 def get_broker_by_username(username):
     try:
         user = auth_models.User.objects.get(username=username)
@@ -60,7 +58,6 @@ def get_broker_by_username(username):
             {"detail": [f"{e.args[0]}"]},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
 
 def get_app_user_by_username(username):
     try:

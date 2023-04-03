@@ -61,6 +61,21 @@ class IsShipmentPartyOrBroker(permissions.BasePermission):
             )
         except models.AppUser.DoesNotExist:
             return False
+        
+class IsShipmentPartyOrCarrier(permissions.BasePermission):
+
+    message = "User is not a shipment party nor a carrier, fill out all of the profile's necessary information before trying again."
+
+    def has_permission(self, request, view):
+        try:
+            app_user = models.AppUser.objects.get(user=request.user)
+
+            return (
+                models.ShipmentParty.objects.filter(app_user=app_user).exists()
+                or models.Carrier.objects.filter(app_user=app_user).exists()
+            )
+        except models.AppUser.DoesNotExist:
+            return False
 
 class HasRole(permissions.BasePermission):
 
