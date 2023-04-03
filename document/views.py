@@ -103,16 +103,16 @@ class BillingDocumnetsView(APIView):
         if load_id:
             try:
                 load = ship_models.Load.objects.get(id=load_id)
-                final_agreement = models.FinalAgreement.objects.get(load=load_id)
-                user = ship_utils.get_app_user_by_username(request.user.username)
+                final_agreement = models.FinalAgreement.objects.get(load_id=load_id)
+                app_user = ship_utils.get_app_user_by_username(request.user.username)
                 
-                if user.role == "broker":
+                if app_user.user_type == "broker":
                     return self._handle_broker(request, load, final_agreement)
                     
-                elif user.role == "carrier":
+                elif app_user.user_type == "carrier":
                     return self._handle_carrier(request, load, final_agreement)
                 
-                elif user.role == "shipment party":
+                elif app_user.user_type == "shipment party":
                     return self._handle_shipment_party(request, load, final_agreement)
                 
             except models.Load.DoesNotExist:

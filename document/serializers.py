@@ -82,7 +82,7 @@ class RetrieveFileSerializer(serializers.ModelSerializer):
 class BrokerFinalAgreementSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FinalAgreement
-        fields = ["__all__"]
+        fields = "__all__"
         read_only_fields = (
             "shipper_username",
             "shipper_full_name",
