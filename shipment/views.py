@@ -1860,3 +1860,47 @@ class BrokerRejectView(APIView):
         load.status = "Canceled"
         load.save()
         return Response({"detail": "load canceled."}, status=status.HTTP_200_OK)
+
+
+class UpdateLoadStatus(APIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "load": openapi.Schema(type=openapi.TYPE_INTEGER, description="load id"),
+                "status": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="IT: In Transit, DL: Delivered",
+                ),
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: "load status updated.",
+            status.HTTP_400_BAD_REQUEST: "Validation Error",
+            status.HTTP_403_FORBIDDEN: "Forbidden",
+            status.HTTP_404_NOT_FOUND: "Not Found",
+            status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal Server Error",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        load_id = request.data["load"]
+        load = get_object_or_404(models.Load, id=load_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        carrier = models.Carrier.objects.get(app_user=app_user)
+
+        if app_user.user_type != "carrier" or load.carrier != carrier:
+            return Response(
+                {"detail": "This user is not the carrier of this load."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        new_status = request.data["status"]
+
+        if new_status == "IT":
+            load.status = "In Transit"
+        elif new_status == "DL":
+            load.status = "Delivered"
+        load.save()
+
+        return Response({"detail": "load status updated."}, status=status.HTTP_200_OK)
