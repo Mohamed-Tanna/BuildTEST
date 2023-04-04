@@ -607,13 +607,15 @@ class RetrieveLoadView(
         app_user = utils.get_app_user_by_username(username=request.user.username)
         authorized = False
 
+        print(app_user.user_type, instance.shipper, instance.consignee, instance.customer, instance.broker, instance.carrier)
+
         if app_user.user_type == "broker" and instance.broker == utils.get_broker_by_username(username=request.user.username):
             authorized = True
 
         elif app_user.user_type == "carrier" and instance.carrier == utils.get_carrier_by_username(username=request.user.username):
             authorized = True
 
-        elif app_user.user_type == "shipment_party":
+        elif app_user.user_type == "shipment party":
             shipment_party = utils.get_shipment_party_by_username(username=request.user.username)
             if instance.shipper == shipment_party or instance.consignee == shipment_party or instance.customer == shipment_party:
                 authorized = True
