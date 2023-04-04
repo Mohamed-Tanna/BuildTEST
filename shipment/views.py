@@ -600,6 +600,39 @@ class RetrieveLoadView(
     def get(self, request, *args, **kwargs):
 
         return self.retrieve(request, *args, **kwargs)
+    
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        shipment = get_object_or_404(models.Shipment, id=instance.shipment.id)
+        app_user = utils.get_app_user_by_username(username=request.user.username)
+        authorized = False
+
+        if app_user.user_type == "broker" and instance.broker == utils.get_broker_by_username(username=request.user.username):
+            authorized = True
+
+        elif app_user.user_type == "carrier" and instance.carrier == utils.get_carrier_by_username(username=request.user.username):
+            authorized = True
+
+        elif app_user.user_type == "shipment_party":
+            shipment_party = utils.get_shipment_party_by_username(username=request.user.username)
+            if instance.shipper == shipment_party or instance.consignee == shipment_party or instance.customer == shipment_party:
+                authorized = True
+
+        else:
+            try:
+                models.ShipmentAdmin.objects.get(shipment=shipment, admin=app_user)
+                authorized = True
+
+            except models.ShipmentAdmin.DoesNotExist:
+                if instance.created_by == app_user:
+                    authorized = True
+
+        if authorized:
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+
+        return Response({"detail": "You are not authorized to view this load."}, status=status.HTTP_403_FORBIDDEN)
+
 
 
 class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModelMixin):
@@ -1887,20 +1920,33 @@ class UpdateLoadStatus(APIView):
     def put(self, request, *args, **kwargs):
         load_id = request.data["load"]
         load = get_object_or_404(models.Load, id=load_id)
-        app_user = models.AppUser.objects.get(user=request.user.id)
-        carrier = models.Carrier.objects.get(app_user=app_user)
+        shipment_party = utils.get_shipment_party_by_username(username=request.user.username)
 
-        if app_user.user_type != "carrier" or load.carrier != carrier:
-            return Response(
-                {"detail": "This user is not the carrier of this load."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        new_status = request.data["status"]
+        if isinstance(shipment_party, Response):
+            return shipment_party
 
-        if new_status == "IT":
+        if load.status == "Ready For Pick Up":
+            if load.shipper != shipment_party:
+                return Response(
+                    {"details": "This user can't change the status of this load."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             load.status = "In Transit"
-        elif new_status == "DL":
-            load.status = "Delivered"
-        load.save()
+            load.save()
 
-        return Response({"detail": "load status updated."}, status=status.HTTP_200_OK)
+        elif load.status == "In Transit":
+            if load.consignee != shipment_party:
+                return Response(
+                    {"details": "This user can't change the status of this load."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            load.status = "Delivered"
+            load.save()
+
+        else:
+            return Response(
+                {"details": "The load status cannot be changed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(data=serializers.LoadCreateRetrieveSerializer(load).data, status=status.HTTP_200_OK)
