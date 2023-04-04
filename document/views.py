@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import permission_required
 
 # third party imports
 from drf_yasg import openapi
@@ -179,7 +180,7 @@ class BillingDocumentsView(APIView):
 
 
 class ValidateFinalAgreementView(APIView):
-    permission_classes = [IsAuthenticated, permissions.IsShipmentPartyOrCarrier]
+    permission_classes = [IsAuthenticated, permissions.HasRole]
 
     @swagger_auto_schema(
         operation_description="Validate a final agreement.",
@@ -190,7 +191,7 @@ class ValidateFinalAgreementView(APIView):
             },
         ),
         responses={
-            200: serializers.CustomerFinalAgreementSerializer,
+            200: "OK.",
             400: "Bad request.",
             401: "Unauthorized.",
             403: "Forbidden.",
@@ -198,7 +199,69 @@ class ValidateFinalAgreementView(APIView):
             500: "Internal server error.",
         },
     )
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
+        """Get all billing documents related to a load."""
+
+        if "load" not in request.query_params:
+            return Response(
+                    [{"details": "load is required."}], status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        load_id = request.query_params.get("load")
+        load = get_object_or_404(ship_models.Load, id=load_id)
+        final_agreement = get_object_or_404(models.FinalAgreement, load_id=load_id)
+        app_user = ship_utils.get_app_user_by_username(request.user.username)
+        data = {}
+
+        if app_user.user_type == "broker":
+            broker = ship_utils.get_broker_by_username(request.user.username)
+            if broker != load.broker:
+                return Response(
+                    [{"details": "You are not authorized to view this document."}],
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            data["did_customer_agree"] = final_agreement.did_customer_agree
+            data["did_carrier_agree"] = final_agreement.did_carrier_agree
+
+        elif app_user.user_type == "carrier":
+            carrier = ship_utils.get_carrier_by_username(request.user.username)
+            if carrier != load.carrier:
+                return Response(
+                    [{"details": "You are not authorized to view this document."}],
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            data["did_carrier_agree"] = final_agreement.did_carrier_agree
+
+        elif app_user.user_type == "shipment party":
+            customer = ship_utils.get_shipment_party_by_username(request.user.username)
+            if customer != load.customer:
+                return Response(
+                    [{"details": "You are not authorized to view this document."}],
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            data["did_customer_agree"] = final_agreement.did_customer_agree
+
+        return Response(status=status.HTTP_200_OK, data=data)
+            
+
+    @swagger_auto_schema(
+        operation_description="Validate a final agreement.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "load": openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+        ),
+        responses={
+            200: "OK.",
+            400: "Bad request.",
+            401: "Unauthorized.",
+            403: "Forbidden.",
+            404: "Not found.",
+            500: "Internal server error.",
+        },
+    )
+    def put(self, request, *args, **kwargs):
         """Validate a final agreement."""
         if "load" not in request.data:
             return Response(
@@ -248,6 +311,12 @@ class ValidateFinalAgreementView(APIView):
                 final_agreement.carrier_uuid = uuid.uuid4()
                 final_agreement.save()
                 data = serializers.CarrierFinalAgreementSerializer(final_agreement).data
+
+            else:
+                return Response(
+                    [{"details": "You are not authorized to validate this document."}],
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             if final_agreement.did_carrier_agree and final_agreement.did_customer_agree:
                 final_agreement.verified_at = timezone.now()
