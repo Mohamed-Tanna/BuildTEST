@@ -3,6 +3,7 @@ import ipaddress
 from .base import *
 from google.cloud import secretmanager
 
+
 DEBUG = False
 
 client = secretmanager.SecretManagerServiceClient()
