@@ -55,4 +55,4 @@ echo "  static_volume:" >> docker-compose.yaml
 gcloud auth configure-docker \
     us-west1-docker.pkg.dev
 echo y
-IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA IMAGE_2=us-west1-docker.pkg.dev/freightslayer-staging/backend-nginx/nginx:$commit_SHA docker-compose up -d
+IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA IMAGE_2=us-west1-docker.pkg.dev/freightslayer-staging/nginx/backend-nginx:$commit_SHA docker-compose up -d
