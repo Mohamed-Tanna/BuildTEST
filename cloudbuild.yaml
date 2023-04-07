@@ -1,7 +1,7 @@
 steps:
   # Docker Build app
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 
+    args: ['build', '-t',
             'us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA', 
             '.']
 
