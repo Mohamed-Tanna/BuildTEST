@@ -49,7 +49,7 @@ echo "    container_name: nginx" >> docker-compose.yaml
 echo "    ports:" >> docker-compose.yaml
 echo "      - '80:80'" >> docker-compose.yaml
 echo "    depends_on:" >>docker-compose.yaml
-echo "      - web" >> docker-compose.yaml
+echo "      - app" >> docker-compose.yaml
 echo "volumes:">> docker-compose.yaml
 echo "  static_volume:" >> docker-compose.yaml
 gcloud auth configure-docker \
