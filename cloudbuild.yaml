@@ -38,7 +38,7 @@ steps:
   # Docker Push nginx
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 
-           'us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA']
+           'us-west1-docker.pkg.dev/$PROJECT_ID/nginx/backend-nginx:$COMMIT_SHA']
 
   # Create new instance template
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
