@@ -73,7 +73,7 @@ database_ip = client.access_secret_version(
 GS_BUCKET_NAME = "staging_freight_uploaded_files"
 
 storage_client = storage.Client()
-bucket = storage_client.bucket(GS_BUCKET_NAME)
+bucket = storage_client.bucket("freightslayer-staging-ssl-cert")
 for blob in bucket.list_blobs():
     blob_name = blob.name
     blob.download_to_filename(os.path.join(BASE_DIR,blob_name))
