@@ -94,7 +94,7 @@ DATABASES = {
         "PORT": "5432",
     },
     "options": {
-        "sslmode": "require",
+        "sslmode": "verify-ca",
         "sslrootcert": os.path.join(BASE_DIR, "server-ca.pem"),
         "sslcert": os.path.join(BASE_DIR, "client-cert.pem"),
         "sslkey": os.path.join(BASE_DIR, "client-key.pem"),
