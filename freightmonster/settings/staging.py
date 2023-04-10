@@ -25,7 +25,7 @@ SECRET_KEY = secret_key.payload.data.decode("UTF-8")
 
 ALLOWED_HOSTS = ["app-staging.freightslayer.com"]
 
-for ip in ipaddress.IPv4Network('10.0.1.0/24'):
+for ip in ipaddress.IPv4Network("10.0.1.0/24"):
     ALLOWED_HOSTS.append(str(ip))
 
 CSRF_TRUSTED_ORIGINS = ["https://app-staging.freightslayer.com/"]
@@ -78,10 +78,10 @@ storage_client = storage.Client()
 bucket = storage_client.bucket("freightslayer-staging-ssl-cert")
 for blob in bucket.list_blobs():
     blob_name = blob.name
-    blob.download_to_filename(os.path.join(BASE_DIR,blob_name))
+    blob.download_to_filename(os.path.join(BASE_DIR, blob_name))
 
 # run bash script to change pem file permission to 600 to allow django to read it
-subprocess.run(["bash", os.path.join(BASE_DIR,"change_pem_file_permission.sh")])
+subprocess.run(["bash", os.path.join(BASE_DIR, "change_pem_file_permission.sh")])
 
 DATABASES = {
     "default": {
