@@ -82,7 +82,10 @@ for blob in bucket.list_blobs():
 
 # run bash script to change pem file permission to 600 to allow django to read it
 subprocess.run(["bash", os.path.join(BASE_DIR, "change_pem_file_permission.sh")])
-print(os.path.join(BASE_DIR, "client-cert.pem"))
+
+with open(os.path.join(BASE_DIR, "client-cert.pem"), 'r') as f:
+    pem_contents = f.read()
+    print(pem_contents)
 
 DATABASES = {
     "default": {
@@ -96,9 +99,9 @@ DATABASES = {
     },
     "options": {
         "sslmode": "require",
-        "sslrootcert": "server-ca.pem",
-        "sslcert": "client-cert.pem",
-        "sslkey": "client-key.pem",
+        "sslrootcert": os.path.join(BASE_DIR ,"server-ca.pem"),
+        "sslcert": os.path.join(BASE_DIR, "client-cert.pem"),
+        "sslkey":  os.path.join(BASE_DIR, "client-key.pem"),
     },
 }
 
