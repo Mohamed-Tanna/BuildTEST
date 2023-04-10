@@ -1,7 +1,12 @@
+# Python imports
 import os
 import ipaddress
+import subprocess
+# Module imports
 from .base import *
+# Third party imports
 from google.cloud import secretmanager
+from google.cloud import storage
 
 
 DEBUG = False
@@ -65,6 +70,17 @@ database_ip = client.access_secret_version(
     }
 )
 
+GS_BUCKET_NAME = "staging_freight_uploaded_files"
+
+storage_client = storage.Client()
+bucket = storage_client.bucket(GS_BUCKET_NAME)
+for blob in bucket.list_blobs():
+    blob_name = blob.name
+    blob.download_to_filename(os.path.join(BASE_DIR,blob_name))
+
+# run bash script to change pem file permission to 600 to allow django to read it
+subprocess.run(["bash", os.path.join(BASE_DIR,"change_pem_file_permission.sh")])
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -74,7 +90,13 @@ DATABASES = {
         "PASSWORD": database_password.payload.data.decode("UTF-8"),
         "HOST": database_ip.payload.data.decode("UTF-8"),
         "PORT": "5432",
-    }
+    },
+    "options": {
+        "sslmode": "require",
+        "sslrootcert": os.path.join(BASE_DIR, "server-ca.pem"),
+        "sslcert": os.path.join(BASE_DIR, "client-cert.pem"),
+        "sslkey": os.path.join(BASE_DIR, "client-key.pem"),
+    },
 }
 
 CHANNEL_LAYERS = {
