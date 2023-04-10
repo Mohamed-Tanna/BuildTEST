@@ -82,7 +82,12 @@ for blob in bucket.list_blobs():
 
 # run bash script to change pem file permission to 600 to allow django to read it
 subprocess.run(["bash", os.path.join(BASE_DIR, "change_pem_file_permission.sh")])
-
+print(BASE_DIR)
+filename = 'client-cert.pem'
+for root, dirs, files in os.walk('.'): 
+    if filename in files:
+        print(f'Found {filename} at: {os.path.join(root, filename)}')
+        break 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -94,7 +99,7 @@ DATABASES = {
         "PORT": "5432",
     },
     "options": {
-        "sslmode": "verify-ca",
+        "sslmode": "allow",
         "sslrootcert": os.path.join(BASE_DIR, "server-ca.pem"),
         "sslcert": os.path.join(BASE_DIR, "client-cert.pem"),
         "sslkey": os.path.join(BASE_DIR, "client-key.pem"),
