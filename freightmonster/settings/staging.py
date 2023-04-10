@@ -83,10 +83,6 @@ for blob in bucket.list_blobs():
 # run bash script to change pem file permission to 600 to allow django to read it
 subprocess.run(["bash", os.path.join(BASE_DIR, "change_pem_file_permission.sh")])
 
-with open(os.path.join(BASE_DIR, "client-cert.pem"), 'r') as f:
-    pem_contents = f.read()
-    print(pem_contents)
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
