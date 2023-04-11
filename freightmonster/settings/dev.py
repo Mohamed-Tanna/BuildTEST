@@ -79,3 +79,5 @@ CHANNEL_LAYERS = {
 }
 
 DEFENDER_REDIS_URL = "redis://redis:6379/0"
+
+GS_BUCKET_NAME = "dev_freight_uploaded_files"

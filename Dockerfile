@@ -27,6 +27,8 @@ COPY --from=build-stage /wheels /wheels
 
 RUN mkdir static
 
+RUN apk add --no-cache bash
+
 RUN pip install --upgrade pip
 
 RUN pip install \

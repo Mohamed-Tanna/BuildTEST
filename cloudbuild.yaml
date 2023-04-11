@@ -1,36 +1,55 @@
 steps:
-
-  # Docker build
+  # Docker Build app
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 
+    args: ['build', '-t',
             'us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA', 
             '.']
 
-  # Docker push
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 
-            'us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA']
-  
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 
-            'us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA', 
-            './nginx']
-  
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 
-          'us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA']
-
-  #SSH to GCE instance
+  #Docker scan 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     args:
-      - '-c'
-      - >-
-        gcloud compute ssh root@dev-backend --zone=us-west1-a
-        --command="
-        docker-compose down -v &&
-        docker image prune -a -f &&
-        IMAGE_1=us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA IMAGE_2=us-west1-docker.pkg.dev/$PROJECT_ID/backend-nginx/nginx:$COMMIT_SHA docker-compose up -d "
+      - -c
+      - |
+       gcloud artifacts docker images scan us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA \
+       --format='value(response.scan)' > /workspace/scan_id.txt
+    entrypoint: bash
 
+  #Docker severity check
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    args:
+      - -c
+      - |
+       gcloud artifacts docker images list-vulnerabilities $(cat /workspace/scan_id.txt) \
+       --format='value(vulnerability.effectiveSeverity)' | if grep -E 'CRITICAL'; \
+       then echo 'Failed vulnerability check' && exit 1; else exit 0; fi 
+    entrypoint: bash
+
+  # Docker Push app
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 
+           'us-west1-docker.pkg.dev/$PROJECT_ID/backend/backend:$COMMIT_SHA']
+
+  # Docker Build for nginx
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 
+            'us-west1-docker.pkg.dev/$PROJECT_ID/nginx/backend-nginx:$COMMIT_SHA',
+            './nginx']
+
+  # Docker Push nginx
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 
+           'us-west1-docker.pkg.dev/$PROJECT_ID/nginx/backend-nginx:$COMMIT_SHA']
+
+  # Create new instance template
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id : '1'
+    args: ['./create_new_instance_template.sh',$COMMIT_SHA]
+    entrypoint: bash
+
+  # Set the new instace template and start update
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    waitFor: ['1'] 
+    args: ['./activate_instance_template.sh',$COMMIT_SHA]
     entrypoint: bash
 options:
   logging: CLOUD_LOGGING_ONLY

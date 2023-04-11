@@ -3,7 +3,6 @@ import shipment.models as models
 import shipment.utilities as utils
 import document.models as doc_models
 import shipment.serializers as serializers
-import authentication.models as auth_models
 import authentication.permissions as permissions
 from authentication.utilities import create_address
 
