@@ -92,7 +92,7 @@ DATABASES = {
         "PASSWORD": database_password.payload.data.decode("UTF-8"),
         "HOST": database_ip.payload.data.decode("UTF-8"),
         "PORT": "5432",
-        "options": {
+        "OPTIONS": {
             "sslmode": "require",
             "sslrootcert": os.path.join(BASE_DIR, "server-ca.pem"),
             "sslcert": os.path.join(BASE_DIR, "client-cert.pem"),
