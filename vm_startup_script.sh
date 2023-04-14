@@ -58,6 +58,7 @@ gcloud auth configure-docker \
     us-west1-docker.pkg.dev
 echo y
 
+# Set environment variables
 IMAGE_1=us-west1-docker.pkg.dev/freightmonster-dev/backend/backend:$commit_SHA 
 IMAGE_2=us-west1-docker.pkg.dev/freightmonster-dev/nginx/backend-nginx:$commit_SHA
 export IMAGE_1
