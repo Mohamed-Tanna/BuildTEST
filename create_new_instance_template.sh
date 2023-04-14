@@ -2,8 +2,8 @@
 template_name='freight-backend-'
 template_name+=$1
 gcloud compute instance-templates create $template_name \
-    --network=freightslayer-staging-network \
-    --subnet=freightslayer-staging-network \
+    --network=freightmonster-dev-network \
+    --subnet=freightmonster-dev-network \
     --region=us-west1\
     --metadata commit-SHA=$1\
     --metadata-from-file  startup-script='vm_startup_script.sh'\
@@ -14,6 +14,6 @@ gcloud compute instance-templates create $template_name \
     --shielded-vtpm\
     --boot-disk-type=pd-standard\
     --boot-disk-size=20\
-    --service-account=freightslayer-staging-backend@freightslayer-staging.iam.gserviceaccount.com\
+    --service-account=freightmonster-dev-backend@freightmonster-dev.iam.gserviceaccount.com\
     --scopes=cloud-platform\
     --no-address

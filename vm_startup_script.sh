@@ -25,8 +25,8 @@ echo "      - static_volume:/code/static" >> docker-compose.yaml
 echo "    expose:" >> docker-compose.yaml
 echo "      - '8000'">> docker-compose.yaml
 echo "    environment:" >> docker-compose.yaml
-echo "      - PROJ_ID=freightslayer-staging" >> docker-compose.yaml
-echo "      - ENV=STAGING" >> docker-compose.yaml
+echo "      - PROJ_ID=freightmonster-dev" >> docker-compose.yaml
+echo "      - ENV=DEV" >> docker-compose.yaml
 echo "      - EMAIL_HOST_USER=notifications@freightslayer.com" >> docker-compose.yaml
 echo "      - FMCSA_WEBKEY=WEBKEY" >> docker-compose.yaml
 echo "      - SECRET_KEY=D_SECRET_KEY" >> docker-compose.yaml
@@ -36,6 +36,12 @@ echo "      - DB_NAME=DATABASE_NAME" >> docker-compose.yaml
 echo "      - DB_USER=DATABASE_USER" >> docker-compose.yaml
 echo "      - DB_PASS=DB_PASS" >> docker-compose.yaml
 echo "      - DB_IP=DATABASE_IP" >> docker-compose.yaml
+echo "  redis:" >> docker-compose.yaml
+echo "    restart: always" >> docker-compose.yaml
+echo "    image: redis:alpine" >> docker-compose.yaml
+echo "    container_name: redis" >> docker-compose.yaml
+echo "    expose:" >> docker-compose.yaml
+echo "      - '6379'">> docker-compose.yaml
 echo "  nginx:" >> docker-compose.yaml
 echo "    restart: always" >> docker-compose.yaml
 echo "    volumes:">>docker-compose.yaml
@@ -51,8 +57,8 @@ echo "  static_volume:" >> docker-compose.yaml
 gcloud auth configure-docker \
     us-west1-docker.pkg.dev
 echo y
-IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA 
-IMAGE_2=us-west1-docker.pkg.dev/freightslayer-staging/nginx/backend-nginx:$commit_SHA
+IMAGE_1=us-west1-docker.pkg.dev/freightmonster-dev/backend/backend:$commit_SHA 
+IMAGE_2=us-west1-docker.pkg.dev/freightmonster-dev/nginx/backend-nginx:$commit_SHA
 export IMAGE_1
 export IMAGE_2
 docker-compose up -d
