@@ -80,13 +80,28 @@ DATABASES = {
     }
 }
 
-CHANNEL_LAYERS = {
+MEMORYSTOREIP = client.access_secret_version(
+    request={
+        "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('RED_IP')}/versions/latest"
+    }
+).payload.data.decode("UTF-8")
+
+REDIS_HOST = f"{MEMORYSTOREIP}:6379"
+
+CACHES = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [("redis", 6379)]},
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://{MEMORYSTOREIP}:6379",
     }
 }
 
-DEFENDER_REDIS_URL = "redis://redis:6379/0"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [(f"{MEMORYSTOREIP}", 6379)]},
+    }
+}
+
+DEFENDER_REDIS_URL = f"redis://{MEMORYSTOREIP}:6379/0"
 
 GS_BUCKET_NAME = "dev_freight_uploaded_files"
