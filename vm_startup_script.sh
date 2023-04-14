@@ -37,10 +37,6 @@ echo "      - DB_USER=DATABASE_USER" >> docker-compose.yaml
 echo "      - DB_PASS=DB_PASS" >> docker-compose.yaml
 echo "      - DB_IP=DATABASE_IP" >> docker-compose.yaml
 echo "      - RED_IP=RED_IP" >> docker-compose.yaml
-echo "  redis:" >> docker-compose.yaml
-echo "    image: 'redis:alpine'" >> docker-compose.yaml
-echo "    ports:" >> docker-compose.yaml
-echo "      - '6379:6379'" >> docker-compose.yaml
 echo "  nginx:" >> docker-compose.yaml
 echo "    restart: always" >> docker-compose.yaml
 echo "    volumes:">>docker-compose.yaml
