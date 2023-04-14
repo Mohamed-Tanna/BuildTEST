@@ -1,5 +1,4 @@
 import authentication.models as auth_models
-import shipment.models as ship_models
 from rest_framework import status
 from rest_framework.response import Response
 import string, random

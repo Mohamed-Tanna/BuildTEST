@@ -8,8 +8,13 @@ from google.auth import compute_engine
 from google.oauth2 import service_account
 from google.auth.transport import requests
 # module imports
-from freightmonster.settings.base import GS_BUCKET_NAME, BASE_DIR
-
+from freightmonster.settings.base import BASE_DIR
+if os.getenv("ENV") == "DEV":
+    from freightmonster.settings.dev import GS_BUCKET_NAME
+elif os.getenv("ENV") == "STAGING":
+    from freightmonster.settings.staging import GS_BUCKET_NAME
+else:
+    from freightmonster.settings.dev import GS_BUCKET_NAME
 
 
 def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600):
