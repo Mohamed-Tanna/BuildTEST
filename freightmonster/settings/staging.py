@@ -101,11 +101,26 @@ DATABASES = {
     },
 }
 
-CHANNEL_LAYERS = {
+MEMORYSTOREIP = client.access_secret_version(
+    request={
+        "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('RED_IP')}/versions/latest"
+    }
+).payload.data.encode("UTF-8")
+
+REDIS_HOST = f"{MEMORYSTOREIP}:6379"
+
+CACHES = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [("10.117.0.4", 6379)]},
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://{MEMORYSTOREIP}:6379",
     }
 }
 
-DEFENDER_REDIS_URL = "redis://10.117.0.4:6379/0"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [(f"{MEMORYSTOREIP}", 6379)]},
+    }
+}
+
+DEFENDER_REDIS_URL = f"redis://{MEMORYSTOREIP}:6379/0"
