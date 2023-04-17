@@ -11,7 +11,7 @@ from google.cloud import secretmanager
 from google.cloud import storage
 
 
-DEBUG = True
+DEBUG = False
 
 client = secretmanager.SecretManagerServiceClient()
 
