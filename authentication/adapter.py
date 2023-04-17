@@ -19,7 +19,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         """
 
         url = (
-            "https://dev.freightslayer.com/verify/"
+            "https://staging.freightslayer.com/verify/"
             + emailconfirmation.key
         )
         return url
