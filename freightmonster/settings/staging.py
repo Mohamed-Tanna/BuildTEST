@@ -106,15 +106,6 @@ MEMORYSTOREIP = client.access_secret_version(
     }
 ).payload.data.decode("UTF-8")
 
-REDIS_HOST = f"{MEMORYSTOREIP}:6379"
-
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": f"redis://{MEMORYSTOREIP}:6379",
-    }
-}
-
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
