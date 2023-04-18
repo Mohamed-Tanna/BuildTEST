@@ -15,6 +15,8 @@ from django.http import QueryDict
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 
 # DRF imports
@@ -46,6 +48,7 @@ class HealthCheckView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
+@method_decorator(never_cache, name='dispatch')
 class AppUserView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
