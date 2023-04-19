@@ -2060,7 +2060,7 @@ class DashboardView(APIView):
         for i in range(1, 13):
             monthly_loads = loads.filter(created_at__month=i, created_at__year=year)
             obj = {}
-            obj["name"] = datetime.strptime(str(i), "%m").strftime("%B")
+            obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
             if monthly_loads.exists() is False:
                 obj["total"] = 0
                 obj["pending"] = 0
