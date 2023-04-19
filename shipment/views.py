@@ -1,3 +1,6 @@
+# Python imports
+from datetime import datetime
+
 # Module imports
 import shipment.models as models
 import shipment.utilities as utils
@@ -2028,9 +2031,9 @@ class DashboardView(APIView):
             )
         
         result = {}
-        result["total"] = len(loads)
-        result["pending"] = len(
-            loads.filter(
+        cards = {}
+        cards["total"] = loads.count()
+        cards["pending"] = loads.filter(
                 status__in=[
                     "Created",
                     "Awaiting Customer",
@@ -2038,16 +2041,50 @@ class DashboardView(APIView):
                     "Awaiting Carrier",
                     "Awaiting Broker",
                 ]
-            )
-        )
-        result["ready_for_pick_up"] = len(loads.filter(status="Ready For Pick Up"))
-        result["in_transit"] = len(loads.filter(status="In Transit"))
-        result["delivered"] = len(loads.filter(status="Delivered"))
-        result["canceled"] = len(loads.filter(status="Canceled"))
+            ).count()
+        
+        cards["ready_for_pick_up"] = loads.filter(status="Ready For Pick Up").count()
+        cards["in_transit"] = loads.filter(status="In Transit").count()
+        cards["delivered"] = loads.filter(status="Delivered").count()
+        cards["canceled"] = loads.filter(status="Canceled").count()
 
         loads = loads.order_by("-id")[:3]
 
         loads = serializers.LoadListSerializer(loads, many=True).data
-        result["loads"] = loads
+        cards["loads"] = loads
+        result["cards"] = cards
+        result["chart"] = []
+        
+        year = datetime.now().year
+        loads = models.Load.objects.filter(filter_query)
+        for i in range(1, 13):
+            monthly_loads = loads.filter(created_at__month=i, created_at__year=year)
+            obj = {}
+            obj["name"] = datetime.strptime(str(i), "%m").strftime("%B")
+            if monthly_loads.exists() is False:
+                obj["total"] = 0
+                obj["pending"] = 0
+                obj["ready_for_pick_up"] = 0
+                obj["in_transit"] = 0
+                obj["delivered"] = 0
+                obj["canceled"] = 0
+                result["chart"].append(obj)
+                continue
+            obj["total"] = monthly_loads.count()
+            obj["pending"] = monthly_loads.filter(
+                status__in=[
+                    "Created",
+                    "Awaiting Customer",
+                    "Assigning Carrier",
+                    "Awaiting Carrier",
+                    "Awaiting Broker",
+                ]
+            ).count()
+        
+            obj["ready_for_pick_up"] = monthly_loads.filter(status="Ready For Pick Up").count()
+            obj["in_transit"] = monthly_loads.filter(status="In Transit").count()
+            obj["delivered"] = monthly_loads.filter(status="Delivered").count()
+            obj["canceled"] = monthly_loads.filter(status="Canceled").count()
+            result["chart"].append(obj)
 
-        return Response(data=loads, status=status.HTTP_200_OK)
+        return Response(data=result, status=status.HTTP_200_OK)
