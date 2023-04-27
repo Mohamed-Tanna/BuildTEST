@@ -304,10 +304,9 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
 
             res = requests.get(url=URL)
-            print(res, "Normal", res.json(), "json")
             data = res.json()
 
-            if "allowedToOperate" not in data["content"]["carrier"]:
+            if data["content"] is None or "allowedToOperate" not in data["content"]["carrier"]:
                 app_user = models.AppUser.objects.get(user=request.user.id)
                 app_user.delete()
                 return Response(

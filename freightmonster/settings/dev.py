@@ -5,7 +5,7 @@ from .base import *
 from google.cloud import secretmanager
 
 
-DEBUG = True
+DEBUG = False
 
 client = secretmanager.SecretManagerServiceClient()
 
