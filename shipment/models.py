@@ -39,7 +39,7 @@ class Shipment(models.Model):
 
 
 class Load(models.Model):
-
+    created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, unique=True, null=False, blank=False)
     customer = models.ForeignKey(

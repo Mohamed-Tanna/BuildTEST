@@ -2,12 +2,14 @@ from django.urls import path, include
 from dj_rest_auth.registration.views import VerifyEmailView
 import authentication.views as views
 from dj_rest_auth.views import PasswordResetConfirmView, PasswordResetView
+from dj_rest_auth.registration.views import ResendEmailVerificationView
 
 
 urlpatterns = [
     path("", include("dj_rest_auth.urls")),
     path("signup/", include("dj_rest_auth.registration.urls")),
     path("verify-email/", VerifyEmailView.as_view(), name="rest_verify_email"),
+    path("resend-email/", ResendEmailVerificationView.as_view(), name="rest_resend_email"),
     path(
         "account-confirm-email/",
         VerifyEmailView.as_view(),

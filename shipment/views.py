@@ -1,3 +1,6 @@
+# Python imports
+from datetime import datetime
+
 # Module imports
 import shipment.models as models
 import shipment.utilities as utils
@@ -285,10 +288,17 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request.data["created_by"] = str(app_user.id)
         request.data["name"] = utils.generate_load_name()
 
-        missing_fields = [field for field in ["broker", "customer", "shipper", "consignee"] if field not in request.data]
+        missing_fields = [
+            field
+            for field in ["broker", "customer", "shipper", "consignee"]
+            if field not in request.data
+        ]
         if missing_fields:
-            return Response({"detail": [f"{field} is required." for field in missing_fields]}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"detail": [f"{field} is required." for field in missing_fields]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         parties_tax_info = utils.get_parties_tax(
             customer_username=request.data["customer"],
             broker_username=request.data["broker"],
@@ -481,7 +491,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     return party
 
                 if party_type == "customer":
-                    app_user = utils.get_app_user_by_username(username=request.data[party_type])
+                    app_user = utils.get_app_user_by_username(
+                        username=request.data[party_type]
+                    )
                     party_tax = utils.get_user_tax_or_company(app_user=app_user)
                     if isinstance(party_tax, Response):
                         return party_tax
@@ -541,8 +553,6 @@ class ListLoadView(GenericAPIView, ListModelMixin):
                     | Q(consignee=shipment_party.id)
                     | Q(customer=shipment_party.id)
                 )
-            except models.ShipmentParty.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
@@ -550,8 +560,6 @@ class ListLoadView(GenericAPIView, ListModelMixin):
             try:
                 broker = models.Broker.objects.get(app_user=app_user.id)
                 filter_query |= Q(broker=broker.id)
-            except models.Broker.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
@@ -559,13 +567,13 @@ class ListLoadView(GenericAPIView, ListModelMixin):
             try:
                 carrier = models.Carrier.objects.get(app_user=app_user.id)
                 filter_query |= Q(carrier=carrier.id)
-            except (models.Carrier.DoesNotExist) as e:
-                print(f"Unexpected {e=}, {type(e)=}")
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
         queryset = (
-            queryset.filter(filter_query).exclude(status="Canceled").order_by("-id")
+            queryset.filter(filter_query)
+            .exclude(status__in=["Canceled", "Delivered"])
+            .order_by("-id")
         )
 
         return queryset
@@ -599,24 +607,45 @@ class RetrieveLoadView(
     def get(self, request, *args, **kwargs):
 
         return self.retrieve(request, *args, **kwargs)
-    
+
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         shipment = get_object_or_404(models.Shipment, id=instance.shipment.id)
         app_user = utils.get_app_user_by_username(username=request.user.username)
         authorized = False
 
-        print(app_user.user_type, instance.shipper, instance.consignee, instance.customer, instance.broker, instance.carrier)
+        print(
+            app_user.user_type,
+            instance.shipper,
+            instance.consignee,
+            instance.customer,
+            instance.broker,
+            instance.carrier,
+        )
 
-        if app_user.user_type == "broker" and instance.broker == utils.get_broker_by_username(username=request.user.username):
+        if (
+            app_user.user_type == "broker"
+            and instance.broker
+            == utils.get_broker_by_username(username=request.user.username)
+        ):
             authorized = True
 
-        elif app_user.user_type == "carrier" and instance.carrier == utils.get_carrier_by_username(username=request.user.username):
+        elif (
+            app_user.user_type == "carrier"
+            and instance.carrier
+            == utils.get_carrier_by_username(username=request.user.username)
+        ):
             authorized = True
 
         elif app_user.user_type == "shipment party":
-            shipment_party = utils.get_shipment_party_by_username(username=request.user.username)
-            if instance.shipper == shipment_party or instance.consignee == shipment_party or instance.customer == shipment_party:
+            shipment_party = utils.get_shipment_party_by_username(
+                username=request.user.username
+            )
+            if (
+                instance.shipper == shipment_party
+                or instance.consignee == shipment_party
+                or instance.customer == shipment_party
+            ):
                 authorized = True
 
         else:
@@ -632,8 +661,10 @@ class RetrieveLoadView(
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
 
-        return Response({"detail": "You are not authorized to view this load."}, status=status.HTTP_403_FORBIDDEN)
-
+        return Response(
+            {"detail": "You are not authorized to view this load."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
 
 class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModelMixin):
@@ -1903,7 +1934,9 @@ class UpdateLoadStatus(APIView):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                "load": openapi.Schema(type=openapi.TYPE_INTEGER, description="load id"),
+                "load": openapi.Schema(
+                    type=openapi.TYPE_INTEGER, description="load id"
+                ),
                 "status": openapi.Schema(
                     type=openapi.TYPE_STRING,
                     description="IT: In Transit, DL: Delivered",
@@ -1921,7 +1954,9 @@ class UpdateLoadStatus(APIView):
     def put(self, request, *args, **kwargs):
         load_id = request.data["load"]
         load = get_object_or_404(models.Load, id=load_id)
-        shipment_party = utils.get_shipment_party_by_username(username=request.user.username)
+        shipment_party = utils.get_shipment_party_by_username(
+            username=request.user.username
+        )
 
         if isinstance(shipment_party, Response):
             return shipment_party
@@ -1950,4 +1985,106 @@ class UpdateLoadStatus(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(data=serializers.LoadCreateRetrieveSerializer(load).data, status=status.HTTP_200_OK)
+        return Response(
+            data=serializers.LoadCreateRetrieveSerializer(load).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class DashboardView(APIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: "Dashboard data.",
+            status.HTTP_400_BAD_REQUEST: "Validation Error",
+            status.HTTP_403_FORBIDDEN: "Forbidden",
+            status.HTTP_404_NOT_FOUND: "Loads Not Found",
+            status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal Server Error",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        app_user = utils.get_app_user_by_username(username=request.user.username)
+        filter_query = Q(created_by=app_user.id)
+        if app_user.user_type == "shipment party":
+            shipment_party = utils.get_shipment_party_by_username(
+                username=request.user.username
+            )
+            filter_query |= (
+                Q(shipper=shipment_party)
+                | Q(consignee=shipment_party)
+                | Q(customer=shipment_party)
+            )
+
+        elif app_user.user_type == "broker":
+            broker = utils.get_broker_by_username(username=request.user.username)
+            filter_query |= Q(broker=broker)
+
+        elif app_user.user_type == "carrier":
+            carrier = utils.get_carrier_by_username(username=request.user.username)
+            filter_query |= Q(carrier=carrier)
+
+        loads = models.Load.objects.filter(filter_query)
+        if loads.exists() is False:
+            return Response(
+                data={"detail": "No loads found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        
+        result = {}
+        cards = {}
+        cards["total"] = loads.count()
+        cards["pending"] = loads.filter(
+                status__in=[
+                    "Created",
+                    "Awaiting Customer",
+                    "Assigning Carrier",
+                    "Awaiting Carrier",
+                    "Awaiting Broker",
+                ]
+            ).count()
+        
+        cards["ready_for_pick_up"] = loads.filter(status="Ready For Pick Up").count()
+        cards["in_transit"] = loads.filter(status="In Transit").count()
+        cards["delivered"] = loads.filter(status="Delivered").count()
+        cards["canceled"] = loads.filter(status="Canceled").count()
+
+        loads = loads.order_by("-id")[:3]
+
+        loads = serializers.LoadListSerializer(loads, many=True).data
+        cards["loads"] = loads
+        result["cards"] = cards
+        result["chart"] = []
+        
+        year = datetime.now().year
+        loads = models.Load.objects.filter(filter_query)
+        for i in range(1, 13):
+            monthly_loads = loads.filter(created_at__month=i, created_at__year=year)
+            obj = {}
+            obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+            if monthly_loads.exists() is False:
+                obj["total"] = 0
+                obj["pending"] = 0
+                obj["ready_for_pick_up"] = 0
+                obj["in_transit"] = 0
+                obj["delivered"] = 0
+                obj["canceled"] = 0
+                result["chart"].append(obj)
+                continue
+            obj["total"] = monthly_loads.count()
+            obj["pending"] = monthly_loads.filter(
+                status__in=[
+                    "Created",
+                    "Awaiting Customer",
+                    "Assigning Carrier",
+                    "Awaiting Carrier",
+                    "Awaiting Broker",
+                ]
+            ).count()
+        
+            obj["ready_for_pick_up"] = monthly_loads.filter(status="Ready For Pick Up").count()
+            obj["in_transit"] = monthly_loads.filter(status="In Transit").count()
+            obj["delivered"] = monthly_loads.filter(status="Delivered").count()
+            obj["canceled"] = monthly_loads.filter(status="Canceled").count()
+            result["chart"].append(obj)
+
+        return Response(data=result, status=status.HTTP_200_OK)

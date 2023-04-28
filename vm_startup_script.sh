@@ -25,8 +25,8 @@ echo "      - static_volume:/code/static" >> docker-compose.yaml
 echo "    expose:" >> docker-compose.yaml
 echo "      - '8000'">> docker-compose.yaml
 echo "    environment:" >> docker-compose.yaml
-echo "      - PROJ_ID=freightslayer-staging" >> docker-compose.yaml
-echo "      - ENV=STAGING" >> docker-compose.yaml
+echo "      - PROJ_ID=freightmonster-dev" >> docker-compose.yaml
+echo "      - ENV=DEV" >> docker-compose.yaml
 echo "      - EMAIL_HOST_USER=notifications@freightslayer.com" >> docker-compose.yaml
 echo "      - FMCSA_WEBKEY=WEBKEY" >> docker-compose.yaml
 echo "      - SECRET_KEY=D_SECRET_KEY" >> docker-compose.yaml
@@ -52,7 +52,8 @@ echo "  static_volume:" >> docker-compose.yaml
 gcloud auth configure-docker \
     us-west1-docker.pkg.dev
 echo y
-IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA 
+
+IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA
 IMAGE_2=us-west1-docker.pkg.dev/freightslayer-staging/nginx/backend-nginx:$commit_SHA
 export IMAGE_1
 export IMAGE_2

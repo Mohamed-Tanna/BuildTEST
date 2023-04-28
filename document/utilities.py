@@ -14,7 +14,7 @@ if os.getenv("ENV") == "DEV":
 elif os.getenv("ENV") == "STAGING":
     from freightmonster.settings.staging import GS_BUCKET_NAME
 else:
-    from freightmonster.settings.dev import GS_BUCKET_NAME
+    from freightmonster.settings.local import GS_BUCKET_NAME
 
 
 def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600):

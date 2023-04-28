@@ -28,6 +28,7 @@ class LoadAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "name",
+        "created_at",
         "created_by",
         "shipper",
         "consignee",
