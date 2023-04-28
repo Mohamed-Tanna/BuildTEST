@@ -26,7 +26,7 @@ echo "    expose:" >> docker-compose.yaml
 echo "      - '8000'">> docker-compose.yaml
 echo "    environment:" >> docker-compose.yaml
 echo "      - PROJ_ID=freightslayer-staging" >> docker-compose.yaml
-echo "      - ENV=DEV" >> docker-compose.yaml
+echo "      - ENV=STAGING" >> docker-compose.yaml
 echo "      - EMAIL_HOST_USER=notifications@freightslayer.com" >> docker-compose.yaml
 echo "      - FMCSA_WEBKEY=WEBKEY" >> docker-compose.yaml
 echo "      - SECRET_KEY=D_SECRET_KEY" >> docker-compose.yaml

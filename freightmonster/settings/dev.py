@@ -92,7 +92,7 @@ MEMORYSTOREIP = client.access_secret_version(
     request={
         "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('RED_IP')}/versions/latest"
     }
-).payload.data.encode("UTF-8")
+).payload.data.decode("UTF-8")
 
 CHANNEL_LAYERS = {
     "default": {
