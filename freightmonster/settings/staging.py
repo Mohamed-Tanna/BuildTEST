@@ -106,6 +106,8 @@ MEMORYSTOREIP = client.access_secret_version(
     }
 ).payload.data.decode("UTF-8")
 
+REDIS_HOST = f"{MEMORYSTOREIP}:6379"
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",

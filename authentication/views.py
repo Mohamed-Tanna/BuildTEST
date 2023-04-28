@@ -306,7 +306,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             res = requests.get(url=URL)
             data = res.json()
 
-            if "allowedToOperate" not in data["content"]["carrier"]:
+            if data["content"] is None or "allowedToOperate" not in data["content"]["carrier"]:
                 app_user = models.AppUser.objects.get(user=request.user.id)
                 app_user.delete()
                 return Response(
@@ -698,7 +698,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             return Response(
                 [
                     {
-                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                        "details": "Address creation failed. Please try again; if the issue persists please contact us."
                     },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
@@ -718,11 +718,16 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+        try:
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        except (BaseException) as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            app_user.delete()
+            return Response({"details": "something went wrong."},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
@@ -799,6 +804,7 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
     @swagger_auto_schema(
         operation_description="Create a company employee",
         request_body=openapi.Schema(

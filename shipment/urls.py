@@ -19,6 +19,7 @@ urlpatterns = [
     path("offer/<id>/", views.OfferView.as_view()),
     path("reject-load/", views.BrokerRejectView.as_view()),
     path("load-status/", views.UpdateLoadStatus.as_view()),
+    path("dashboard/", views.DashboardView.as_view()),
     # Fixed URL - always insert above
     path("<id>/", views.ShipmentView.as_view()),
     path("", views.ShipmentView.as_view()),
