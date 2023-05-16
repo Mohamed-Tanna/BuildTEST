@@ -25,6 +25,9 @@ import shipment.utilities as ship_utils
 import document.serializers as serializers
 import authentication.permissions as permissions
 
+NOT_AUTH_MSG = "You are not authorized to view this document."
+SHIPMENT_PARTY = "shipment party"
+LOAD_REQUIRED_MSG = "load is required."
 
 class FileUploadView(GenericAPIView, ListModelMixin):
     permission_classes = [
@@ -51,7 +54,7 @@ class FileUploadView(GenericAPIView, ListModelMixin):
             return self.list(request, *args, **kwargs)
         else:
             return Response(
-                [{"details": "load is required."}], status=status.HTTP_400_BAD_REQUEST
+                [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
             )
 
     @swagger_auto_schema(
@@ -117,7 +120,7 @@ class BillingDocumentsView(APIView):
                 elif app_user.user_type == "carrier":
                     return self._handle_carrier(request, load, final_agreement)
 
-                elif app_user.user_type == "shipment party":
+                elif app_user.user_type == SHIPMENT_PARTY:
                     return self._handle_shipment_party(request, load, final_agreement)
 
             except models.Load.DoesNotExist:
@@ -141,7 +144,7 @@ class BillingDocumentsView(APIView):
 
         if user != load.broker:
             return Response(
-                [{"details": "You are not authorized to view this document."}],
+                [{"details": NOT_AUTH_MSG}],
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -154,7 +157,7 @@ class BillingDocumentsView(APIView):
 
         if user != load.carrier:
             return Response(
-                [{"details": "You are not authorized to view this document."}],
+                [{"details": NOT_AUTH_MSG}],
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -167,7 +170,7 @@ class BillingDocumentsView(APIView):
 
         if user != load.customer and user != load.shipper and user != load.consignee:
             return Response(
-                [{"details": "You are not authorized to view this document."}],
+                [{"details": NOT_AUTH_MSG}],
                 status=status.HTTP_403_FORBIDDEN,
             )
         elif user == load.customer:
@@ -203,7 +206,7 @@ class ValidateFinalAgreementView(APIView):
 
         if "load" not in request.query_params:
             return Response(
-                    [{"details": "load is required."}], status=status.HTTP_400_BAD_REQUEST
+                    [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
                 )
         
         load_id = request.query_params.get("load")
@@ -216,7 +219,7 @@ class ValidateFinalAgreementView(APIView):
             broker = ship_utils.get_broker_by_username(request.user.username)
             if broker != load.broker:
                 return Response(
-                    [{"details": "You are not authorized to view this document."}],
+                    [{"details": NOT_AUTH_MSG}],
                     status=status.HTTP_403_FORBIDDEN,
                 )
             data["did_customer_agree"] = final_agreement.did_customer_agree
@@ -226,16 +229,16 @@ class ValidateFinalAgreementView(APIView):
             carrier = ship_utils.get_carrier_by_username(request.user.username)
             if carrier != load.carrier:
                 return Response(
-                    [{"details": "You are not authorized to view this document."}],
+                    [{"details": NOT_AUTH_MSG}],
                     status=status.HTTP_403_FORBIDDEN,
                 )
             data["did_carrier_agree"] = final_agreement.did_carrier_agree
 
-        elif app_user.user_type == "shipment party":
+        elif app_user.user_type == SHIPMENT_PARTY:
             customer = ship_utils.get_shipment_party_by_username(request.user.username)
             if customer != load.customer:
                 return Response(
-                    [{"details": "You are not authorized to view this document."}],
+                    [{"details": NOT_AUTH_MSG}],
                     status=status.HTTP_403_FORBIDDEN,
                 )
             data["did_customer_agree"] = final_agreement.did_customer_agree
@@ -264,7 +267,7 @@ class ValidateFinalAgreementView(APIView):
         """Validate a final agreement."""
         if "load" not in request.data:
             return Response(
-                [{"details": "load is required."}], status=status.HTTP_400_BAD_REQUEST
+                [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
             )
 
         load = request.data["load"]
@@ -273,7 +276,7 @@ class ValidateFinalAgreementView(APIView):
         app_user = ship_utils.get_app_user_by_username(request.user.username)
 
         try:
-            if app_user.user_type == "shipment party":
+            if app_user.user_type == SHIPMENT_PARTY:
                 customer = ship_utils.get_shipment_party_by_username(
                     request.user.username
                 )
@@ -281,7 +284,7 @@ class ValidateFinalAgreementView(APIView):
                     return Response(
                         [
                             {
-                                "details": "You are not authorized to validate this document."
+                                "details": NOT_AUTH_MSG
                             }
                         ],
                         status=status.HTTP_403_FORBIDDEN,

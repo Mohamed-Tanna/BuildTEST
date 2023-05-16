@@ -1,4 +1,5 @@
 import authentication.models as auth_models
+import shipment.models as models
 from rest_framework import status
 from rest_framework.response import Response
 import string, random
@@ -188,3 +189,18 @@ def extract_billing_info(billing_info, party):
         }
         
     return billing_info
+
+def is_app_user_customer_of_load(app_user: auth_models.AppUser, load: models.Load):
+    if load.customer.app_user == app_user:
+        return True
+    return False
+
+def is_app_user_broker_of_load(app_user: auth_models.AppUser, load: models.Load):
+    if load.broker.app_user == app_user:
+        return True
+    return False
+
+def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load):
+    if load.carrier.app_user == app_user:
+        return True
+    return False

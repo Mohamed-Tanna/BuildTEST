@@ -32,6 +32,7 @@ from google.cloud import secretmanager
 from drf_yasg.utils import swagger_auto_schema
 from allauth.account.models import EmailAddress
 
+SHIPMENT_PARTY = "shipment party"
 
 class HealthCheckView(APIView):
     @swagger_auto_schema(
@@ -289,60 +290,23 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
         request.data["app_user"] = str(app_user.id)
 
-        if app_user.user_type == "carrier":
-            dot_number = request.data.get("DOT_number")
-            dot_pattern = re.compile(r"^\d{5,8}$")
-
-            if not dot_pattern.match(dot_number):
-                app_user = models.AppUser.objects.get(user=request.user.id)
+        if "carrier" in app_user.user_type:
+            
+            res = utils.check_dot_number(dot_number=request.data["DOT_number"])
+            if isinstance(res, Response):
                 app_user.delete()
+                return res
+            
+            elif res == True:
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
                 return Response(
-                    [{"details": "invalid dot number"}],
-                    status=status.HTTP_400_BAD_REQUEST,
+                    serializer.data,
+                    status=status.HTTP_201_CREATED,
+                    headers=headers,
                 )
-
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
-
-            res = requests.get(url=URL)
-            data = res.json()
-
-            if data["content"] is None or "allowedToOperate" not in data["content"]["carrier"]:
-                app_user = models.AppUser.objects.get(user=request.user.id)
-                app_user.delete()
-                return Response(
-                    [
-                        {
-                            "details": """This DOT number is not registered in the FMCSA, 
-                                            if you think this is a mistake please double check the number or contact the FMCSA"""
-                        },
-                    ],
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            if "allowedToOperate" in data["content"]["carrier"]:
-                allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
-
-                if allowed_to_operate == "Y":
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    return Response(
-                        serializer.data,
-                        status=status.HTTP_201_CREATED,
-                        headers=headers,
-                    )
-
-                else:
-
-                    return Response(
-                        [
-                            {
-                                "details": "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                            },
-                        ],
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
 
         else:
             return Response(
@@ -388,13 +352,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
     # override
     def create(self, request, *args, **kwargs):
 
-        client = secretmanager.SecretManagerServiceClient()
-        webkey = client.access_secret_version(
-            request={
-                "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('FMCSA_WEBKEY')}/versions/1"
-            }
-        )
-        webkey = webkey.payload.data.decode("UTF-8")
+        
         app_user = models.AppUser.objects.get(user=request.user.id)
 
         if isinstance(request.data, QueryDict):
@@ -402,60 +360,24 @@ class BrokerView(GenericAPIView, CreateModelMixin):
 
         request.data["app_user"] = str(app_user.id)
 
-        if app_user.user_type == "broker":
-            mc_number = request.data.get("MC_number")
-            mc_number_pattern = re.compile(r"^\d{5,8}$")
+        if "broker" in app_user.user_type:
 
-            if not mc_number_pattern.match(mc_number):
-                app_user = models.AppUser.objects.get(user=request.user.id)
+            res = utils.check_mc_number(mc_number=request.data["DOT_number"])
+            if isinstance(res, Response):
                 app_user.delete()
+                return res
+            
+            elif res == True:
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
                 return Response(
-                    [{"details": "invalid mc number"}],
-                    status=status.HTTP_400_BAD_REQUEST,
+                    serializer.data,
+                    status=status.HTTP_201_CREATED,
+                    headers=headers,
                 )
-
-            URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{mc_number}?webKey={webkey}"
-            res = requests.get(url=URL)
-            data = res.json()
-            if len(data["content"]) == 0:
-                app_user = models.AppUser.objects.get(user=request.user.id)
-                app_user.delete()
-                return Response(
-                    [
-                        {
-                            "details": """This MC number is not registered in the FMCSA, 
-                                            if you think this is a mistake please double check the number or contact the FMCSA"""
-                        }
-                    ],
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            if "allowedToOperate" in data["content"][0]["carrier"]:
-                allowed_to_operate = data["content"][0]["carrier"]["allowedToOperate"]
-
-                if allowed_to_operate.upper() == "Y":
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    return Response(
-                        serializer.data,
-                        status=status.HTTP_201_CREATED,
-                        headers=headers,
-                    )
-
-                else:
-                    app_user = models.AppUser.objects.get(user=request.user.id)
-                    app_user.delete()
-                    return Response(
-                        [
-                            {
-                                "details": "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                            }
-                        ],
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
+        
         else:
             return Response(
                 {"user role": ["User is not registered as a broker"]},
@@ -931,3 +853,94 @@ class TaxInfoView(APIView):
                     "user_tax": serializers.UserTaxSerializer(res).data,
                 },
             )
+
+
+class AddRoleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["type"],
+            properties={
+                "type": openapi.Schema(type=openapi.TYPE_STRING),
+                "dot_number": openapi.Schema(type=openapi.TYPE_STRING),
+                "mc_number": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            201: "CREATED",
+            400: "BAD REQUEST",
+            404: "NOT FOUND",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+
+        app_user = models.AppUser.objects.get(user=request.user)
+        new_type = request.data.get("type")
+
+        if new_type is None or new_type not in ["carrier", SHIPMENT_PARTY, "broker"]:
+            return Response(
+                [{"details": "type field is required or invalid type"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        if new_type == "carrier" and "carrier" not in app_user.user_type:
+            composed_type = self._create_carrier(app_user=app_user, request=request)
+            if isinstance(composed_type, Response):
+                return composed_type
+            
+        elif new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type:
+            composed_type = app_user.user_type + f"-{SHIPMENT_PARTY}"
+            shipment_party = models.ShipmentParty.objects.create(app_user=app_user)
+            shipment_party.save()
+
+        elif new_type == "broker" and "broker" not in app_user.user_type:
+            composed_type = self._create_broker(app_user=app_user, request=request)
+            if isinstance(composed_type, Response):
+                return composed_type
+
+        else:
+            return Response(
+                [{"details": "type already exists"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        app_user.user_type = composed_type
+        app_user.save()
+        return Response(status=status.HTTP_201_CREATED, data=serializers.AppUserSerializer(app_user).data)
+    
+    def _create_carrier(self, request, app_user: models.AppUser) :
+        composed_type = app_user.user_type + "-carrier"
+        if "dot_number" not in request.data:
+            return Response(
+                [{"details": "dot number is required"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        res = utils.check_dot_number(dot_number=request.data["dot_number"])
+        if isinstance(res, Response):
+            return res
+        
+        if res:
+            carrier = models.Carrier.objects.create(app_user=app_user, DOT_number=request.data["dot_number"], allowed_to_operate=True)
+            carrier.save()
+            return composed_type
+        
+    def _create_broker(self, request, app_user: models.AppUser):
+        composed_type = app_user.user_type + "-broker"
+        if "mc_number" not in request.data:
+            return Response(
+                [{"details": "mc number is required"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        res = utils.check_mc_number(mc_number=request.data["mc_number"])
+        if isinstance(res, Response):
+            return res
+        
+        if res:
+            broker = models.Broker.objects.create(app_user=app_user, MC_number=request.data["mc_number"], allowed_to_operate=True)
+            broker.save()
+            return composed_type

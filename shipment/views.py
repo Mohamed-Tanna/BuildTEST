@@ -34,10 +34,13 @@ from rest_framework.mixins import (
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+IN_TRANSIT = "In Transit"
+SHIPMENT_PARTY = "shipment party"
+AWAITING_BROKER = "Awaiting Broker"
+AWAITING_CARRIER = "Awaiting Carrier"
+READY_FOR_PICKUP = "Ready For Pick up"
 ASSINING_CARRIER = "Assigning Carrier"
 AWAITING_CUSTOMER = "Awaiting Customer"
-AWAITING_CARRIER = "Awaiting Carrier"
-SHIPMENT_PARTY = "shipment party"
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
 ERR_SECOND_PART = "or override the `get_queryset()` method."
 
@@ -545,7 +548,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         filter_query = Q(created_by=app_user.id)
 
-        if app_user.user_type == SHIPMENT_PARTY:
+        if app_user.selected_role == SHIPMENT_PARTY:
             try:
                 shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)
                 filter_query |= (
@@ -556,14 +559,14 @@ class ListLoadView(GenericAPIView, ListModelMixin):
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        elif app_user.user_type == "broker":
+        elif app_user.selected_role == "broker":
             try:
                 broker = models.Broker.objects.get(app_user=app_user.id)
                 filter_query |= Q(broker=broker.id)
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        elif app_user.user_type == "carrier":
+        elif app_user.selected_role == "carrier":
             try:
                 carrier = models.Carrier.objects.get(app_user=app_user.id)
                 filter_query |= Q(carrier=carrier.id)
@@ -614,30 +617,21 @@ class RetrieveLoadView(
         app_user = utils.get_app_user_by_username(username=request.user.username)
         authorized = False
 
-        print(
-            app_user.user_type,
-            instance.shipper,
-            instance.consignee,
-            instance.customer,
-            instance.broker,
-            instance.carrier,
-        )
-
         if (
-            app_user.user_type == "broker"
+            app_user.selected_role == "broker"
             and instance.broker
             == utils.get_broker_by_username(username=request.user.username)
         ):
             authorized = True
 
         elif (
-            app_user.user_type == "carrier"
+            app_user.selected_role == "carrier"
             and instance.carrier
             == utils.get_carrier_by_username(username=request.user.username)
         ):
             authorized = True
 
-        elif app_user.user_type == "shipment party":
+        elif app_user.selected_role == SHIPMENT_PARTY:
             shipment_party = utils.get_shipment_party_by_username(
                 username=request.user.username
             )
@@ -1434,6 +1428,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         load = models.Load.objects.get(id=instance.load.id)
+        app_user = utils.get_app_user_by_username(username=request.user.username)
 
         if instance.status != "Pending":
             return Response(
@@ -1449,7 +1444,16 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return Response(
                 [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
             )
-
+        
+        is_broker = utils.is_app_user_broker_of_load(app_user=app_user, load=load)
+        is_customer = utils.is_app_user_customer_of_load(app_user=app_user, load=load)
+        is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
+        if not is_broker and not is_customer and not is_carrier:
+            return Response(
+                [{"details": "You are not authorized to perform this action"}],
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
         if request.data["action"] == "accept":
             return self._process_accept_action(request, load, instance, partial)
 
@@ -1470,15 +1474,15 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.status = ASSINING_CARRIER
             load.save()
         elif load.status == AWAITING_CARRIER:
-            load.status = "Ready For Pick Up"
+            load.status = READY_FOR_PICKUP
             load.save()
             self._create_final_agreement(load=load)
-        elif load.status == "Awaiting Broker":
+        elif load.status == AWAITING_BROKER:
             if instance.party_2.user_type == SHIPMENT_PARTY:
                 load.status = ASSINING_CARRIER
                 load.save()
             elif instance.party_2.user_type == "carrier":
-                load.status = "Ready For Pick Up"
+                load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
         else:
@@ -1535,14 +1539,17 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     def _proccess_counter_action(self, request, load, instance, partial):
         app_user = utils.get_app_user_by_username(request.user.username)
-        if app_user.user_type == SHIPMENT_PARTY or app_user.user_type == "carrier":
-            load.status = "Awaiting Broker"
+
+        if (
+            SHIPMENT_PARTY in app_user.user_type or "carrier" in app_user.user_type
+        ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
+            load.status = AWAITING_BROKER
             load.save()
-        elif app_user.user_type == "broker":
-            if instance.party_2.user_type == SHIPMENT_PARTY:
+        elif "broker" in app_user.user_type:
+            if SHIPMENT_PARTY in instance.party_2.user_type:
                 load.status = AWAITING_CUSTOMER
                 load.save()
-            elif instance.party_2.user_type == "carrier":
+            elif "carrier" in instance.party_2.user_type:
                 load.status = AWAITING_CARRIER
                 load.save()
 
@@ -1961,16 +1968,16 @@ class UpdateLoadStatus(APIView):
         if isinstance(shipment_party, Response):
             return shipment_party
 
-        if load.status == "Ready For Pick Up":
+        if load.status == READY_FOR_PICKUP:
             if load.shipper != shipment_party:
                 return Response(
                     {"details": "This user can't change the status of this load."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            load.status = "In Transit"
+            load.status = IN_TRANSIT
             load.save()
 
-        elif load.status == "In Transit":
+        elif load.status == IN_TRANSIT:
             if load.consignee != shipment_party:
                 return Response(
                     {"details": "This user can't change the status of this load."},
@@ -2006,7 +2013,7 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
-        if app_user.user_type == "shipment party":
+        if app_user.selected_role == SHIPMENT_PARTY:
             shipment_party = utils.get_shipment_party_by_username(
                 username=request.user.username
             )
@@ -2016,11 +2023,11 @@ class DashboardView(APIView):
                 | Q(customer=shipment_party)
             )
 
-        elif app_user.user_type == "broker":
+        elif app_user.selected_role == "broker":
             broker = utils.get_broker_by_username(username=request.user.username)
             filter_query |= Q(broker=broker)
 
-        elif app_user.user_type == "carrier":
+        elif app_user.selected_role == "carrier":
             carrier = utils.get_carrier_by_username(username=request.user.username)
             filter_query |= Q(carrier=carrier)
 
@@ -2029,22 +2036,22 @@ class DashboardView(APIView):
             return Response(
                 data={"detail": "No loads found."}, status=status.HTTP_404_NOT_FOUND
             )
-        
+
         result = {}
         cards = {}
         cards["total"] = loads.count()
         cards["pending"] = loads.filter(
-                status__in=[
-                    "Created",
-                    "Awaiting Customer",
-                    "Assigning Carrier",
-                    "Awaiting Carrier",
-                    "Awaiting Broker",
-                ]
-            ).count()
-        
-        cards["ready_for_pick_up"] = loads.filter(status="Ready For Pick Up").count()
-        cards["in_transit"] = loads.filter(status="In Transit").count()
+            status__in=[
+                "Created",
+                AWAITING_CUSTOMER,
+                ASSINING_CARRIER,
+                AWAITING_CARRIER,
+                AWAITING_BROKER,
+            ]
+        ).count()
+
+        cards["ready_for_pick_up"] = loads.filter(status=READY_FOR_PICKUP).count()
+        cards["in_transit"] = loads.filter(status=IN_TRANSIT).count()
         cards["delivered"] = loads.filter(status="Delivered").count()
         cards["canceled"] = loads.filter(status="Canceled").count()
 
@@ -2054,7 +2061,7 @@ class DashboardView(APIView):
         cards["loads"] = loads
         result["cards"] = cards
         result["chart"] = []
-        
+
         year = datetime.now().year
         loads = models.Load.objects.filter(filter_query)
         for i in range(1, 13):
@@ -2074,15 +2081,17 @@ class DashboardView(APIView):
             obj["pending"] = monthly_loads.filter(
                 status__in=[
                     "Created",
-                    "Awaiting Customer",
-                    "Assigning Carrier",
-                    "Awaiting Carrier",
-                    "Awaiting Broker",
+                    AWAITING_CUSTOMER,
+                    ASSINING_CARRIER,
+                    AWAITING_CARRIER,
+                    AWAITING_BROKER,
                 ]
             ).count()
-        
-            obj["ready_for_pick_up"] = monthly_loads.filter(status="Ready For Pick Up").count()
-            obj["in_transit"] = monthly_loads.filter(status="In Transit").count()
+
+            obj["ready_for_pick_up"] = monthly_loads.filter(
+                status=READY_FOR_PICKUP
+            ).count()
+            obj["in_transit"] = monthly_loads.filter(status=IN_TRANSIT).count()
             obj["delivered"] = monthly_loads.filter(status="Delivered").count()
             obj["canceled"] = monthly_loads.filter(status="Canceled").count()
             result["chart"].append(obj)

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinLengthValidator
 
+SHIPMENT_PARTY = "shipment party"
 
 class AppUser(models.Model):
 
@@ -16,7 +17,20 @@ class AppUser(models.Model):
         choices=[
             ("carrier", "carrier"),
             ("broker", "broker"),
-            ("shipment party", "shipment party"),
+            (SHIPMENT_PARTY, SHIPMENT_PARTY),
+            ("broker-carrier", "broker-carrier"),
+            (f"broker-{SHIPMENT_PARTY}", f"broker-{SHIPMENT_PARTY}"),
+            (f"carrier-{SHIPMENT_PARTY}", f"carrier-{SHIPMENT_PARTY}"),
+            (f"broker-carrier-{SHIPMENT_PARTY}", f"broker-carrier-{SHIPMENT_PARTY}"),
+        ],
+        max_length=29,
+        null=False,
+    )
+    selected_role = models.CharField(
+        choices=[
+            ("carrier", "carrier"),
+            ("broker", "broker"),
+            (SHIPMENT_PARTY, SHIPMENT_PARTY),
         ],
         max_length=14,
         null=False,
