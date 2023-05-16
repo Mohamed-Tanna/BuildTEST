@@ -944,3 +944,26 @@ class AddRoleView(APIView):
             broker = models.Broker.objects.create(app_user=app_user, MC_number=request.data["mc_number"], allowed_to_operate=True)
             broker.save()
             return composed_type
+
+
+class SelectRoleView(APIView):
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    
+    def put(self, request, *args, **kwargs):
+        app_user = models.AppUser.objects.get(user=request.user)
+        if "type" not in request.data:
+            return Response(
+                [{"details": "type field is required"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        new_type = request.data.get("type")
+        if new_type is None or new_type not in app_user.user_type:
+            return Response(
+                [{"details": "type field is required or invalid type"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        app_user.selected_role = new_type
+        app_user.save()
+        return Response(status=status.HTTP_200_OK, data=serializers.AppUserSerializer(app_user).data)

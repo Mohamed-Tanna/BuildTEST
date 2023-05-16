@@ -114,13 +114,13 @@ class BillingDocumentsView(APIView):
                 final_agreement = models.FinalAgreement.objects.get(load_id=load_id)
                 app_user = ship_utils.get_app_user_by_username(request.user.username)
 
-                if app_user.user_type == "broker":
+                if app_user.selected_role == "broker":
                     return self._handle_broker(request, load, final_agreement)
 
-                elif app_user.user_type == "carrier":
+                elif app_user.selected_role == "carrier":
                     return self._handle_carrier(request, load, final_agreement)
 
-                elif app_user.user_type == SHIPMENT_PARTY:
+                elif app_user.selected_role == SHIPMENT_PARTY:
                     return self._handle_shipment_party(request, load, final_agreement)
 
             except models.Load.DoesNotExist:
@@ -215,7 +215,7 @@ class ValidateFinalAgreementView(APIView):
         app_user = ship_utils.get_app_user_by_username(request.user.username)
         data = {}
 
-        if app_user.user_type == "broker":
+        if app_user.selected_role == "broker":
             broker = ship_utils.get_broker_by_username(request.user.username)
             if broker != load.broker:
                 return Response(
@@ -225,7 +225,7 @@ class ValidateFinalAgreementView(APIView):
             data["did_customer_agree"] = final_agreement.did_customer_agree
             data["did_carrier_agree"] = final_agreement.did_carrier_agree
 
-        elif app_user.user_type == "carrier":
+        elif app_user.selected_role == "carrier":
             carrier = ship_utils.get_carrier_by_username(request.user.username)
             if carrier != load.carrier:
                 return Response(
@@ -234,7 +234,7 @@ class ValidateFinalAgreementView(APIView):
                 )
             data["did_carrier_agree"] = final_agreement.did_carrier_agree
 
-        elif app_user.user_type == SHIPMENT_PARTY:
+        elif app_user.selected_role == SHIPMENT_PARTY:
             customer = ship_utils.get_shipment_party_by_username(request.user.username)
             if customer != load.customer:
                 return Response(
@@ -276,7 +276,7 @@ class ValidateFinalAgreementView(APIView):
         app_user = ship_utils.get_app_user_by_username(request.user.username)
 
         try:
-            if app_user.user_type == SHIPMENT_PARTY:
+            if app_user.selected_role == SHIPMENT_PARTY:
                 customer = ship_utils.get_shipment_party_by_username(
                     request.user.username
                 )
@@ -297,7 +297,7 @@ class ValidateFinalAgreementView(APIView):
                     final_agreement
                 ).data
 
-            elif app_user.user_type == "carrier":
+            elif app_user.selected_role == "carrier":
                 carrier = ship_utils.get_carrier_by_username(request.user.username)
                 if carrier != load.carrier:
                     return Response(

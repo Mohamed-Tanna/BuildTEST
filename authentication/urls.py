@@ -38,4 +38,6 @@ urlpatterns = [
     path("company-employee/", views.CompanyEmployeeView.as_view()),
     path("check-company/", views.CheckCompanyView.as_view()),
     path("tax-info/", views.TaxInfoView.as_view()),
+    path("add-role/", views.AddRoleView.as_view()),
+    path("select-role/", views.SelectRoleView.as_view()),
 ]
