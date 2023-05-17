@@ -14,6 +14,14 @@ class CustomRegisterSerializer(RegisterSerializer):
         user.save(update_fields=["first_name", "last_name"])
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.User
+        fields = ["id", "username", "email", "first_name", "last_name"]
+
+        read_only_fields = ("id",)
+
+
 class AppUserSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source="user.username")
     email = serializers.ReadOnlyField(source="user.email")
@@ -91,4 +99,15 @@ class UserTaxSerializer(serializers.ModelSerializer):
         rep = super().to_representation(instance)
         rep["app_user"] = AppUserSerializer(instance.app_user).data
         rep["address"] = AddressSerializer(instance.address).data
+        return rep
+
+
+class InvitationsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Invitation
+        fields = "__all__"
+        
+    def to_representation(self, instance: models.Invitation):
+        rep = super().to_representation(instance)
+        rep["inviter"] = UserSerializer(instance.inviter).data
         return rep

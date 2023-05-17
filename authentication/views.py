@@ -1,13 +1,14 @@
 # Python imports
 import os
-import re
-import requests
+import uuid
 
 # Module imports
 import authentication.models as models
 import shipment.utilities as ship_utils
 import authentication.utilities as utils
+import shipment.models as ship_models
 import authentication.serializers as serializers
+import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
 
 # Django imports
@@ -967,3 +968,72 @@ class SelectRoleView(APIView):
         app_user.selected_role = new_type
         app_user.save()
         return Response(status=status.HTTP_200_OK, data=serializers.AppUserSerializer(app_user).data)
+    
+    
+class InvitationsHandlingView(APIView):
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    serializer_class = serializers.InvitationsSerializer
+    queryset = models.Invitation.objects.all()
+    
+    def get(self, request, *args, **kwargs):
+        if "token" in request.query_params:
+            token = request.query_params["token"]
+            invitation = get_object_or_404(models.Invitation, token=token)
+            invitee = User.objects.get(email=invitation.invitee)
+            if invitee != request.user:
+                return Response(
+                    [{"details": "you are not the invitee"}],
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitation).data)
+        
+        else:
+            invitations = models.Invitation.objects.filter(inviter=request.user)
+            return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitations, many=True).data)
+        
+    def post(self, request, *args, **kwargs):
+        if "token" not in request.data:
+            return Response(
+                [{"details": "token field is required"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        token = request.data["token"]
+        invitation = get_object_or_404(models.Invitation, token=token)
+        if invitation.inviter != request.user and invitation.invitee != request.user:
+            return Response(
+                [{"details": "you do not have access to this resource."}],
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        inviter_user = User.objects.get(id=invitation.invitee.id)
+        invitee_user = User.objects.get(email=invitation.invitee)
+        inviter_app_user = models.AppUser.objects.get(user=inviter_user)
+        invitee_app_user = models.AppUser.objects.get(user=invitee_user)
+        iniviter_contact = ship_models.Contact.objects.create(origin=inviter_user, contact=invitee_app_user)
+        invitee_contact = ship_models.Contact.objects.create(origin=invitee_user, contact=inviter_app_user)
+        data = {
+            "inviter": ship_serializers.ContactCreateSerializer(iniviter_contact).data,
+            "invitee": ship_serializers.ContactCreateSerializer(invitee_contact).data,
+        }
+        invitation.delete()
+        return Response(status=status.HTTP_201_CREATED, data=data)
+        
+
+class CreateInvitationView(APIView):
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    serializer_class = serializers.InvitationsSerializer
+    queryset = models.Invitation.objects.all()
+    
+    def post(self, request, *args, **kwargs):
+        if "email" not in request.data:
+            return Response(
+                [{"details": "invitee field is required"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        invitee_email = request.data["email"]
+        token=uuid.uuid4()
+        invitation = models.Invitation.objects.create(inviter=request.user, invitee=invitee_email, token=token)
+        invitation.save()
+        #remaining code to send email including the signup URL with the token attached to it  
+        return Response(status=status.HTTP_201_CREATED, data=serializers.InvitationsSerializer(invitation).data)
