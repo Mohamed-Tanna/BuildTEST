@@ -30,7 +30,7 @@ class AppUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.AppUser
-        fields = ["id", "user", "phone_number", "user_type", "username", "email", "first_name", "last_name"]
+        fields = ["id", "user", "phone_number", "user_type", "selected_role", "username", "email", "first_name", "last_name"]
 
         read_only_fields = ("id",)
 
@@ -62,8 +62,8 @@ class BrokerSerializer(serializers.ModelSerializer):
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Address
-        fields = ["address", "city", "state", "zip_code", "country"]
-
+        fields = ["id", "created_by", "address", "city", "state", "zip_code", "country"]
+        read_only_fields = ("id",)
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:

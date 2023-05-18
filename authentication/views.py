@@ -363,7 +363,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
 
         if "broker" in app_user.user_type:
 
-            res = utils.check_mc_number(mc_number=request.data["DOT_number"])
+            res = utils.check_mc_number(mc_number=request.data["MC_number"])
             if isinstance(res, Response):
                 app_user.delete()
                 return res
@@ -474,7 +474,10 @@ class CompanyView(GenericAPIView, CreateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
+        app_user = models.AppUser.objects.get(user=request.user)
+
         address = utils.create_address(
+            created_by=app_user,
             address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],
@@ -605,8 +608,11 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
+        
+        app_user = models.AppUser.objects.get(user=request.user)
 
         address = utils.create_address(
+            created_by=app_user,
             address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],

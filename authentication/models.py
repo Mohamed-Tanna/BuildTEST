@@ -84,6 +84,7 @@ class ShipmentParty(models.Model):
 
 
 class Address(models.Model):
+    created_by = models.ForeignKey(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
     address = models.CharField(max_length=255, null=False, blank=False)
     city = models.CharField(max_length=100, null=False, blank=False)
     state = models.CharField(max_length=100, null=False, blank=False)
