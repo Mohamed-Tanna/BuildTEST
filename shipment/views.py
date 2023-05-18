@@ -134,8 +134,10 @@ class FacilityView(
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
+        app_user = models.AppUser.objects.get(user=request.user.id)
         request.data["owner"] = request.user.id
         address = create_address(
+            created_by=app_user,
             address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],
