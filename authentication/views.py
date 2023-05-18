@@ -474,8 +474,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             request.data._mutable = True
 
         address = utils.create_address(
-            building_number=request.data["building_number"],
-            street=request.data["street"],
+            address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],
             country=request.data["country"],
@@ -493,8 +492,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             )
 
         del (
-            request.data["building_number"],
-            request.data["street"],
+            request.data["address"],
             request.data["city"],
             request.data["state"],
             request.data["country"],
@@ -608,8 +606,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             request.data._mutable = True
 
         address = utils.create_address(
-            building_number=request.data["building_number"],
-            street=request.data["street"],
+            address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],
             country=request.data["country"],
@@ -627,8 +624,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             )
 
         del (
-            request.data["building_number"],
-            request.data["street"],
+            request.data["address"],
             request.data["city"],
             request.data["state"],
             request.data["country"],

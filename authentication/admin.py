@@ -23,7 +23,7 @@ class CompanyAdmin(admin.ModelAdmin):
 
 class AddressAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "building_number", "street", "city", "state", "country", "zip_code"]
+    list_display = ["id", "address", "city", "state", "country", "zip_code"]
 
 class CompanyEmployeeAdmin(admin.ModelAdmin):
 

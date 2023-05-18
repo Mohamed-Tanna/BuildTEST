@@ -84,15 +84,14 @@ class ShipmentParty(models.Model):
 
 
 class Address(models.Model):
-    building_number = models.CharField(max_length=100, null=False, blank=False)
-    street = models.CharField(max_length=100, null=False, blank=False)
+    address = models.CharField(max_length=255, null=False, blank=False)
     city = models.CharField(max_length=100, null=False, blank=False)
     state = models.CharField(max_length=100, null=False, blank=False)
     zip_code = models.CharField(max_length=100, null=False, blank=False)
     country = models.CharField(max_length=100, null=False, blank=False)
 
     def __str__(self):
-        return f"{self.building_number}, {self.street}, {self.city}"
+        return f"{self.address}, {self.city}, {self.country}"
 
 
 class Company(models.Model):

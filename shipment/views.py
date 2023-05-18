@@ -61,18 +61,16 @@ class FacilityView(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=[
-                "building_number",
+                "address",
                 "building_name",
-                "street",
                 "city",
                 "state",
                 "zip_code",
                 "country",
             ],
             properties={
-                "building_number": openapi.Schema(type=openapi.TYPE_STRING),
+                "address": openapi.Schema(type=openapi.TYPE_STRING),
                 "building_name": openapi.Schema(type=openapi.TYPE_STRING),
-                "street": openapi.Schema(type=openapi.TYPE_STRING),
                 "city": openapi.Schema(type=openapi.TYPE_STRING),
                 "state": openapi.Schema(type=openapi.TYPE_STRING),
                 "zip_code": openapi.Schema(type=openapi.TYPE_STRING),
@@ -138,8 +136,7 @@ class FacilityView(
 
         request.data["owner"] = request.user.id
         address = create_address(
-            building_number=request.data["building_number"],
-            street=request.data["street"],
+            address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],
             country=request.data["country"],
@@ -157,8 +154,7 @@ class FacilityView(
             )
 
         del (
-            request.data["building_number"],
-            request.data["street"],
+            request.data["address"],
             request.data["city"],
             request.data["state"],
             request.data["country"],
@@ -1717,7 +1713,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             customer_billing_address=customer_billing["address"],
             customer_billing_phone_number=customer_billing["phone_number"],
             shipper_facility_name=pickup_facility.building_name,
-            shipper_facility_address=pickup_facility.address.building_number
+            shipper_facility_address=pickup_facility.address.address
             + ", "
             + pickup_facility.address.street
             + ", "
@@ -1727,7 +1723,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + ", "
             + pickup_facility.address.zip_code,
             consignee_facility_name=drop_off_facility.building_name,
-            consignee_facility_address=drop_off_facility.address.building_number
+            consignee_facility_address=drop_off_facility.address.address
             + ", "
             + drop_off_facility.address.street
             + ", "

@@ -5,11 +5,10 @@ import string, random, os, re, requests
 from rest_framework.response import Response
 
 
-def create_address(building_number, street, city, state, country, zip_code):
+def create_address(address, city, state, country, zip_code):
     try:
         address = models.Address.objects.create(
-            building_number=building_number,
-            street=street,
+            address=address,
             city=city,
             state=state,
             country=country,

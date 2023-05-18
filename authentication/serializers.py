@@ -54,7 +54,7 @@ class BrokerSerializer(serializers.ModelSerializer):
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Address
-        fields = ["building_number", "street", "city", "state", "zip_code", "country"]
+        fields = ["address", "city", "state", "zip_code", "country"]
 
 
 class CompanySerializer(serializers.ModelSerializer):

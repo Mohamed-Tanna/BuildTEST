@@ -160,7 +160,7 @@ def extract_billing_info(billing_info, party):
     if isinstance(billing_info, auth_models.Company):
         billing_info = {
             "name": billing_info.name,
-            "address": billing_info.address.building_number
+            "address": billing_info.address.address
             + " "
             + billing_info.address.street
             + " "
@@ -176,7 +176,7 @@ def extract_billing_info(billing_info, party):
             "name": party.app_user.user.first_name
             + " "
             + party.app_user.user.last_name,
-            "address": billing_info.address.building_number
+            "address": billing_info.address.address
             + " "
             + billing_info.address.street
             + " "
