@@ -895,7 +895,10 @@ class AddRoleView(APIView):
                 return composed_type
             
         elif new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type:
-            composed_type = app_user.user_type + f"-{SHIPMENT_PARTY}"
+            sort_roles = app_user.user_type.split("-")
+            sort_roles.append("shipment party")
+            sort_roles.sort()
+            composed_type = "-".join(sort_roles)
             shipment_party = models.ShipmentParty.objects.create(app_user=app_user)
             shipment_party.save()
 
@@ -915,7 +918,10 @@ class AddRoleView(APIView):
         return Response(status=status.HTTP_201_CREATED, data=serializers.AppUserSerializer(app_user).data)
     
     def _create_carrier(self, request, app_user: models.AppUser) :
-        composed_type = app_user.user_type + "-carrier"
+        sort_roles = app_user.user_type.split("-")
+        sort_roles.append("carrier")
+        sort_roles.sort()
+        composed_type = "-".join(sort_roles)
         if "dot_number" not in request.data:
             return Response(
                 [{"details": "dot number is required"}],
@@ -932,7 +938,10 @@ class AddRoleView(APIView):
             return composed_type
         
     def _create_broker(self, request, app_user: models.AppUser):
-        composed_type = app_user.user_type + "-broker"
+        sort_roles = app_user.user_type.split("-")
+        sort_roles.append("broker")
+        sort_roles.sort()
+        composed_type = "-".join(sort_roles)
         if "mc_number" not in request.data:
             return Response(
                 [{"details": "mc number is required"}],
