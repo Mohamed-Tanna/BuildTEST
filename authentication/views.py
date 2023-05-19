@@ -889,33 +889,39 @@ class AddRoleView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        if new_type == "carrier" and "carrier" not in app_user.user_type:
-            composed_type = self._create_carrier(app_user=app_user, request=request)
-            if isinstance(composed_type, Response):
-                return composed_type
+        try:
+            if new_type == "carrier" and "carrier" not in app_user.user_type:
+                composed_type = self._create_carrier(app_user=app_user, request=request)
+                if isinstance(composed_type, Response):
+                    return composed_type
+                
+            elif new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type:
+                sort_roles = app_user.user_type.split("-")
+                sort_roles.append("shipment party")
+                sort_roles.sort()
+                composed_type = "-".join(sort_roles)
+                shipment_party = models.ShipmentParty.objects.create(app_user=app_user)
+                shipment_party.save()
+
+            elif new_type == "broker" and "broker" not in app_user.user_type:
+                composed_type = self._create_broker(app_user=app_user, request=request)
+                if isinstance(composed_type, Response):
+                    return composed_type
+
+            else:
+                return Response(
+                    [{"details": "type already exists"}],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             
-        elif new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type:
-            sort_roles = app_user.user_type.split("-")
-            sort_roles.append("shipment party")
-            sort_roles.sort()
-            composed_type = "-".join(sort_roles)
-            shipment_party = models.ShipmentParty.objects.create(app_user=app_user)
-            shipment_party.save()
-
-        elif new_type == "broker" and "broker" not in app_user.user_type:
-            composed_type = self._create_broker(app_user=app_user, request=request)
-            if isinstance(composed_type, Response):
-                return composed_type
-
-        else:
-            return Response(
-                [{"details": "type already exists"}],
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            app_user.user_type = composed_type
+            app_user.save()
+            return Response(status=status.HTTP_201_CREATED, data=serializers.AppUserSerializer(app_user).data)
         
-        app_user.user_type = composed_type
-        app_user.save()
-        return Response(status=status.HTTP_201_CREATED, data=serializers.AppUserSerializer(app_user).data)
+        except (BaseException) as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            app_user.delete()
+            return Response({"details": "something went wrong - ADRL."},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _create_carrier(self, request, app_user: models.AppUser) :
         sort_roles = app_user.user_type.split("-")
