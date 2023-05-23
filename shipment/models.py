@@ -155,6 +155,8 @@ class Offer(models.Model):
         default="Pending",
     )
     load = models.ForeignKey(to=Load, null=False, on_delete=models.CASCADE)
+    to = models.CharField(null=False, choices=[("customer", "customer"), ("carrier", "carrier")], max_length=8, default="customer")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = (("party_1", "party_2", "load"),)

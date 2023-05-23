@@ -58,6 +58,7 @@ class OfferAdmin(admin.ModelAdmin):
         "initial",
         "current",
         "load",
+        "to",
         "status",
     ]
 

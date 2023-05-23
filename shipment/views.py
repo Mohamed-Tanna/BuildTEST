@@ -1173,7 +1173,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             if "tax" in self.request.data:
                 contacts = models.Contact.objects.filter(
                     origin=self.request.user.id,
-                    contact__user_type=user_type,
+                    contact__user_type__contains=user_type,
                     contact__user__username__icontains=keyword,
                 ).values_list("contact", flat=True)
                 tax_query = (
@@ -1188,7 +1188,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             else:
                 queryset = models.Contact.objects.filter(
                     origin=self.request.user.id,
-                    contact__user_type=user_type,
+                    contact__user_type__contains=user_type,
                     contact__user__username__icontains=keyword,
                 )
 
@@ -1200,11 +1200,11 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
 
             queryset = models.Contact.objects.filter(
                 origin=self.request.user.id,
-                contact__user_type=SHIPMENT_PARTY,
+                contact__user_type__contains=SHIPMENT_PARTY,
                 contact__user__username__icontains=keyword,
             ) | models.Contact.objects.filter(
                 origin=self.request.user.id,
-                contact__user_type="broker",
+                contact__user_type__contains="broker",
                 contact__user__username__icontains=keyword,
             )
         else:
@@ -1293,7 +1293,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
             party = utils.get_app_user_by_username(username=request.user.username)
             if isinstance(party, models.AppUser):
-                if party.user_type == "broker":
+                if party.selected_role == "broker":
                     party = utils.get_broker_by_username(username=request.user.username)
                     if isinstance(party, models.Broker):
                         queryset = queryset.filter(party_1=party.id)
@@ -1442,7 +1442,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return Response(
                 [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         is_broker = utils.is_app_user_broker_of_load(app_user=app_user, load=load)
         is_customer = utils.is_app_user_customer_of_load(app_user=app_user, load=load)
         is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
@@ -1451,7 +1451,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 [{"details": "You are not authorized to perform this action"}],
                 status=status.HTTP_403_FORBIDDEN,
             )
-        
+
         if request.data["action"] == "accept":
             return self._process_accept_action(request, load, instance, partial)
 
@@ -1467,7 +1467,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    def _process_accept_action(self, request, load, instance, partial):
+    def _process_accept_action(self, request, load: models.Load, instance: models.Offer, partial):
         if load.status == AWAITING_CUSTOMER:
             load.status = ASSINING_CARRIER
             load.save()
@@ -1476,10 +1476,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.save()
             self._create_final_agreement(load=load)
         elif load.status == AWAITING_BROKER:
-            if instance.party_2.user_type == SHIPMENT_PARTY:
+            if SHIPMENT_PARTY in instance.party_2.user_type and instance.to == "customer":
                 load.status = ASSINING_CARRIER
                 load.save()
-            elif instance.party_2.user_type == "carrier":
+            
+            elif "carrier" in instance.party_2.user_type and instance.to == "carrier":
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
@@ -1509,9 +1510,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return Response(serializer.data)
 
-    def _process_reject_action(self, request, load, instance, partial):
+    def _process_reject_action(self, request, load: models.Load, instance: models.Offer, partial):
         user = utils.get_app_user_by_username(username=request.user.username)
-        if user.user_type == "carrier":
+        if "carrier" in user.user_type and instance.to == "carrier":
             load.status = ASSINING_CARRIER
             load.carrier = None
             load.save()
@@ -1535,7 +1536,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return Response(serializer.data)
 
-    def _proccess_counter_action(self, request, load, instance, partial):
+    def _proccess_counter_action(self, request, load: models.Load, instance: models.Offer, partial):
         app_user = utils.get_app_user_by_username(request.user.username)
 
         if (
@@ -1543,11 +1544,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
             load.status = AWAITING_BROKER
             load.save()
-        elif "broker" in app_user.user_type:
-            if SHIPMENT_PARTY in instance.party_2.user_type:
+        elif "broker" in app_user.user_type and load.status == AWAITING_BROKER:
+            if instance.to == "customer":
                 load.status = AWAITING_CUSTOMER
                 load.save()
-            elif "carrier" in instance.party_2.user_type:
+            elif instance.to == "carrier":
                 load.status = AWAITING_CARRIER
                 load.save()
 
@@ -1567,10 +1568,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         shipper = utils.get_shipment_party_by_username(request.data["party_2"])
 
         if isinstance(shipper, models.ShipmentParty):
-            if load.customer == shipper or load.created_by == shipper:
+            if load.customer is not None and load.customer == shipper:
                 request.data["current"] = request.data["initial"]
                 shipper = utils.get_app_user_by_username(request.data["party_2"])
                 request.data["party_2"] = shipper.id
+                request.data["to"] = "customer"
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
@@ -1587,7 +1589,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 return Response(
                     [
                         {
-                            "details": "This user is not the customer nor the creator of this load"
+                            "details": "This user is not the customer for this load."
                         },
                     ],
                     status=status.HTTP_403_FORBIDDEN,
@@ -1611,6 +1613,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 request.data["current"] = request.data["initial"]
                 carrier = utils.get_app_user_by_username(request.data["party_2"])
                 request.data["party_2"] = str(carrier.id)
+                request.data["to"] = "carrier"
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
