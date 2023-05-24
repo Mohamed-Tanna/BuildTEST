@@ -38,7 +38,7 @@ IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
 AWAITING_BROKER = "Awaiting Broker"
 AWAITING_CARRIER = "Awaiting Carrier"
-READY_FOR_PICKUP = "Ready For Pick up"
+READY_FOR_PICKUP = "Ready For Pick Up"
 ASSINING_CARRIER = "Assigning Carrier"
 AWAITING_CUSTOMER = "Awaiting Customer"
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
@@ -1460,6 +1460,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return self._process_reject_action(request, load, instance, partial)
 
         elif request.data["action"] == "counter":
+            if instance.party_1.app_user == instance.party_2:
+                return Response(
+                    [{"details": "You cannot counter your own offer"}],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return self._proccess_counter_action(request, load, instance, partial)
 
         else:
@@ -1671,10 +1676,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer_billing = utils.extract_billing_info(customer_billing, customer)
 
         customer_offer = get_object_or_404(
-            models.Offer, load=load, party_2=customer.app_user
+            models.Offer, load=load, party_2=customer.app_user, to="customer"
         )
         carrier_offer = get_object_or_404(
-            models.Offer, load=load, party_2=carrier.app_user
+            models.Offer, load=load, party_2=carrier.app_user, to="carrier"
         )
         doc_models.FinalAgreement.objects.create(
             load_id=load.id,
@@ -1721,8 +1726,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             shipper_facility_name=pickup_facility.building_name,
             shipper_facility_address=pickup_facility.address.address
             + ", "
-            + pickup_facility.address.street
-            + ", "
             + pickup_facility.address.city
             + ", "
             + pickup_facility.address.state
@@ -1730,8 +1733,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + pickup_facility.address.zip_code,
             consignee_facility_name=drop_off_facility.building_name,
             consignee_facility_address=drop_off_facility.address.address
-            + ", "
-            + drop_off_facility.address.street
             + ", "
             + drop_off_facility.address.city
             + ", "

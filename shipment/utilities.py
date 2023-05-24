@@ -161,29 +161,25 @@ def extract_billing_info(billing_info, party):
         billing_info = {
             "name": billing_info.name,
             "address": billing_info.address.address
-            + " "
-            + billing_info.address.street
-            + " "
+            + ", "
             + billing_info.address.city
-            + " "
+            + ", "
             + billing_info.address.state
-            + " "
+            + ", "
             + billing_info.address.zip_code,
             "phone_number": billing_info.phone_number,
         }
     if isinstance(billing_info, auth_models.UserTax):
         billing_info = {
             "name": party.app_user.user.first_name
-            + " "
+            + ", "
             + party.app_user.user.last_name,
             "address": billing_info.address.address
-            + " "
-            + billing_info.address.street
-            + " "
+            + ", "
             + billing_info.address.city
-            + " "
+            + ", "
             + billing_info.address.state
-            + " "
+            + ", "
             + billing_info.address.zip_code,
             "phone_number": party.app_user.phone_number,
         }
