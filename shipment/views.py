@@ -1445,7 +1445,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         is_broker = utils.is_app_user_broker_of_load(app_user=app_user, load=load)
         is_customer = utils.is_app_user_customer_of_load(app_user=app_user, load=load)
-        is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
+        if load.carrier is not None:
+            is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
         if not is_broker and not is_customer and not is_carrier:
             return Response(
                 [{"details": "You are not authorized to perform this action"}],

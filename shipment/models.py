@@ -159,7 +159,7 @@ class Offer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = (("party_1", "party_2", "load"),)
+        unique_together = (("party_1", "party_2", "load", "to"),)
 
 
 class ShipmentAdmin(models.Model):
