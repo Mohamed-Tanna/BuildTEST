@@ -573,7 +573,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
 
         queryset = (
             queryset.filter(filter_query)
-            .exclude(status__in=["Canceled", "Delivered"])
+            .exclude(status__in=["Canceled"])
             .order_by("-id")
         )
 
@@ -1487,10 +1487,12 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.save()
             
             elif "carrier" in instance.party_2.user_type and instance.to == "carrier":
+                print("first if inside awaiting")
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
         else:
+            print("ELSEEEE SOMEHOW")
             return Response(
                 [
                     {

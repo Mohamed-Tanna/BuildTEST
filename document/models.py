@@ -276,7 +276,6 @@ class FinalAgreement(models.Model):
         max_length=255,
         null=False,
         blank=False,
-        unique=True,
         editable=False,
     )
     customer_offer = models.DecimalField(
