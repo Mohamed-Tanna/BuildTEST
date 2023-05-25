@@ -1573,6 +1573,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _create_offer_for_customer(self, request, load):
+        shipper_user = models.User.objects.get(username=request.data["party_2"])
         shipper = utils.get_shipment_party_by_username(request.data["party_2"])
 
         if isinstance(shipper, models.ShipmentParty):
@@ -1581,11 +1582,17 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 shipper = utils.get_app_user_by_username(request.data["party_2"])
                 request.data["party_2"] = shipper.id
                 request.data["to"] = "customer"
+                # self offer is always accepted
+                if request.user == shipper_user:
+                    load.status = ASSINING_CARRIER
+                    load.save()
+                    request.data["status"] = "Accepted"
+                else:
+                    load.status = AWAITING_CUSTOMER
+                    load.save()
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
-                load.status = AWAITING_CUSTOMER
-                load.save()
                 headers = self.get_success_headers(serializer.data)
                 return Response(
                     serializer.data,
@@ -1614,6 +1621,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _create_offer_for_carrier(self, request, load):
+        carrier_user = models.User.objects.get(username=request.data["party_2"])
         carrier = utils.get_carrier_by_username(request.data["party_2"])
 
         if isinstance(carrier, models.Carrier):
@@ -1622,11 +1630,17 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 carrier = utils.get_app_user_by_username(request.data["party_2"])
                 request.data["party_2"] = str(carrier.id)
                 request.data["to"] = "carrier"
+                # self offer is always accepted
+                if request.user == carrier_user:
+                    load.status = READY_FOR_PICKUP
+                    load.save()
+                    request.data["status"] = "Accepted"
+                else:
+                    load.status = AWAITING_CARRIER
+                    load.save()
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
-                load.status = AWAITING_CARRIER
-                load.save()
                 headers = self.get_success_headers(serializer.data)
                 return Response(
                     serializer.data,
