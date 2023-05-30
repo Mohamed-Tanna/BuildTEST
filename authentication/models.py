@@ -23,7 +23,7 @@ class AppUser(models.Model):
             (f"carrier-{SHIPMENT_PARTY}", f"carrier-{SHIPMENT_PARTY}"),
             (f"dispatcher-carrier-{SHIPMENT_PARTY}", f"dispatcher-carrier-{SHIPMENT_PARTY}"),
         ],
-        max_length=29,
+        max_length=33,
         null=False,
     )
     selected_role = models.CharField(
