@@ -1619,6 +1619,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _create_offer_for_carrier(self, request, load):
+        self_accepting = False
         carrier_user = models.User.objects.get(username=request.data["party_2"])
         carrier = utils.get_carrier_by_username(request.data["party_2"])
 
@@ -1633,7 +1634,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     load.status = READY_FOR_PICKUP
                     load.save()
                     request.data["status"] = "Accepted"
-                    self._create_final_agreement(load=load)
+                    self_accepting = True
                 else:
                     load.status = AWAITING_CARRIER
                     load.save()
@@ -1641,6 +1642,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
                 headers = self.get_success_headers(serializer.data)
+                if self_accepting:
+                    self._create_final_agreement(load=load)
                 return Response(
                     serializer.data,
                     status=status.HTTP_201_CREATED,
