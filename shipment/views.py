@@ -1487,12 +1487,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.save()
             
             elif "carrier" in instance.party_2.user_type and instance.to == "carrier":
-                print("first if inside awaiting")
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
         else:
-            print("ELSEEEE SOMEHOW")
             return Response(
                 [
                     {
@@ -1587,6 +1585,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     load.status = ASSINING_CARRIER
                     load.save()
                     request.data["status"] = "Accepted"
+                    self._create_final_agreement(load=load)
                 else:
                     load.status = AWAITING_CUSTOMER
                     load.save()
@@ -1635,6 +1634,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     load.status = READY_FOR_PICKUP
                     load.save()
                     request.data["status"] = "Accepted"
+                    self._create_final_agreement(load=load)
                 else:
                     load.status = AWAITING_CARRIER
                     load.save()
