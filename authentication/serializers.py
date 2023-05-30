@@ -68,7 +68,7 @@ class AddressSerializer(serializers.ModelSerializer):
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Company
-        fields = ["id" ,"name", "EIN", "identifier", "address"]
+        fields = ["id" ,"name", "EIN", "identifier", "address", "phone_number"]
         extra_kwargs = {"id": {"required": False}}
         read_only_fields = ("id",)
 
