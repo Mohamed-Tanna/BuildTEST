@@ -36,7 +36,7 @@ from drf_yasg.utils import swagger_auto_schema
 
 IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
-AWAITING_BROKER = "Awaiting Dispatcher"
+AWAITING_DISPATCHER = "Awaiting Dispatcher"
 AWAITING_CARRIER = "Awaiting Carrier"
 READY_FOR_PICKUP = "Ready For Pick Up"
 ASSINING_CARRIER = "Assigning Carrier"
@@ -1481,7 +1481,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.status = READY_FOR_PICKUP
             load.save()
             self._create_final_agreement(load=load)
-        elif load.status == AWAITING_BROKER:
+        elif load.status == AWAITING_DISPATCHER:
             if SHIPMENT_PARTY in instance.party_2.user_type and instance.to == "customer":
                 load.status = ASSINING_CARRIER
                 load.save()
@@ -1550,9 +1550,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if (
             SHIPMENT_PARTY in app_user.user_type or "carrier" in app_user.user_type
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
-            load.status = AWAITING_BROKER
+            load.status = AWAITING_DISPATCHER
             load.save()
-        elif "dispatcher" in app_user.user_type and load.status == AWAITING_BROKER:
+        elif "dispatcher" in app_user.user_type and load.status == AWAITING_DISPATCHER:
             if instance.to == "customer":
                 load.status = AWAITING_CUSTOMER
                 load.save()
@@ -2065,7 +2065,7 @@ class DashboardView(APIView):
                 AWAITING_CUSTOMER,
                 ASSINING_CARRIER,
                 AWAITING_CARRIER,
-                AWAITING_BROKER,
+                AWAITING_DISPATCHER,
             ]
         ).count()
 
@@ -2103,7 +2103,7 @@ class DashboardView(APIView):
                     AWAITING_CUSTOMER,
                     ASSINING_CARRIER,
                     AWAITING_CARRIER,
-                    AWAITING_BROKER,
+                    AWAITING_DISPATCHER,
                 ]
             ).count()
 
