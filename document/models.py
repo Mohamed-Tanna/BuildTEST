@@ -50,25 +50,25 @@ class FinalAgreement(models.Model):
         blank=False,
         editable=False,
     )
-    broker_username = models.CharField(
+    dispatcher_username = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_full_name = models.CharField(
+    dispatcher_full_name = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_phone_number = models.CharField(
+    dispatcher_phone_number = models.CharField(
         max_length=18,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_email = models.EmailField(
+    dispatcher_email = models.EmailField(
         max_length=255,
         null=False,
         blank=False,
@@ -122,19 +122,19 @@ class FinalAgreement(models.Model):
         blank=False,
         editable=False,
     )
-    broker_billing_name = models.CharField(
+    dispatcher_billing_name = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_billing_address = models.CharField(
+    dispatcher_billing_address = models.CharField(
         max_length=255,
         null=False,
         blank=False,
         editable=False,
     )
-    broker_billing_phone_number = models.CharField(
+    dispatcher_billing_phone_number = models.CharField(
         max_length=18,
         null=False,
         blank=False,

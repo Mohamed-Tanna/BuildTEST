@@ -119,7 +119,7 @@ def check_mc_number(mc_number):
             return Response(
                 [
                     {
-                        "details": "Broker is not allowed to operate, if you think this is a mistake please contact the FMCSA"
+                        "details": "Dispatcher is not allowed to operate, if you think this is a mistake please contact the FMCSA"
                     }
                 ],
                 status=status.HTTP_403_FORBIDDEN,

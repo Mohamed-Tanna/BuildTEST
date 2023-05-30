@@ -53,9 +53,9 @@ class CarrierSerializer(serializers.ModelSerializer):
         fields = ["app_user", "DOT_number"]
 
 
-class BrokerSerializer(serializers.ModelSerializer):
+class DispatcherSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.Broker
+        model = models.Dispatcher
         fields = ["app_user", "MC_number"]
 
 

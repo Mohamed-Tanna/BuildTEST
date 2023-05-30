@@ -9,7 +9,7 @@ class CarrierAdmin(admin.ModelAdmin):
 
     list_display = ["id", "app_user", "DOT_number", "allowed_to_operate"]
 
-class BrokerAdmin(admin.ModelAdmin):
+class DispatcherAdmin(admin.ModelAdmin):
 
     list_display = ["id", "app_user", "MC_number", "allowed_to_operate"]
 
@@ -38,7 +38,7 @@ class InvitationAdmin(admin.ModelAdmin):
 
 admin.site.register(models.AppUser, admin_class=AppUserAdmin)
 admin.site.register(models.Carrier, admin_class=CarrierAdmin)
-admin.site.register(models.Broker, admin_class=BrokerAdmin)
+admin.site.register(models.Dispatcher, admin_class=DispatcherAdmin)
 admin.site.register(models.ShipmentParty, admin_class=ShipmentPartyAdmin)
 admin.site.register(models.Company, admin_class=CompanyAdmin)
 admin.site.register(models.Address, admin_class=AddressAdmin)

@@ -77,7 +77,7 @@ class AppUserView(GenericAPIView, CreateModelMixin):
         """
         Create an AppUser from an existing user
 
-            Create an AppUser with its according role form **(Broker, Carrier, ShipmentParty)**
+            Create an AppUser with its according role form **(Dispatcher, Carrier, ShipmentParty)**
 
             **Example**
                 >>> user_type : shipment party
@@ -316,14 +316,14 @@ class CarrierView(GenericAPIView, CreateModelMixin):
             )
 
 
-class BrokerView(GenericAPIView, CreateModelMixin):
+class DispatcherView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
         permissions.IsAppUser,
     ]
-    serializer_class = serializers.BrokerSerializer
-    queryset = models.Broker.objects.all()
+    serializer_class = serializers.DispatcherSerializer
+    queryset = models.Dispatcher.objects.all()
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
@@ -361,7 +361,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
 
         request.data["app_user"] = str(app_user.id)
 
-        if "broker" in app_user.user_type:
+        if "dispatcher" in app_user.user_type:
 
             res = utils.check_mc_number(mc_number=request.data["MC_number"])
             if isinstance(res, Response):
@@ -381,7 +381,7 @@ class BrokerView(GenericAPIView, CreateModelMixin):
         
         else:
             return Response(
-                {"user role": ["User is not registered as a broker"]},
+                {"user role": ["User is not registered as a dispatcher"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -883,7 +883,7 @@ class AddRoleView(APIView):
         app_user = models.AppUser.objects.get(user=request.user)
         new_type = request.data.get("type")
 
-        if new_type is None or new_type not in ["carrier", SHIPMENT_PARTY, "broker"]:
+        if new_type is None or new_type not in ["carrier", SHIPMENT_PARTY, "dispatcher"]:
             return Response(
                 [{"details": "type field is required or invalid type"}],
                 status=status.HTTP_400_BAD_REQUEST,
@@ -903,8 +903,8 @@ class AddRoleView(APIView):
                 shipment_party = models.ShipmentParty.objects.create(app_user=app_user)
                 shipment_party.save()
 
-            elif new_type == "broker" and "broker" not in app_user.user_type:
-                composed_type = self._create_broker(app_user=app_user, request=request)
+            elif new_type == "dispatcher" and "dispatcher" not in app_user.user_type:
+                composed_type = self._create_dispatcher(app_user=app_user, request=request)
                 if isinstance(composed_type, Response):
                     return composed_type
 
@@ -943,9 +943,9 @@ class AddRoleView(APIView):
             carrier.save()
             return composed_type
         
-    def _create_broker(self, request, app_user: models.AppUser):
+    def _create_dispatcher(self, request, app_user: models.AppUser):
         sort_roles = app_user.user_type.split("-")
-        sort_roles.append("broker")
+        sort_roles.append("dispatcher")
         sort_roles.sort()
         composed_type = "-".join(sort_roles)
         if "mc_number" not in request.data:
@@ -959,8 +959,8 @@ class AddRoleView(APIView):
             return res
         
         if res:
-            broker = models.Broker.objects.create(app_user=app_user, MC_number=request.data["mc_number"], allowed_to_operate=True)
-            broker.save()
+            dispatcher = models.Dispatcher.objects.create(app_user=app_user, MC_number=request.data["mc_number"], allowed_to_operate=True)
+            dispatcher.save()
             return composed_type
 
 

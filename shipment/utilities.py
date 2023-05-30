@@ -41,15 +41,15 @@ def get_carrier_by_username(username):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-def get_broker_by_username(username):
+def get_dispatcher_by_username(username):
     try:
         user = auth_models.User.objects.get(username=username)
         user = auth_models.AppUser.objects.get(user=user.id)
-        user = auth_models.Broker.objects.get(app_user=user.id)
+        user = auth_models.Dispatcher.objects.get(app_user=user.id)
         return user
-    except (auth_models.User.DoesNotExist, auth_models.AppUser.DoesNotExist, auth_models.Broker.DoesNotExist):
+    except (auth_models.User.DoesNotExist, auth_models.AppUser.DoesNotExist, auth_models.Dispatcher.DoesNotExist):
         return Response(
-            {"detail": ["broker does not exist."]},
+            {"detail": ["dispatcher does not exist."]},
             status=status.HTTP_404_NOT_FOUND,
         )
     except (BaseException) as e:
@@ -66,7 +66,7 @@ def get_app_user_by_username(username):
         return user
     except (auth_models.User.DoesNotExist, auth_models.AppUser.DoesNotExist):
         return Response(
-            {"detail": ["broker does not exist."]},
+            {"detail": ["dispatcher does not exist."]},
             status=status.HTTP_404_NOT_FOUND,
         )
     except (BaseException) as e:
@@ -140,19 +140,19 @@ def get_user_tax_or_company(app_user):
     
     return user_tax
     
-def get_parties_tax(customer_username, broker_username):
+def get_parties_tax(customer_username, dispatcher_username):
     customer_app_user = get_app_user_by_username(customer_username)
-    broker_app_user = get_app_user_by_username(broker_username)
+    dispatcher_app_user = get_app_user_by_username(dispatcher_username)
     if isinstance(customer_app_user, Response):
         return customer_app_user
-    if isinstance(broker_app_user, Response):
-        return broker_app_user
+    if isinstance(dispatcher_app_user, Response):
+        return dispatcher_app_user
     customer_tax = get_user_tax_or_company(customer_app_user)
-    broker_tax = get_user_tax_or_company(broker_app_user)
+    dispatcher_tax = get_user_tax_or_company(dispatcher_app_user)
     if isinstance(customer_tax, Response):
         return Response({"details": "The customer does not have any tax information."} ,status=status.HTTP_400_BAD_REQUEST)
-    if isinstance(broker_tax, Response):
-        return Response({"details": "The broker does not have any tax information."} ,status=status.HTTP_400_BAD_REQUEST)
+    if isinstance(dispatcher_tax, Response):
+        return Response({"details": "The dispatcher does not have any tax information."} ,status=status.HTTP_400_BAD_REQUEST)
     
     return True
 
@@ -191,8 +191,8 @@ def is_app_user_customer_of_load(app_user: auth_models.AppUser, load: models.Loa
         return True
     return False
 
-def is_app_user_broker_of_load(app_user: auth_models.AppUser, load: models.Load):
-    if load.broker.app_user == app_user:
+def is_app_user_dispatcher_of_load(app_user: auth_models.AppUser, load: models.Load):
+    if load.dispatcher.app_user == app_user:
         return True
     return False
 

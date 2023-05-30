@@ -16,12 +16,12 @@ class AppUser(models.Model):
     user_type = models.CharField(
         choices=[
             ("carrier", "carrier"),
-            ("broker", "broker"),
+            ("dispatcher", "dispatcher"),
             (SHIPMENT_PARTY, SHIPMENT_PARTY),
-            ("broker-carrier", "broker-carrier"),
-            (f"broker-{SHIPMENT_PARTY}", f"broker-{SHIPMENT_PARTY}"),
+            ("dispatcher-carrier", "dispatcher-carrier"),
+            (f"dispatcher-{SHIPMENT_PARTY}", f"dispatcher-{SHIPMENT_PARTY}"),
             (f"carrier-{SHIPMENT_PARTY}", f"carrier-{SHIPMENT_PARTY}"),
-            (f"broker-carrier-{SHIPMENT_PARTY}", f"broker-carrier-{SHIPMENT_PARTY}"),
+            (f"dispatcher-carrier-{SHIPMENT_PARTY}", f"dispatcher-carrier-{SHIPMENT_PARTY}"),
         ],
         max_length=29,
         null=False,
@@ -29,7 +29,7 @@ class AppUser(models.Model):
     selected_role = models.CharField(
         choices=[
             ("carrier", "carrier"),
-            ("broker", "broker"),
+            ("dispatcher", "dispatcher"),
             (SHIPMENT_PARTY, SHIPMENT_PARTY),
         ],
         max_length=14,
@@ -40,7 +40,7 @@ class AppUser(models.Model):
         return self.user.username
 
 
-class Broker(models.Model):
+class Dispatcher(models.Model):
 
     app_user = models.OneToOneField(
         to=AppUser,

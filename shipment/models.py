@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
-from authentication.models import User, AppUser, ShipmentParty, Broker, Carrier, Address
+from authentication.models import User, AppUser, ShipmentParty, Dispatcher, Carrier, Address
 
 
 class Facility(models.Model):
@@ -60,8 +60,8 @@ class Load(models.Model):
         on_delete=models.CASCADE,
         related_name="consignee",
     )
-    broker = models.ForeignKey(
-        to=Broker, null=False, blank=False, on_delete=models.CASCADE
+    dispatcher = models.ForeignKey(
+        to=Dispatcher, null=False, blank=False, on_delete=models.CASCADE
     )
     carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.CASCADE)
     pick_up_date = models.DateField(null=False)
@@ -94,7 +94,7 @@ class Load(models.Model):
             ("Awaiting Customer", "Awaiting Customer"),
             ("Assigning Carrier", "Assigning Carrier"),
             ("Awaiting Carrier", "Awaiting Carrier"),
-            ("Awaiting Broker", "Awaiting Broker"),
+            ("Awaiting Dispatcher", "Awaiting Dispatcher"),
             ("Ready For Pick Up", "Ready For Pick Up"),
             ("In Transit", "In Transit"),
             ("Delivered", "Delivered"),
@@ -137,7 +137,7 @@ class Contact(models.Model):
 
 class Offer(models.Model):
     party_1 = models.ForeignKey(
-        to=Broker, null=False, on_delete=models.CASCADE, related_name="bidder"
+        to=Dispatcher, null=False, on_delete=models.CASCADE, related_name="bidder"
     )
     party_2 = models.ForeignKey(
         to=AppUser, null=False, on_delete=models.CASCADE, related_name="receiver"

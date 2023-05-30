@@ -114,8 +114,8 @@ class BillingDocumentsView(APIView):
                 final_agreement = models.FinalAgreement.objects.get(load_id=load_id)
                 app_user = ship_utils.get_app_user_by_username(request.user.username)
 
-                if app_user.selected_role == "broker":
-                    return self._handle_broker(request, load, final_agreement)
+                if app_user.selected_role == "dispatcher":
+                    return self._handle_dispatcher(request, load, final_agreement)
 
                 elif app_user.selected_role == "carrier":
                     return self._handle_carrier(request, load, final_agreement)
@@ -139,17 +139,17 @@ class BillingDocumentsView(APIView):
                     [{"details": "FinAg"}], status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-    def _handle_broker(self, request, load, final_agreement):
-        user = ship_utils.get_broker_by_username(request.user.username)
+    def _handle_dispatcher(self, request, load, final_agreement):
+        user = ship_utils.get_dispatcher_by_username(request.user.username)
 
-        if user != load.broker:
+        if user != load.dispatcher:
             return Response(
                 [{"details": NOT_AUTH_MSG}],
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         return Response(
-            serializers.BrokerFinalAgreementSerializer(final_agreement).data
+            serializers.DispatcherFinalAgreementSerializer(final_agreement).data
         )
 
     def _handle_carrier(self, request, load, final_agreement):
@@ -215,9 +215,9 @@ class ValidateFinalAgreementView(APIView):
         app_user = ship_utils.get_app_user_by_username(request.user.username)
         data = {}
 
-        if app_user.selected_role == "broker":
-            broker = ship_utils.get_broker_by_username(request.user.username)
-            if broker != load.broker:
+        if app_user.selected_role == "dispatcher":
+            dispatcher = ship_utils.get_dispatcher_by_username(request.user.username)
+            if dispatcher != load.dispatcher:
                 return Response(
                     [{"details": NOT_AUTH_MSG}],
                     status=status.HTTP_403_FORBIDDEN,
