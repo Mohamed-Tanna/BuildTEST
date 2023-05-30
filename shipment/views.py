@@ -1585,7 +1585,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     load.status = ASSINING_CARRIER
                     load.save()
                     request.data["status"] = "Accepted"
-                    self._create_final_agreement(load=load)
                 else:
                     load.status = AWAITING_CUSTOMER
                     load.save()
