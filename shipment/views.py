@@ -1996,7 +1996,7 @@ class UpdateLoadStatus(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             
-            final_agreement = get_object_or_404(doc_models.FinalAgreement, load=load)
+            final_agreement = get_object_or_404(doc_models.FinalAgreement, load_id=load_id)
             if not (final_agreement.did_carrier_agree and final_agreement.did_customer_agree):
                 return Response(
                     {
