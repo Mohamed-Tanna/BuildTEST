@@ -6,8 +6,18 @@ from dj_rest_auth.registration.serializers import RegisterSerializer
 
 
 class CustomRegisterSerializer(RegisterSerializer):
-    first_name = serializers.CharField(required=True, allow_blank=False, max_length=30, validators=[MinLengthValidator(2)])
-    last_name = serializers.CharField(required=True, allow_blank=False, max_length=30, validators=[MinLengthValidator(2)])
+    first_name = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=30,
+        validators=[MinLengthValidator(2)],
+    )
+    last_name = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=30,
+        validators=[MinLengthValidator(2)],
+    )
 
     def custom_signup(self, request, user):
         user.first_name = self.validated_data.get("first_name", "")
@@ -23,23 +33,34 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
 
+def validate_phone_number(phone_number):
+    phone_regex = r"^(\+?(1|52)[- ]?)?(\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}$"
+    if not re.match(phone_regex, phone_number):
+        raise serializers.ValidationError(
+            "Invalid phone number. Please enter USA, Canada or Mexico phone number."
+        )
+
+
 class AppUserSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source="user.username")
     email = serializers.ReadOnlyField(source="user.email")
     first_name = serializers.ReadOnlyField(source="user.first_name")
     last_name = serializers.ReadOnlyField(source="user.last_name")
-
-    def validate_phone_number(self, value):
-        phone_regex = r'^(\+?(1|52)[- ]?)?(\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}$'
-        if not re.match(phone_regex, value):
-            raise serializers.ValidationError("")
-        return value
-    
     phone_number = serializers.CharField(validators=[validate_phone_number])
 
     class Meta:
         model = models.AppUser
-        fields = ["id", "user", "phone_number", "user_type", "selected_role", "username", "email", "first_name", "last_name"]
+        fields = [
+            "id",
+            "user",
+            "phone_number",
+            "user_type",
+            "selected_role",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+        ]
 
         read_only_fields = ("id",)
 
@@ -74,17 +95,13 @@ class AddressSerializer(serializers.ModelSerializer):
         fields = ["id", "created_by", "address", "city", "state", "zip_code", "country"]
         read_only_fields = ("id",)
 
+
 class CompanySerializer(serializers.ModelSerializer):
-    def validate_phone_number(self, value):
-        phone_regex = r'^(\+?(1|52)[- ]?)?(\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}$'
-        if not re.match(phone_regex, value):
-            raise serializers.ValidationError("")
-        return value
-    
     phone_number = serializers.CharField(validators=[validate_phone_number])
+
     class Meta:
         model = models.Company
-        fields = ["id" ,"name", "EIN", "identifier", "address", "phone_number"]
+        fields = ["id", "name", "EIN", "identifier", "address", "phone_number"]
         extra_kwargs = {"id": {"required": False}}
         read_only_fields = ("id",)
 
@@ -122,7 +139,7 @@ class InvitationsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Invitation
         fields = "__all__"
-        
+
     def to_representation(self, instance: models.Invitation):
         rep = super().to_representation(instance)
         rep["inviter"] = UserSerializer(instance.inviter).data
