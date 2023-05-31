@@ -1995,6 +1995,16 @@ class UpdateLoadStatus(APIView):
                     {"details": "This user can't change the status of this load."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            
+            final_agreement = get_object_or_404(doc_models.FinalAgreement, load=load)
+            if not (final_agreement.did_carrier_agree and final_agreement.did_customer_agree):
+                return Response(
+                    {
+                        "details": "This agreement is not finalized yet."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
             load.status = IN_TRANSIT
             load.save()
 

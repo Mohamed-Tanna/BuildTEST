@@ -1,7 +1,8 @@
-from rest_framework import serializers 
-from dj_rest_auth.registration.serializers import RegisterSerializer
+import re
 import authentication.models as models
+from rest_framework import serializers
 from django.core.validators import MinLengthValidator
+from dj_rest_auth.registration.serializers import RegisterSerializer
 
 
 class CustomRegisterSerializer(RegisterSerializer):
@@ -27,6 +28,14 @@ class AppUserSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source="user.email")
     first_name = serializers.ReadOnlyField(source="user.first_name")
     last_name = serializers.ReadOnlyField(source="user.last_name")
+
+    def validate_phone_number(self, value):
+        phone_regex = r'^(\+?(1|52)[- ]?)?(\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}$'
+        if not re.match(phone_regex, value):
+            raise serializers.ValidationError("")
+        return value
+    
+    phone_number = serializers.CharField(validators=[validate_phone_number])
 
     class Meta:
         model = models.AppUser
@@ -66,6 +75,13 @@ class AddressSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
 class CompanySerializer(serializers.ModelSerializer):
+    def validate_phone_number(self, value):
+        phone_regex = r'^(\+?(1|52)[- ]?)?(\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}$'
+        if not re.match(phone_regex, value):
+            raise serializers.ValidationError("")
+        return value
+    
+    phone_number = serializers.CharField(validators=[validate_phone_number])
     class Meta:
         model = models.Company
         fields = ["id" ,"name", "EIN", "identifier", "address", "phone_number"]
