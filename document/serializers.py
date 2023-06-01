@@ -342,6 +342,7 @@ class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
             "verified_at",
         )
 
+
 class BOLSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FinalAgreement

@@ -61,7 +61,8 @@ class IsShipmentPartyOrDispatcher(permissions.BasePermission):
             )
         except models.AppUser.DoesNotExist:
             return False
-        
+
+
 class IsShipmentPartyOrCarrier(permissions.BasePermission):
 
     message = "User is not a shipment party nor a carrier, fill out all of the profile's necessary information before trying again."
@@ -76,6 +77,7 @@ class IsShipmentPartyOrCarrier(permissions.BasePermission):
             )
         except models.AppUser.DoesNotExist:
             return False
+
 
 class HasRole(permissions.BasePermission):
 
