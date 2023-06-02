@@ -276,15 +276,11 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
     # override
     def create(self, request, *args, **kwargs):
-
-        client = secretmanager.SecretManagerServiceClient()
-        webkey = client.access_secret_version(
-            request={
-                "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('FMCSA_WEBKEY')}/versions/1"
-            }
-        )
-        webkey = webkey.payload.data.decode("UTF-8")
         app_user = models.AppUser.objects.get(user=request.user)
+
+        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
+        if isinstance(tax_info, Response):
+            return tax_info
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -352,9 +348,11 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
 
     # override
     def create(self, request, *args, **kwargs):
-
-        
         app_user = models.AppUser.objects.get(user=request.user.id)
+
+        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
+        if isinstance(tax_info, Response):
+            return tax_info
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -517,6 +515,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    #override
     def perform_create(self, serializer):
         instance = serializer.save()
         return instance
@@ -924,6 +923,9 @@ class AddRoleView(APIView):
             return Response({"details": "something went wrong - ADRL."},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _create_carrier(self, request, app_user: models.AppUser) :
+        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
+        if isinstance(tax_info, Response):
+            return tax_info
         sort_roles = app_user.user_type.split("-")
         sort_roles.append("carrier")
         sort_roles.sort()
@@ -944,6 +946,9 @@ class AddRoleView(APIView):
             return composed_type
         
     def _create_dispatcher(self, request, app_user: models.AppUser):
+        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
+        if isinstance(tax_info, Response):
+            return tax_info
         sort_roles = app_user.user_type.split("-")
         sort_roles.append("dispatcher")
         sort_roles.sort()
