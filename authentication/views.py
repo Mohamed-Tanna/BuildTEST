@@ -471,56 +471,92 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
+        
+        address = None
+        company_employee = None
+        try:
+            app_user = models.AppUser.objects.get(user=request.user)
 
-        app_user = models.AppUser.objects.get(user=request.user)
-
-        address = utils.create_address(
-            created_by=app_user,
-            address=request.data["address"],
-            city=request.data["city"],
-            state=request.data["state"],
-            country=request.data["country"],
-            zip_code=request.data["zip_code"],
-        )
-
-        if address == False:
-            return Response(
-                [
-                    {
-                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
-                    },
-                ],
-                status=status.HTTP_400_BAD_REQUEST,
+            address = utils.create_address(
+                created_by=app_user,
+                address=request.data["address"],
+                city=request.data["city"],
+                state=request.data["state"],
+                country=request.data["country"],
+                zip_code=request.data["zip_code"],
             )
 
-        del (
-            request.data["address"],
-            request.data["city"],
-            request.data["state"],
-            request.data["country"],
-            request.data["zip_code"],
-        )
-        request.data["address"] = str(address.id)
-        request.data["identifier"] = utils.generate_company_identiefier()
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        company = self.perform_create(serializer)
-        app_user = models.AppUser.objects.get(user=request.user)
-        company_employee = models.CompanyEmployee.objects.create(
-            app_user=app_user, company=company
-        )
-        company_employee.save()
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+            if address == False:
+                return Response(
+                    [
+                        {
+                            "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                        },
+                    ],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            del (
+                request.data["address"],
+                request.data["city"],
+                request.data["state"],
+                request.data["country"],
+                request.data["zip_code"],
+            )
+            request.data["address"] = str(address.id)
+            request.data["identifier"] = utils.generate_company_identiefier()
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            company = self.perform_create(serializer)
+            app_user = models.AppUser.objects.get(user=request.user)
+            company_employee = models.CompanyEmployee.objects.create(
+                app_user=app_user, company=company
+            )
+            company_employee.save()
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        except (BaseException) as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            if "first" in request.data and request.data["first"] == True:
+                return self._handle_first_error(app_user, address, company, company_employee)
+            else:
+                return self._handle_basic_error(company, company_employee, address)
 
     #override
     def perform_create(self, serializer):
         instance = serializer.save()
         return instance
 
-
+    def _handle_first_error(self, app_user: models.AppUser, address: ship_models.Address, company: models.Company, company_employee: models.CompanyEmployee):
+        if company:
+            company.delete()
+        if company_employee:
+            company_employee.delete()
+        if address:
+            address.delete()
+        app_user.delete()
+        return Response(
+            {
+                "details": "An error occurred during company creation."
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    
+    def _handle_basic_error(self, company: models.Company, company_employee: models.AppUser, address: ship_models.Address):
+        if company:
+            company.delete()
+        if company_employee:
+            company_employee.delete()
+        if address:
+            address.delete()
+        return Response(
+            {
+                "details": "An error occurred during company creation."
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 class UserTaxView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
@@ -608,41 +644,41 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
         
-        app_user = models.AppUser.objects.get(user=request.user)
+        try:
+            app_user = models.AppUser.objects.get(user=request.user)
 
-        address = utils.create_address(
-            created_by=app_user,
-            address=request.data["address"],
-            city=request.data["city"],
-            state=request.data["state"],
-            country=request.data["country"],
-            zip_code=request.data["zip_code"],
-        )
-
-        if address == False:
-            return Response(
-                [
-                    {
-                        "details": "Address creation failed. Please try again; if the issue persists please contact us."
-                    },
-                ],
-                status=status.HTTP_400_BAD_REQUEST,
+            address = utils.create_address(
+                created_by=app_user,
+                address=request.data["address"],
+                city=request.data["city"],
+                state=request.data["state"],
+                country=request.data["country"],
+                zip_code=request.data["zip_code"],
             )
 
-        del (
-            request.data["address"],
-            request.data["city"],
-            request.data["state"],
-            request.data["country"],
-            request.data["zip_code"],
-        )
-        request.data["address"] = str(address.id)
+            if address == False:
+                return Response(
+                    [
+                        {
+                            "details": "Address creation failed. Please try again; if the issue persists please contact us."
+                        },
+                    ],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        app_user = models.AppUser.objects.get(user=request.user)
-        request.data["app_user"] = str(app_user.id)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
+            del (
+                request.data["address"],
+                request.data["city"],
+                request.data["state"],
+                request.data["country"],
+                request.data["zip_code"],
+            )
+            request.data["address"] = str(address.id)
+
+            app_user = models.AppUser.objects.get(user=request.user)
+            request.data["app_user"] = str(app_user.id)
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
             return Response(
@@ -650,10 +686,31 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             )
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
-            app_user.delete()
-            return Response({"details": "something went wrong."},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+            if "first" in request.data and request.data["first"] == True:
+                return self._handle_first_error(app_user, address)
+            else:
+                return self._handle_basic_error(address)
+            
+    def _handle_first_error(self, app_user: models.AppUser, address: ship_models.Address):
+        if address:
+            address.delete()
+        app_user.delete()
+        return Response(
+            {
+                "details": "An error occurred during user tax creation."
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    
+    def _handle_basic_error(self, address: ship_models.Address):
+        if address:
+            address.delete()
+        return Response(
+            {
+                "details": "An error occurred during user tax creation."
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.HasRole]
