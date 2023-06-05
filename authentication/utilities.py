@@ -43,7 +43,7 @@ def check_dot_number(dot_number):
 
     if not dot_pattern.match(dot_number):
         return Response(
-            [{"details": "invalid dot number"}],
+            {"details": "invalid DOT number"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -92,7 +92,7 @@ def check_mc_number(mc_number):
 
     if not mc_number_pattern.match(mc_number):
         return Response(
-            [{"details": "invalid mc number"}],
+            {"details": "invalid MC number"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

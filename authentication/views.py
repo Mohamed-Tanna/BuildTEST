@@ -307,7 +307,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
         else:
             return Response(
-                {"user role": ["User is not registered as a carrier"]},
+                {"user role": "User is not registered as a carrier"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -379,7 +379,7 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
         
         else:
             return Response(
-                {"user role": ["User is not registered as a dispatcher"]},
+                {"user role": "User is not registered as a dispatcher"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
