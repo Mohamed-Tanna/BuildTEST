@@ -1,6 +1,6 @@
 # Python imports
-import os
 import uuid
+from psycopg2 import IntegrityError
 
 # Module imports
 import authentication.models as models
@@ -34,6 +34,7 @@ from drf_yasg.utils import swagger_auto_schema
 from allauth.account.models import EmailAddress
 
 SHIPMENT_PARTY = "shipment party"
+
 
 class HealthCheckView(APIView):
     @swagger_auto_schema(
@@ -288,12 +289,12 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if "carrier" in app_user.user_type:
-            
+
             res = utils.check_dot_number(dot_number=request.data["DOT_number"])
             if isinstance(res, Response):
                 app_user.delete()
                 return res
-            
+
             elif res == True:
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
@@ -365,7 +366,7 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
             if isinstance(res, Response):
                 app_user.delete()
                 return res
-            
+
             elif res == True:
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
@@ -376,7 +377,7 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
                     status=status.HTTP_201_CREATED,
                     headers=headers,
                 )
-        
+
         else:
             return Response(
                 {"user role": "User is not registered as a dispatcher"},
@@ -471,9 +472,10 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
-        
+
         address = None
         company_employee = None
+        company = None
         try:
             app_user = models.AppUser.objects.get(user=request.user)
 
@@ -520,16 +522,25 @@ class CompanyView(GenericAPIView, CreateModelMixin):
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             if "first" in request.data and request.data["first"] == True:
-                return self._handle_first_error(app_user, address, company, company_employee)
+                return self._handle_first_error(
+                    app_user, address, company, company_employee, e
+                )
             else:
-                return self._handle_basic_error(company, company_employee, address)
+                return self._handle_basic_error(company, company_employee, address, e)
 
-    #override
+    # override
     def perform_create(self, serializer):
         instance = serializer.save()
         return instance
 
-    def _handle_first_error(self, app_user: models.AppUser, address: ship_models.Address, company: models.Company, company_employee: models.CompanyEmployee):
+    def _handle_first_error(
+        self,
+        app_user: models.AppUser,
+        address: ship_models.Address,
+        company: models.Company,
+        company_employee: models.CompanyEmployee,
+        e,
+    ):
         if company:
             company.delete()
         if company_employee:
@@ -537,26 +548,42 @@ class CompanyView(GenericAPIView, CreateModelMixin):
         if address:
             address.delete()
         app_user.delete()
-        return Response(
-            {
-                "details": "An error occurred during company creation."
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    
-    def _handle_basic_error(self, company: models.Company, company_employee: models.AppUser, address: ship_models.Address):
+        if isinstance(e, IntegrityError):
+            return Response(
+                {"details": "A company with this name already exists."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        else:
+            return Response(
+                {"details": "An error occurred during company creation."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _handle_basic_error(
+        self,
+        company: models.Company,
+        company_employee: models.AppUser,
+        address: ship_models.Address,
+        e,
+    ):
         if company:
             company.delete()
         if company_employee:
             company_employee.delete()
         if address:
             address.delete()
-        return Response(
-            {
-                "details": "An error occurred during company creation."
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        if isinstance(e, IntegrityError):
+            return Response(
+                {"details": "A company with this name already exists."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        else:
+            return Response(
+                {"details": "An error occurred during company creation."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class UserTaxView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
@@ -593,13 +620,17 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 print(f"Unexpected {e=}, {type(e)=}")
                 app_user = models.AppUser.objects.get(user=request.user)
                 app_user.delete()
-                return Response({"details": "U-T"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {"details": "U-T"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         else:
             app_user = get_object_or_404(models.AppUser, user=request.user)
             user_tax = get_object_or_404(models.UserTax, app_user=app_user)
-            return Response(status=status.HTTP_200_OK, data=serializers.UserTaxSerializer(user_tax).data)
-
+            return Response(
+                status=status.HTTP_200_OK,
+                data=serializers.UserTaxSerializer(user_tax).data,
+            )
 
     @swagger_auto_schema(
         request_body=serializers.UserTaxSerializer,
@@ -643,7 +674,9 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
-        
+
+        address = None
+
         try:
             app_user = models.AppUser.objects.get(user=request.user)
 
@@ -690,27 +723,27 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 return self._handle_first_error(app_user, address)
             else:
                 return self._handle_basic_error(address)
-            
-    def _handle_first_error(self, app_user: models.AppUser, address: ship_models.Address):
+
+    def _handle_first_error(
+        self, app_user: models.AppUser, address: ship_models.Address
+    ):
         if address:
             address.delete()
         app_user.delete()
         return Response(
-            {
-                "details": "An error occurred during user tax creation."
-            },
+            {"details": "An error occurred during user tax creation."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    
+
     def _handle_basic_error(self, address: ship_models.Address):
         if address:
             address.delete()
         return Response(
-            {
-                "details": "An error occurred during user tax creation."
-            },
+            {"details": "An error occurred during user tax creation."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
 class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.HasRole]
@@ -785,7 +818,7 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
     @swagger_auto_schema(
         operation_description="Create a company employee",
         request_body=openapi.Schema(
@@ -849,18 +882,21 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
 
 class CheckCompanyView(APIView):
-    
+
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request, *args, **kwargs):
-        
+
         if "ein" in request.query_params:
             ein = request.query_params.get("ein")
             company = get_object_or_404(models.Company, EIN=ein)
-            
-            return Response(status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data)
-            
-            
+
+            return Response(
+                status=status.HTTP_200_OK,
+                data=serializers.CompanySerializer(company).data,
+            )
+
+
 class TaxInfoView(APIView):
     @swagger_auto_schema(
         operation_description="Get tax info",
@@ -939,19 +975,25 @@ class AddRoleView(APIView):
         app_user = models.AppUser.objects.get(user=request.user)
         new_type = request.data.get("type")
 
-        if new_type is None or new_type not in ["carrier", SHIPMENT_PARTY, "dispatcher"]:
+        if new_type is None or new_type not in [
+            "carrier",
+            SHIPMENT_PARTY,
+            "dispatcher",
+        ]:
             return Response(
                 [{"details": "type field is required or invalid type"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         try:
             if new_type == "carrier" and "carrier" not in app_user.user_type:
                 composed_type = self._create_carrier(app_user=app_user, request=request)
                 if isinstance(composed_type, Response):
                     return composed_type
-                
-            elif new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type:
+
+            elif (
+                new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type
+            ):
                 sort_roles = app_user.user_type.split("-")
                 sort_roles.append("shipment party")
                 sort_roles.sort()
@@ -960,7 +1002,9 @@ class AddRoleView(APIView):
                 shipment_party.save()
 
             elif new_type == "dispatcher" and "dispatcher" not in app_user.user_type:
-                composed_type = self._create_dispatcher(app_user=app_user, request=request)
+                composed_type = self._create_dispatcher(
+                    app_user=app_user, request=request
+                )
                 if isinstance(composed_type, Response):
                     return composed_type
 
@@ -969,17 +1013,23 @@ class AddRoleView(APIView):
                     [{"details": "type already exists"}],
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             app_user.user_type = composed_type
             app_user.save()
-            return Response(status=status.HTTP_201_CREATED, data=serializers.AppUserSerializer(app_user).data)
-        
+            return Response(
+                status=status.HTTP_201_CREATED,
+                data=serializers.AppUserSerializer(app_user).data,
+            )
+
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             app_user.delete()
-            return Response({"details": "something went wrong - ADRL."},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def _create_carrier(self, request, app_user: models.AppUser) :
+            return Response(
+                {"details": "something went wrong - ADRL."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _create_carrier(self, request, app_user: models.AppUser):
         tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
         if isinstance(tax_info, Response):
             return tax_info
@@ -992,16 +1042,20 @@ class AddRoleView(APIView):
                 [{"details": "dot number is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         res = utils.check_dot_number(dot_number=request.data["dot_number"])
         if isinstance(res, Response):
             return res
-        
+
         if res:
-            carrier = models.Carrier.objects.create(app_user=app_user, DOT_number=request.data["dot_number"], allowed_to_operate=True)
+            carrier = models.Carrier.objects.create(
+                app_user=app_user,
+                DOT_number=request.data["dot_number"],
+                allowed_to_operate=True,
+            )
             carrier.save()
             return composed_type
-        
+
     def _create_dispatcher(self, request, app_user: models.AppUser):
         tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
         if isinstance(tax_info, Response):
@@ -1015,20 +1069,24 @@ class AddRoleView(APIView):
                 [{"details": "mc number is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         res = utils.check_mc_number(mc_number=request.data["mc_number"])
         if isinstance(res, Response):
             return res
-        
+
         if res:
-            dispatcher = models.Dispatcher.objects.create(app_user=app_user, MC_number=request.data["mc_number"], allowed_to_operate=True)
+            dispatcher = models.Dispatcher.objects.create(
+                app_user=app_user,
+                MC_number=request.data["mc_number"],
+                allowed_to_operate=True,
+            )
             dispatcher.save()
             return composed_type
 
 
 class SelectRoleView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
-    
+
     def put(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
         if "type" not in request.data:
@@ -1036,24 +1094,26 @@ class SelectRoleView(APIView):
                 [{"details": "type field is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            
+
         new_type = request.data.get("type")
         if new_type is None or new_type not in app_user.user_type:
             return Response(
                 [{"details": "type field is required or invalid type"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         app_user.selected_role = new_type
         app_user.save()
-        return Response(status=status.HTTP_200_OK, data=serializers.AppUserSerializer(app_user).data)
-    
-    
+        return Response(
+            status=status.HTTP_200_OK, data=serializers.AppUserSerializer(app_user).data
+        )
+
+
 class InvitationsHandlingView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
     queryset = models.Invitation.objects.all()
-    
+
     def get(self, request, *args, **kwargs):
         if "token" in request.query_params:
             token = request.query_params["token"]
@@ -1064,19 +1124,25 @@ class InvitationsHandlingView(APIView):
                     [{"details": "you are not the invitee"}],
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitation).data)
-        
+            return Response(
+                status=status.HTTP_200_OK,
+                data=serializers.InvitationsSerializer(invitation).data,
+            )
+
         else:
             invitations = models.Invitation.objects.filter(inviter=request.user)
-            return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitations, many=True).data)
-        
+            return Response(
+                status=status.HTTP_200_OK,
+                data=serializers.InvitationsSerializer(invitations, many=True).data,
+            )
+
     def post(self, request, *args, **kwargs):
         if "token" not in request.data:
             return Response(
                 [{"details": "token field is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            
+
         token = request.data["token"]
         invitation = get_object_or_404(models.Invitation, token=token)
         if invitation.inviter != request.user and invitation.invitee != request.user:
@@ -1088,31 +1154,40 @@ class InvitationsHandlingView(APIView):
         invitee_user = User.objects.get(email=invitation.invitee)
         inviter_app_user = models.AppUser.objects.get(user=inviter_user)
         invitee_app_user = models.AppUser.objects.get(user=invitee_user)
-        iniviter_contact = ship_models.Contact.objects.create(origin=inviter_user, contact=invitee_app_user)
-        invitee_contact = ship_models.Contact.objects.create(origin=invitee_user, contact=inviter_app_user)
+        iniviter_contact = ship_models.Contact.objects.create(
+            origin=inviter_user, contact=invitee_app_user
+        )
+        invitee_contact = ship_models.Contact.objects.create(
+            origin=invitee_user, contact=inviter_app_user
+        )
         data = {
             "inviter": ship_serializers.ContactCreateSerializer(iniviter_contact).data,
             "invitee": ship_serializers.ContactCreateSerializer(invitee_contact).data,
         }
         invitation.delete()
         return Response(status=status.HTTP_201_CREATED, data=data)
-        
+
 
 class CreateInvitationView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
     queryset = models.Invitation.objects.all()
-    
+
     def post(self, request, *args, **kwargs):
         if "email" not in request.data:
             return Response(
                 [{"details": "invitee field is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            
+
         invitee_email = request.data["email"]
-        token=uuid.uuid4()
-        invitation = models.Invitation.objects.create(inviter=request.user, invitee=invitee_email, token=token)
+        token = uuid.uuid4()
+        invitation = models.Invitation.objects.create(
+            inviter=request.user, invitee=invitee_email, token=token
+        )
         invitation.save()
-        #remaining code to send email including the signup URL with the token attached to it  
-        return Response(status=status.HTTP_201_CREATED, data=serializers.InvitationsSerializer(invitation).data)
+        # remaining code to send email including the signup URL with the token attached to it
+        return Response(
+            status=status.HTTP_201_CREATED,
+            data=serializers.InvitationsSerializer(invitation).data,
+        )

@@ -313,7 +313,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             party = utils.get_shipment_party_by_username(username=request.data[field])
             request.data[field] = str(party.id)
 
-        dispatcher = utils.get_dispatcher_by_username(username=request.data["dispatcher"])
+        dispatcher = utils.get_dispatcher_by_username(
+            username=request.data["dispatcher"]
+        )
         request.data["dispatcher"] = str(dispatcher.id)
 
         serializer = self.get_serializer(data=request.data)
@@ -388,7 +390,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request = new_request
 
         if "dispatcher" in request.data:
-            dispatcher = utils.get_dispatcher_by_username(username=request.data["dispatcher"])
+            dispatcher = utils.get_dispatcher_by_username(
+                username=request.data["dispatcher"]
+            )
             if isinstance(dispatcher, Response):
                 return dispatcher
             else:
@@ -1294,7 +1298,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             party = utils.get_app_user_by_username(username=request.user.username)
             if isinstance(party, models.AppUser):
                 if party.selected_role == "dispatcher":
-                    party = utils.get_dispatcher_by_username(username=request.user.username)
+                    party = utils.get_dispatcher_by_username(
+                        username=request.user.username
+                    )
                     if isinstance(party, models.Dispatcher):
                         queryset = queryset.filter(party_1=party.id)
                     else:
@@ -1443,7 +1449,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
             )
 
-        is_dispatcher = utils.is_app_user_dispatcher_of_load(app_user=app_user, load=load)
+        is_dispatcher = utils.is_app_user_dispatcher_of_load(
+            app_user=app_user, load=load
+        )
         is_customer = utils.is_app_user_customer_of_load(app_user=app_user, load=load)
         if load.carrier is not None:
             is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
@@ -1473,7 +1481,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    def _process_accept_action(self, request, load: models.Load, instance: models.Offer, partial):
+    def _process_accept_action(
+        self, request, load: models.Load, instance: models.Offer, partial
+    ):
         if load.status == AWAITING_CUSTOMER:
             load.status = ASSINING_CARRIER
             load.save()
@@ -1482,10 +1492,13 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.save()
             self._create_final_agreement(load=load)
         elif load.status == AWAITING_DISPATCHER:
-            if SHIPMENT_PARTY in instance.party_2.user_type and instance.to == "customer":
+            if (
+                SHIPMENT_PARTY in instance.party_2.user_type
+                and instance.to == "customer"
+            ):
                 load.status = ASSINING_CARRIER
                 load.save()
-            
+
             elif "carrier" in instance.party_2.user_type and instance.to == "carrier":
                 load.status = READY_FOR_PICKUP
                 load.save()
@@ -1516,7 +1529,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return Response(serializer.data)
 
-    def _process_reject_action(self, request, load: models.Load, instance: models.Offer, partial):
+    def _process_reject_action(
+        self, request, load: models.Load, instance: models.Offer, partial
+    ):
         user = utils.get_app_user_by_username(username=request.user.username)
         if "carrier" in user.user_type and instance.to == "carrier":
             load.status = ASSINING_CARRIER
@@ -1542,7 +1557,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return Response(serializer.data)
 
-    def _proccess_counter_action(self, request, load: models.Load, instance: models.Offer, partial):
+    def _proccess_counter_action(
+        self, request, load: models.Load, instance: models.Offer, partial
+    ):
         app_user = utils.get_app_user_by_username(request.user.username)
 
         if (
@@ -1601,9 +1618,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             else:
                 return Response(
                     [
-                        {
-                            "details": "This user is not the customer for this load."
-                        },
+                        {"details": "This user is not the customer for this load."},
                     ],
                     status=status.HTTP_403_FORBIDDEN,
                 )
@@ -1995,16 +2010,18 @@ class UpdateLoadStatus(APIView):
                     {"details": "This user can't change the status of this load."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            
-            final_agreement = get_object_or_404(doc_models.FinalAgreement, load_id=load_id)
-            if not (final_agreement.did_carrier_agree and final_agreement.did_customer_agree):
+
+            final_agreement = get_object_or_404(
+                doc_models.FinalAgreement, load_id=load_id
+            )
+            if not (
+                final_agreement.did_carrier_agree and final_agreement.did_customer_agree
+            ):
                 return Response(
-                    {
-                        "details": "This agreement is not finalized yet."
-                    },
+                    {"details": "This agreement is not finalized yet."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             load.status = IN_TRANSIT
             load.save()
 
@@ -2055,7 +2072,9 @@ class DashboardView(APIView):
             )
 
         elif app_user.selected_role == "dispatcher":
-            dispatcher = utils.get_dispatcher_by_username(username=request.user.username)
+            dispatcher = utils.get_dispatcher_by_username(
+                username=request.user.username
+            )
             filter_query |= Q(dispatcher=dispatcher)
 
         elif app_user.selected_role == "carrier":

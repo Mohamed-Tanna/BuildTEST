@@ -85,10 +85,11 @@ class HasRole(permissions.BasePermission):
 
     def has_permission(self, request, view):
         try:
-             app_user = models.AppUser.objects.get(user=request.user)
-             return (
+            app_user = models.AppUser.objects.get(user=request.user)
+            return (
                 models.ShipmentParty.objects.filter(app_user=app_user).exists()
-                or models.Dispatcher.objects.filter(app_user=app_user).exists() or models.Carrier.objects.filter(app_user=app_user).exists()
+                or models.Dispatcher.objects.filter(app_user=app_user).exists()
+                or models.Carrier.objects.filter(app_user=app_user).exists()
             )
         except models.AppUser.DoesNotExist:
             return False

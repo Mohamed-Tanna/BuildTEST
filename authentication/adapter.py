@@ -9,25 +9,20 @@ from allauth.account.utils import user_field
 from allauth.account.adapter import DefaultAccountAdapter
 
 
-
 class CustomAccountAdapter(DefaultAccountAdapter):
-
     def get_email_confirmation_url(self, request, emailconfirmation):
 
         """
-            Changing the confirmation URL to fit the domain that we are working on
+        Changing the confirmation URL to fit the domain that we are working on
         """
 
-        url = (
-            "https://dev.freightslayer.com/verify/"
-            + emailconfirmation.key
-        )
+        url = "https://dev.freightslayer.com/verify/" + emailconfirmation.key
         return url
 
     def save_user(self, request, user, form, commit=False):
-        
+
         """
-           Custom function to override the save_user() which allows a custom user registeration 
+        Custom function to override the save_user() which allows a custom user registeration
         """
 
         user = super().save_user(request, user, form, commit)

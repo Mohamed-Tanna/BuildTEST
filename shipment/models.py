@@ -1,15 +1,24 @@
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
-from authentication.models import User, AppUser, ShipmentParty, Dispatcher, Carrier, Address
+from authentication.models import (
+    User,
+    AppUser,
+    ShipmentParty,
+    Dispatcher,
+    Carrier,
+    Address,
+)
 
 
 class Facility(models.Model):
 
     owner = models.ForeignKey(
         to=User, null=False, blank=False, on_delete=models.CASCADE
-    ) 
+    )
     building_name = models.CharField(max_length=100, null=False, blank=False)
-    address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
+    address = models.OneToOneField(
+        to=Address, null=False, blank=False, on_delete=models.CASCADE
+    )
     extra_info = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
@@ -155,7 +164,12 @@ class Offer(models.Model):
         default="Pending",
     )
     load = models.ForeignKey(to=Load, null=False, on_delete=models.CASCADE)
-    to = models.CharField(null=False, choices=[("customer", "customer"), ("carrier", "carrier")], max_length=8, default="customer")
+    to = models.CharField(
+        null=False,
+        choices=[("customer", "customer"), ("carrier", "carrier")],
+        max_length=8,
+        default="customer",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

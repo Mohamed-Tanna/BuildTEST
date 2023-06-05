@@ -29,6 +29,7 @@ NOT_AUTH_MSG = "You are not authorized to view this document."
 SHIPMENT_PARTY = "shipment party"
 LOAD_REQUIRED_MSG = "load is required."
 
+
 class FileUploadView(GenericAPIView, ListModelMixin):
     permission_classes = [
         IsAuthenticated,
@@ -206,9 +207,9 @@ class ValidateFinalAgreementView(APIView):
 
         if "load" not in request.query_params:
             return Response(
-                    [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
-                )
-        
+                [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
+            )
+
         load_id = request.query_params.get("load")
         load = get_object_or_404(ship_models.Load, id=load_id)
         final_agreement = get_object_or_404(models.FinalAgreement, load_id=load_id)
@@ -244,7 +245,6 @@ class ValidateFinalAgreementView(APIView):
             data["did_customer_agree"] = final_agreement.did_customer_agree
 
         return Response(status=status.HTTP_200_OK, data=data)
-            
 
     @swagger_auto_schema(
         operation_description="Validate a final agreement.",
@@ -282,11 +282,7 @@ class ValidateFinalAgreementView(APIView):
                 )
                 if customer != load.customer:
                     return Response(
-                        [
-                            {
-                                "details": NOT_AUTH_MSG
-                            }
-                        ],
+                        [{"details": NOT_AUTH_MSG}],
                         status=status.HTTP_403_FORBIDDEN,
                     )
 

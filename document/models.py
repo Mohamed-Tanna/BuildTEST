@@ -306,4 +306,3 @@ class FinalAgreement(models.Model):
     )
     generated_at = models.DateTimeField(auto_now_add=True, editable=False)
     verified_at = models.DateTimeField(null=True, blank=True)
-    

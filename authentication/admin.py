@@ -1,40 +1,50 @@
 from django.contrib import admin
 import authentication.models as models
 
+
 class AppUserAdmin(admin.ModelAdmin):
 
     list_display = ["id", "user", "user_type", "selected_role"]
+
 
 class CarrierAdmin(admin.ModelAdmin):
 
     list_display = ["id", "app_user", "DOT_number", "allowed_to_operate"]
 
+
 class DispatcherAdmin(admin.ModelAdmin):
 
     list_display = ["id", "app_user", "MC_number", "allowed_to_operate"]
+
 
 class ShipmentPartyAdmin(admin.ModelAdmin):
 
     list_display = ["id", "app_user"]
 
+
 class CompanyAdmin(admin.ModelAdmin):
 
-    list_display = ["id", "name", "EIN" ,"address"]
+    list_display = ["id", "name", "EIN", "address"]
+
 
 class AddressAdmin(admin.ModelAdmin):
 
     list_display = ["id", "address", "city", "state", "country", "zip_code"]
 
+
 class CompanyEmployeeAdmin(admin.ModelAdmin):
 
     list_display = ["id", "company", "app_user"]
+
 
 class UserTaxAdmin(admin.ModelAdmin):
 
     list_display = ["id", "app_user", "TIN"]
 
+
 class InvitationAdmin(admin.ModelAdmin):
     list_display = ["id", "inviter", "invitee", "created_at"]
+
 
 admin.site.register(models.AppUser, admin_class=AppUserAdmin)
 admin.site.register(models.Carrier, admin_class=CarrierAdmin)

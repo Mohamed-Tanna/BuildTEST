@@ -80,7 +80,7 @@ def check_dot_number(dot_number):
 
 
 def check_mc_number(mc_number):
-    
+
     client = secretmanager.SecretManagerServiceClient()
     webkey = client.access_secret_version(
         request={

@@ -83,6 +83,7 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 class FacilityFilterSerializer(serializers.ModelSerializer):
     city = serializers.ReadOnlyField(source=f"{models.Address.city}")
     state = serializers.ReadOnlyField(source=f"{models.Address.state}")
+
     class Meta:
         model = models.Facility
         fields = ["id", "building_name", "city", "state"]
@@ -126,11 +127,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             "carrier": {"required": False},
             "quantity": {"required": False},
         }
-        read_only_fields = (
-            "id",
-            "status",
-            "created_at"
-        )
+        read_only_fields = ("id", "status", "created_at")
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -152,13 +149,13 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             "id": instance.pick_up_location.id,
             "building_name": instance.pick_up_location.building_name,
             "city": instance.pick_up_location.address.city,
-            "state": instance.pick_up_location.address.state
+            "state": instance.pick_up_location.address.state,
         }
         rep["destination"] = {
             "id": instance.destination.id,
             "building_name": instance.destination.building_name,
             "city": instance.destination.address.city,
-            "state": instance.destination.address.state
+            "state": instance.destination.address.state,
         }
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 

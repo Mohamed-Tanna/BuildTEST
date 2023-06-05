@@ -4,6 +4,7 @@ from django.core.validators import MinLengthValidator
 
 SHIPMENT_PARTY = "shipment party"
 
+
 class AppUser(models.Model):
 
     user = models.OneToOneField(
@@ -21,7 +22,10 @@ class AppUser(models.Model):
             ("carrier-dispatcher", "carrier-dispatcher"),
             (f"dispatcher-{SHIPMENT_PARTY}", f"dispatcher-{SHIPMENT_PARTY}"),
             (f"carrier-{SHIPMENT_PARTY}", f"carrier-{SHIPMENT_PARTY}"),
-            (f"carrier-dispatcher-{SHIPMENT_PARTY}", f"carrier-dispatcher-{SHIPMENT_PARTY}"),
+            (
+                f"carrier-dispatcher-{SHIPMENT_PARTY}",
+                f"carrier-dispatcher-{SHIPMENT_PARTY}",
+            ),
         ],
         max_length=33,
         null=False,
@@ -84,7 +88,9 @@ class ShipmentParty(models.Model):
 
 
 class Address(models.Model):
-    created_by = models.ForeignKey(to=AppUser, null=False, blank=False, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        to=AppUser, null=False, blank=False, on_delete=models.CASCADE
+    )
     address = models.CharField(max_length=255, null=False, blank=False)
     city = models.CharField(max_length=100, null=False, blank=False)
     state = models.CharField(max_length=100, null=False, blank=False)
@@ -138,14 +144,16 @@ class UserTax(models.Model):
         unique=True,
         validators=[MinLengthValidator(9)],
     )
-    address = models.OneToOneField(to=Address, null=False, blank=False, on_delete=models.CASCADE)
-    
-    
+    address = models.OneToOneField(
+        to=Address, null=False, blank=False, on_delete=models.CASCADE
+    )
+
+
 class Invitation(models.Model):
     inviter = models.ForeignKey(User, on_delete=models.CASCADE)
     invitee = models.EmailField()
     token = models.UUIDField(unique=True, null=False, blank=False, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__ (self):
+
+    def __str__(self):
         return f"{self.inviter} invited {self.invitee} at {self.created_at}"
