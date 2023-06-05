@@ -386,7 +386,7 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
 
 class CompanyView(GenericAPIView, CreateModelMixin):
 
-    permission_classes = [IsAuthenticated, permissions.HasRole]
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.CompanySerializer
     queryset = models.Company.objects.all()
 
