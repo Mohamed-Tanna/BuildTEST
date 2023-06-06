@@ -1646,17 +1646,21 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 request.data["to"] = "carrier"
                 # self offer is always accepted
                 if request.user == carrier_user:
+                    request.data["status"] = "Accepted"
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
                     load.status = READY_FOR_PICKUP
                     load.save()
-                    request.data["status"] = "Accepted"
                     self_accepting = True
                 else:
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
                     load.status = AWAITING_CARRIER
                     load.save()
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                headers = self.get_success_headers(serializer.data)
                 if self_accepting:
                     self._create_final_agreement(load=load)
                 return Response(
