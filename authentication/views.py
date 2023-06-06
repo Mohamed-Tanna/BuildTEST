@@ -1,6 +1,6 @@
 # Python imports
 import uuid
-from psycopg2 import IntegrityError
+from rest_framework.exceptions import ValidationError
 
 # Module imports
 import authentication.models as models
@@ -548,9 +548,9 @@ class CompanyView(GenericAPIView, CreateModelMixin):
         if address:
             address.delete()
         app_user.delete()
-        if isinstance(e, IntegrityError):
+        if isinstance(e, ValidationError):
             return Response(
-                {"details": "A company with this name already exists."},
+                {"details": "company with this name already exists."},
                 status=status.HTTP_409_CONFLICT,
             )
         else:
@@ -572,7 +572,7 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             company_employee.delete()
         if address:
             address.delete()
-        if isinstance(e, IntegrityError):
+        if isinstance(e, ValidationError):
             return Response(
                 {"details": "A company with this name already exists."},
                 status=status.HTTP_409_CONFLICT,
@@ -720,22 +720,28 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             if "first" in request.data and request.data["first"] == True:
-                return self._handle_first_error(app_user, address)
+                return self._handle_first_error(app_user, address, e)
             else:
-                return self._handle_basic_error(address)
+                return self._handle_basic_error(address, e)
 
     def _handle_first_error(
-        self, app_user: models.AppUser, address: ship_models.Address
+        self, app_user: models.AppUser, address: ship_models.Address, e
     ):
         if address:
             address.delete()
         app_user.delete()
-        return Response(
-            {"details": "An error occurred during user tax creation."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        if isinstance(e, ValidationError):
+            return Response(
+                {"details": "The TIN is invalid, kindly double check."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        else:
+            return Response(
+                {"details": "An error occurred during user tax creation."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-    def _handle_basic_error(self, address: ship_models.Address):
+    def _handle_basic_error(self, address: ship_models.Address, e):
         if address:
             address.delete()
         return Response(
