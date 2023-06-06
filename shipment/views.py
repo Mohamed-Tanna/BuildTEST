@@ -1599,16 +1599,20 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 request.data["to"] = "customer"
                 # self offer is always accepted
                 if request.user == shipper_user:
+                    request.data["status"] = "Accepted"
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
                     load.status = ASSINING_CARRIER
                     load.save()
-                    request.data["status"] = "Accepted"
                 else:
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
                     load.status = AWAITING_CUSTOMER
                     load.save()
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                headers = self.get_success_headers(serializer.data)
                 return Response(
                     serializer.data,
                     status=status.HTTP_201_CREATED,
