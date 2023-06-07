@@ -32,7 +32,7 @@ class LoadAdmin(admin.ModelAdmin):
         "created_by",
         "shipper",
         "consignee",
-        "broker",
+        "dispatcher",
         "pick_up_date",
         "delivery_date",
         "status",
@@ -58,6 +58,7 @@ class OfferAdmin(admin.ModelAdmin):
         "initial",
         "current",
         "load",
+        "to",
         "status",
     ]
 

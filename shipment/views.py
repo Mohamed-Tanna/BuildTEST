@@ -34,10 +34,13 @@ from rest_framework.mixins import (
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+IN_TRANSIT = "In Transit"
+SHIPMENT_PARTY = "shipment party"
+AWAITING_DISPATCHER = "Awaiting Dispatcher"
+AWAITING_CARRIER = "Awaiting Carrier"
+READY_FOR_PICKUP = "Ready For Pick Up"
 ASSINING_CARRIER = "Assigning Carrier"
 AWAITING_CUSTOMER = "Awaiting Customer"
-AWAITING_CARRIER = "Awaiting Carrier"
-SHIPMENT_PARTY = "shipment party"
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
 ERR_SECOND_PART = "or override the `get_queryset()` method."
 
@@ -58,18 +61,16 @@ class FacilityView(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=[
-                "building_number",
+                "address",
                 "building_name",
-                "street",
                 "city",
                 "state",
                 "zip_code",
                 "country",
             ],
             properties={
-                "building_number": openapi.Schema(type=openapi.TYPE_STRING),
+                "address": openapi.Schema(type=openapi.TYPE_STRING),
                 "building_name": openapi.Schema(type=openapi.TYPE_STRING),
-                "street": openapi.Schema(type=openapi.TYPE_STRING),
                 "city": openapi.Schema(type=openapi.TYPE_STRING),
                 "state": openapi.Schema(type=openapi.TYPE_STRING),
                 "zip_code": openapi.Schema(type=openapi.TYPE_STRING),
@@ -133,10 +134,11 @@ class FacilityView(
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
+        app_user = models.AppUser.objects.get(user=request.user.id)
         request.data["owner"] = request.user.id
         address = create_address(
-            building_number=request.data["building_number"],
-            street=request.data["street"],
+            created_by=app_user,
+            address=request.data["address"],
             city=request.data["city"],
             state=request.data["state"],
             country=request.data["country"],
@@ -154,8 +156,7 @@ class FacilityView(
             )
 
         del (
-            request.data["building_number"],
-            request.data["street"],
+            request.data["address"],
             request.data["city"],
             request.data["state"],
             request.data["country"],
@@ -175,7 +176,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.LoadCreateRetrieveSerializer
     queryset = models.Load.objects.all()
@@ -199,7 +200,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             properties={
                 "shipper": openapi.Schema(type=openapi.TYPE_STRING),
                 "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "broker": openapi.Schema(type=openapi.TYPE_STRING),
+                "dispatcher": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
@@ -221,7 +222,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         """
         Create a Load
 
-            Create a **Load** as its owner if your role is **Shipment Party** or **Broker**
+            Create a **Load** as its owner if your role is **Shipment Party** or **Dispatcher**
 
             **Example**
                 >>> load: {load: load_object}
@@ -237,7 +238,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 "name": openapi.Schema(type=openapi.TYPE_STRING),
                 "shipper": openapi.Schema(type=openapi.TYPE_STRING),
                 "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "broker": openapi.Schema(type=openapi.TYPE_STRING),
+                "dispatcher": openapi.Schema(type=openapi.TYPE_STRING),
                 "carrier": openapi.Schema(type=openapi.TYPE_STRING),
                 "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
                 "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
@@ -266,15 +267,15 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     )
     def put(self, request, *args, **kwargs):
         """
-        Update load's shipper, consignee, broker, carrier, pick up location, destination, pick up date, delivery date
+        Update load's shipper, consignee, dispatcher, carrier, pick up location, destination, pick up date, delivery date
 
-            Update the base user **shipper**, **consignee**, **broker**, **carrier**, **pick up location**, **destination**
+            Update the base user **shipper**, **consignee**, **dispatcher**, **carrier**, **pick up location**, **destination**
             **pick up date** and **delivery date** either separately or all coupled together
 
             **Example**
 
                 >>> carrier: carrier_id
-                >>> broker: broker_id
+                >>> dispatcher: dispatcher_id
         """
 
         return self.partial_update(request, *args, **kwargs)
@@ -290,7 +291,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         missing_fields = [
             field
-            for field in ["broker", "customer", "shipper", "consignee"]
+            for field in ["dispatcher", "customer", "shipper", "consignee"]
             if field not in request.data
         ]
         if missing_fields:
@@ -301,7 +302,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         parties_tax_info = utils.get_parties_tax(
             customer_username=request.data["customer"],
-            broker_username=request.data["broker"],
+            dispatcher_username=request.data["dispatcher"],
         )
 
         if isinstance(parties_tax_info, Response):
@@ -312,8 +313,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             party = utils.get_shipment_party_by_username(username=request.data[field])
             request.data[field] = str(party.id)
 
-        broker = utils.get_broker_by_username(username=request.data["broker"])
-        request.data["broker"] = str(broker.id)
+        dispatcher = utils.get_dispatcher_by_username(
+            username=request.data["dispatcher"]
+        )
+        request.data["dispatcher"] = str(dispatcher.id)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -386,12 +389,14 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return new_request
         request = new_request
 
-        if "broker" in request.data:
-            broker = utils.get_broker_by_username(username=request.data["broker"])
-            if isinstance(broker, Response):
-                return broker
+        if "dispatcher" in request.data:
+            dispatcher = utils.get_dispatcher_by_username(
+                username=request.data["dispatcher"]
+            )
+            if isinstance(dispatcher, Response):
+                return dispatcher
             else:
-                request.data["broker"] = str(broker.id)
+                request.data["dispatcher"] = str(dispatcher.id)
 
         partial = kwargs.pop("partial", False)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -439,7 +444,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        editor = utils.get_broker_by_username(username=request.user.username)
+        editor = utils.get_dispatcher_by_username(username=request.user.username)
 
         if isinstance(editor, Response):
             return editor
@@ -462,14 +467,14 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        if instance.broker == editor:
+        if instance.dispatcher == editor:
             self.perform_update(serializer)
 
         else:
             return Response(
                 {
                     "detail": [
-                        "You cannot add a carrier to this load because you are not the assigend broker."
+                        "You cannot add a carrier to this load because you are not the assigend dispatcher."
                     ]
                 },
                 status=status.HTTP_403_FORBIDDEN,
@@ -529,7 +534,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         List all loads related to a user to be represented in a table.
 
             taking the authenticated user and listing all of the loads that he is a part of either a shipper,
-            a consignee, a broker or even the ones he created.
+            a consignee, a dispatcher or even the ones he created.
         """
 
         return self.list(request, *args, **kwargs)
@@ -545,7 +550,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         filter_query = Q(created_by=app_user.id)
 
-        if app_user.user_type == SHIPMENT_PARTY:
+        if app_user.selected_role == SHIPMENT_PARTY:
             try:
                 shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)
                 filter_query |= (
@@ -556,14 +561,14 @@ class ListLoadView(GenericAPIView, ListModelMixin):
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        elif app_user.user_type == "broker":
+        elif app_user.selected_role == "dispatcher":
             try:
-                broker = models.Broker.objects.get(app_user=app_user.id)
-                filter_query |= Q(broker=broker.id)
+                dispatcher = models.Dispatcher.objects.get(app_user=app_user.id)
+                filter_query |= Q(dispatcher=dispatcher.id)
             except (BaseException) as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
-        elif app_user.user_type == "carrier":
+        elif app_user.selected_role == "carrier":
             try:
                 carrier = models.Carrier.objects.get(app_user=app_user.id)
                 filter_query |= Q(carrier=carrier.id)
@@ -572,7 +577,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
 
         queryset = (
             queryset.filter(filter_query)
-            .exclude(status__in=["Canceled", "Delivered"])
+            .exclude(status__in=["Canceled"])
             .order_by("-id")
         )
 
@@ -614,30 +619,21 @@ class RetrieveLoadView(
         app_user = utils.get_app_user_by_username(username=request.user.username)
         authorized = False
 
-        print(
-            app_user.user_type,
-            instance.shipper,
-            instance.consignee,
-            instance.customer,
-            instance.broker,
-            instance.carrier,
-        )
-
         if (
-            app_user.user_type == "broker"
-            and instance.broker
-            == utils.get_broker_by_username(username=request.user.username)
+            app_user.selected_role == "dispatcher"
+            and instance.dispatcher
+            == utils.get_dispatcher_by_username(username=request.user.username)
         ):
             authorized = True
 
         elif (
-            app_user.user_type == "carrier"
+            app_user.selected_role == "carrier"
             and instance.carrier
             == utils.get_carrier_by_username(username=request.user.username)
         ):
             authorized = True
 
-        elif app_user.user_type == "shipment party":
+        elif app_user.selected_role == SHIPMENT_PARTY:
             shipment_party = utils.get_shipment_party_by_username(
                 username=request.user.username
             )
@@ -822,7 +818,7 @@ class ShipmentView(
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.ShipmentSerializer
     queryset = models.Shipment.objects.all()
@@ -987,7 +983,7 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.ShipmentSerializer
     queryset = models.Shipment.objects.all()
@@ -1052,7 +1048,7 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.FacilityFilterSerializer
     queryset = models.Facility.objects.all()
@@ -1130,7 +1126,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.ContactListSerializer
     queryset = models.Contact.objects.all()
@@ -1181,7 +1177,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             if "tax" in self.request.data:
                 contacts = models.Contact.objects.filter(
                     origin=self.request.user.id,
-                    contact__user_type=user_type,
+                    contact__user_type__contains=user_type,
                     contact__user__username__icontains=keyword,
                 ).values_list("contact", flat=True)
                 tax_query = (
@@ -1196,11 +1192,11 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             else:
                 queryset = models.Contact.objects.filter(
                     origin=self.request.user.id,
-                    contact__user_type=user_type,
+                    contact__user_type__contains=user_type,
                     contact__user__username__icontains=keyword,
                 )
 
-        # if the request is intended to add a shipment party or a broker as shipment admins to a shipment
+        # if the request is intended to add a shipment party or a dispatcher as shipment admins to a shipment
         elif "shipment" in self.request.data:
             keyword = ""
             if "keyword" in self.request.data:
@@ -1208,11 +1204,11 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
 
             queryset = models.Contact.objects.filter(
                 origin=self.request.user.id,
-                contact__user_type=SHIPMENT_PARTY,
+                contact__user_type__contains=SHIPMENT_PARTY,
                 contact__user__username__icontains=keyword,
             ) | models.Contact.objects.filter(
                 origin=self.request.user.id,
-                contact__user_type="broker",
+                contact__user_type__contains="dispatcher",
                 contact__user__username__icontains=keyword,
             )
         else:
@@ -1226,7 +1222,7 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.LoadListSerializer
     queryset = models.Load.objects.all()
@@ -1301,9 +1297,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
             party = utils.get_app_user_by_username(username=request.user.username)
             if isinstance(party, models.AppUser):
-                if party.user_type == "broker":
-                    party = utils.get_broker_by_username(username=request.user.username)
-                    if isinstance(party, models.Broker):
+                if party.selected_role == "dispatcher":
+                    party = utils.get_dispatcher_by_username(
+                        username=request.user.username
+                    )
+                    if isinstance(party, models.Dispatcher):
                         queryset = queryset.filter(party_1=party.id)
                     else:
                         return party
@@ -1345,7 +1343,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         """
         Create an offer on a load
 
-            Create an offer on a load if you are the broker assigned to this load you can create an offer for both shipper and carrier
+            Create an offer on a load if you are the dispatcher assigned to this load you can create an offer for both shipper and carrier
             using this endpoint.
         """
         return self.create(request, *args, **kwargs)
@@ -1380,36 +1378,36 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
-        broker = utils.get_broker_by_username(username=request.user.username)
+        dispatcher = utils.get_dispatcher_by_username(username=request.user.username)
 
-        if isinstance(broker, Response):
+        if isinstance(dispatcher, Response):
             return Response(
                 [
                     {
-                        "details": "you cannot create an offer since your are not a broker"
+                        "details": "you cannot create an offer since your are not a dispatcher"
                     },
                 ],
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        request.data["party_1"] = broker.id
+        request.data["party_1"] = dispatcher.id
         load = models.Load.objects.get(id=request.data["load"])
 
-        if load.broker is None:
+        if load.dispatcher is None:
             return Response(
                 [
                     {
-                        "details": "Please add a broker to this load before creating a bid on it"
+                        "details": "Please add a dispatcher to this load before creating a bid on it"
                     },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if load.broker != broker:
+        if load.dispatcher != dispatcher:
             return Response(
                 [
                     {
-                        "details": "you cannot create an offer since you're not the broker assigned to this load"
+                        "details": "you cannot create an offer since you're not the dispatcher assigned to this load"
                     },
                 ],
                 status=status.HTTP_403_FORBIDDEN,
@@ -1434,6 +1432,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         load = models.Load.objects.get(id=instance.load.id)
+        app_user = utils.get_app_user_by_username(username=request.user.username)
 
         if instance.status != "Pending":
             return Response(
@@ -1450,6 +1449,18 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 [{"details": "action required"}], status=status.HTTP_400_BAD_REQUEST
             )
 
+        is_dispatcher = utils.is_app_user_dispatcher_of_load(
+            app_user=app_user, load=load
+        )
+        is_customer = utils.is_app_user_customer_of_load(app_user=app_user, load=load)
+        if load.carrier is not None:
+            is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
+        if not is_dispatcher and not is_customer and not is_carrier:
+            return Response(
+                [{"details": "You are not authorized to perform this action"}],
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if request.data["action"] == "accept":
             return self._process_accept_action(request, load, instance, partial)
 
@@ -1457,6 +1468,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return self._process_reject_action(request, load, instance, partial)
 
         elif request.data["action"] == "counter":
+            if instance.party_1.app_user == instance.party_2:
+                return Response(
+                    [{"details": "You cannot counter your own offer"}],
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return self._proccess_counter_action(request, load, instance, partial)
 
         else:
@@ -1465,20 +1481,26 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    def _process_accept_action(self, request, load, instance, partial):
+    def _process_accept_action(
+        self, request, load: models.Load, instance: models.Offer, partial
+    ):
         if load.status == AWAITING_CUSTOMER:
             load.status = ASSINING_CARRIER
             load.save()
         elif load.status == AWAITING_CARRIER:
-            load.status = "Ready For Pick Up"
+            load.status = READY_FOR_PICKUP
             load.save()
             self._create_final_agreement(load=load)
-        elif load.status == "Awaiting Broker":
-            if instance.party_2.user_type == SHIPMENT_PARTY:
+        elif load.status == AWAITING_DISPATCHER:
+            if (
+                SHIPMENT_PARTY in instance.party_2.user_type
+                and instance.to == "customer"
+            ):
                 load.status = ASSINING_CARRIER
                 load.save()
-            elif instance.party_2.user_type == "carrier":
-                load.status = "Ready For Pick Up"
+
+            elif "carrier" in instance.party_2.user_type and instance.to == "carrier":
+                load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
         else:
@@ -1507,9 +1529,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return Response(serializer.data)
 
-    def _process_reject_action(self, request, load, instance, partial):
+    def _process_reject_action(
+        self, request, load: models.Load, instance: models.Offer, partial
+    ):
         user = utils.get_app_user_by_username(username=request.user.username)
-        if user.user_type == "carrier":
+        if "carrier" in user.user_type and instance.to == "carrier":
             load.status = ASSINING_CARRIER
             load.carrier = None
             load.save()
@@ -1533,16 +1557,21 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return Response(serializer.data)
 
-    def _proccess_counter_action(self, request, load, instance, partial):
+    def _proccess_counter_action(
+        self, request, load: models.Load, instance: models.Offer, partial
+    ):
         app_user = utils.get_app_user_by_username(request.user.username)
-        if app_user.user_type == SHIPMENT_PARTY or app_user.user_type == "carrier":
-            load.status = "Awaiting Broker"
+
+        if (
+            SHIPMENT_PARTY in app_user.user_type or "carrier" in app_user.user_type
+        ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
+            load.status = AWAITING_DISPATCHER
             load.save()
-        elif app_user.user_type == "broker":
-            if instance.party_2.user_type == SHIPMENT_PARTY:
+        elif "dispatcher" in app_user.user_type and load.status == AWAITING_DISPATCHER:
+            if instance.to == "customer":
                 load.status = AWAITING_CUSTOMER
                 load.save()
-            elif instance.party_2.user_type == "carrier":
+            elif instance.to == "carrier":
                 load.status = AWAITING_CARRIER
                 load.save()
 
@@ -1559,19 +1588,31 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _create_offer_for_customer(self, request, load):
+        shipper_user = models.User.objects.get(username=request.data["party_2"])
         shipper = utils.get_shipment_party_by_username(request.data["party_2"])
 
         if isinstance(shipper, models.ShipmentParty):
-            if load.customer == shipper or load.created_by == shipper:
+            if load.customer is not None and load.customer == shipper:
                 request.data["current"] = request.data["initial"]
                 shipper = utils.get_app_user_by_username(request.data["party_2"])
                 request.data["party_2"] = shipper.id
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                load.status = AWAITING_CUSTOMER
-                load.save()
-                headers = self.get_success_headers(serializer.data)
+                request.data["to"] = "customer"
+                # self offer is always accepted
+                if request.user == shipper_user:
+                    request.data["status"] = "Accepted"
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    load.status = ASSINING_CARRIER
+                    load.save()
+                else:
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    load.status = AWAITING_CUSTOMER
+                    load.save()
                 return Response(
                     serializer.data,
                     status=status.HTTP_201_CREATED,
@@ -1581,9 +1622,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             else:
                 return Response(
                     [
-                        {
-                            "details": "This user is not the customer nor the creator of this load"
-                        },
+                        {"details": "This user is not the customer for this load."},
                     ],
                     status=status.HTTP_403_FORBIDDEN,
                 )
@@ -1599,6 +1638,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _create_offer_for_carrier(self, request, load):
+        self_accepting = False
+        carrier_user = models.User.objects.get(username=request.data["party_2"])
         carrier = utils.get_carrier_by_username(request.data["party_2"])
 
         if isinstance(carrier, models.Carrier):
@@ -1606,12 +1647,26 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 request.data["current"] = request.data["initial"]
                 carrier = utils.get_app_user_by_username(request.data["party_2"])
                 request.data["party_2"] = str(carrier.id)
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                load.status = AWAITING_CARRIER
-                load.save()
-                headers = self.get_success_headers(serializer.data)
+                request.data["to"] = "carrier"
+                # self offer is always accepted
+                if request.user == carrier_user:
+                    request.data["status"] = "Accepted"
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    load.status = READY_FOR_PICKUP
+                    load.save()
+                    self_accepting = True
+                else:
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    load.status = AWAITING_CARRIER
+                    load.save()
+                if self_accepting:
+                    self._create_final_agreement(load=load)
                 return Response(
                     serializer.data,
                     status=status.HTTP_201_CREATED,
@@ -1642,14 +1697,14 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         shipper = load.shipper
         consignee = load.consignee
         carrier = load.carrier
-        broker = load.broker
+        dispatcher = load.dispatcher
         customer = load.customer
         pickup_facility = load.pick_up_location
         drop_off_facility = load.destination
-        broker_billing = utils.get_user_tax_or_company(app_user=broker.app_user)
-        if isinstance(broker_billing, Response):
-            return broker_billing
-        broker_billing = utils.extract_billing_info(broker_billing, broker)
+        dispatcher_billing = utils.get_user_tax_or_company(app_user=dispatcher.app_user)
+        if isinstance(dispatcher_billing, Response):
+            return dispatcher_billing
+        dispatcher_billing = utils.extract_billing_info(dispatcher_billing, dispatcher)
 
         carrier_billing = utils.get_user_tax_or_company(app_user=carrier.app_user)
         if isinstance(carrier_billing, Response):
@@ -1662,10 +1717,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer_billing = utils.extract_billing_info(customer_billing, customer)
 
         customer_offer = get_object_or_404(
-            models.Offer, load=load, party_2=customer.app_user
+            models.Offer, load=load, party_2=customer.app_user, to="customer"
         )
         carrier_offer = get_object_or_404(
-            models.Offer, load=load, party_2=carrier.app_user
+            models.Offer, load=load, party_2=carrier.app_user, to="carrier"
         )
         doc_models.FinalAgreement.objects.create(
             load_id=load.id,
@@ -1682,12 +1737,12 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + " "
             + consignee.app_user.user.last_name,
             consignee_phone_number=consignee.app_user.phone_number,
-            broker_username=broker.app_user.user.username,
-            broker_full_name=broker.app_user.user.first_name
+            dispatcher_username=dispatcher.app_user.user.username,
+            dispatcher_full_name=dispatcher.app_user.user.first_name
             + " "
-            + broker.app_user.user.last_name,
-            broker_phone_number=broker.app_user.phone_number,
-            broker_email=broker.app_user.user.email,
+            + dispatcher.app_user.user.last_name,
+            dispatcher_phone_number=dispatcher.app_user.phone_number,
+            dispatcher_email=dispatcher.app_user.user.email,
             customer_username=customer.app_user.user.username,
             customer_full_name=customer.app_user.user.first_name
             + " "
@@ -1700,9 +1755,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + carrier.app_user.user.last_name,
             carrier_phone_number=carrier.app_user.phone_number,
             carrier_email=carrier.app_user.user.email,
-            broker_billing_name=broker_billing["name"],
-            broker_billing_address=broker_billing["address"],
-            broker_billing_phone_number=broker_billing["phone_number"],
+            dispatcher_billing_name=dispatcher_billing["name"],
+            dispatcher_billing_address=dispatcher_billing["address"],
+            dispatcher_billing_phone_number=dispatcher_billing["phone_number"],
             carrier_billing_name=carrier_billing["name"],
             carrier_billing_address=carrier_billing["address"],
             carrier_billing_phone_number=carrier_billing["phone_number"],
@@ -1710,9 +1765,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             customer_billing_address=customer_billing["address"],
             customer_billing_phone_number=customer_billing["phone_number"],
             shipper_facility_name=pickup_facility.building_name,
-            shipper_facility_address=pickup_facility.address.building_number
-            + ", "
-            + pickup_facility.address.street
+            shipper_facility_address=pickup_facility.address.address
             + ", "
             + pickup_facility.address.city
             + ", "
@@ -1720,9 +1773,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             + ", "
             + pickup_facility.address.zip_code,
             consignee_facility_name=drop_off_facility.building_name,
-            consignee_facility_address=drop_off_facility.address.building_number
-            + ", "
-            + drop_off_facility.address.street
+            consignee_facility_address=drop_off_facility.address.address
             + ", "
             + drop_off_facility.address.city
             + ", "
@@ -1754,7 +1805,7 @@ class ShipmentAdminView(
 
     permission_classes = [
         IsAuthenticated,
-        permissions.IsShipmentPartyOrBroker,
+        permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.ShipmentAdminSerializer
     queryset = models.ShipmentAdmin.objects.all()
@@ -1895,7 +1946,7 @@ class ShipmentAdminView(
         return Response(serializer.data)
 
 
-class BrokerRejectView(APIView):
+class DispatcherRejectView(APIView):
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -1912,14 +1963,14 @@ class BrokerRejectView(APIView):
     )
     def post(self, request, *args, **kwargs):
         """
-        Broker reject a load
+        Dispatcher reject a load
         """
         load_id = request.data["load"]
         load = get_object_or_404(models.Load, id=load_id)
-        broker = load.broker.app_user.user
-        if broker != request.user:
+        dispatcher = load.dispatcher.app_user.user
+        if dispatcher != request.user:
             return Response(
-                {"detail": "This user is not the broker of this load."},
+                {"detail": "This user is not the dispatcher of this load."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         load.status = "Canceled"
@@ -1961,16 +2012,28 @@ class UpdateLoadStatus(APIView):
         if isinstance(shipment_party, Response):
             return shipment_party
 
-        if load.status == "Ready For Pick Up":
+        if load.status == READY_FOR_PICKUP:
             if load.shipper != shipment_party:
                 return Response(
                     {"details": "This user can't change the status of this load."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            load.status = "In Transit"
+
+            final_agreement = get_object_or_404(
+                doc_models.FinalAgreement, load_id=load_id
+            )
+            if not (
+                final_agreement.did_carrier_agree and final_agreement.did_customer_agree
+            ):
+                return Response(
+                    {"details": "This agreement is not finalized yet."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            load.status = IN_TRANSIT
             load.save()
 
-        elif load.status == "In Transit":
+        elif load.status == IN_TRANSIT:
             if load.consignee != shipment_party:
                 return Response(
                     {"details": "This user can't change the status of this load."},
@@ -2006,7 +2069,7 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
-        if app_user.user_type == "shipment party":
+        if app_user.selected_role == SHIPMENT_PARTY:
             shipment_party = utils.get_shipment_party_by_username(
                 username=request.user.username
             )
@@ -2016,11 +2079,13 @@ class DashboardView(APIView):
                 | Q(customer=shipment_party)
             )
 
-        elif app_user.user_type == "broker":
-            broker = utils.get_broker_by_username(username=request.user.username)
-            filter_query |= Q(broker=broker)
+        elif app_user.selected_role == "dispatcher":
+            dispatcher = utils.get_dispatcher_by_username(
+                username=request.user.username
+            )
+            filter_query |= Q(dispatcher=dispatcher)
 
-        elif app_user.user_type == "carrier":
+        elif app_user.selected_role == "carrier":
             carrier = utils.get_carrier_by_username(username=request.user.username)
             filter_query |= Q(carrier=carrier)
 
@@ -2029,22 +2094,22 @@ class DashboardView(APIView):
             return Response(
                 data={"detail": "No loads found."}, status=status.HTTP_404_NOT_FOUND
             )
-        
+
         result = {}
         cards = {}
         cards["total"] = loads.count()
         cards["pending"] = loads.filter(
-                status__in=[
-                    "Created",
-                    "Awaiting Customer",
-                    "Assigning Carrier",
-                    "Awaiting Carrier",
-                    "Awaiting Broker",
-                ]
-            ).count()
-        
-        cards["ready_for_pick_up"] = loads.filter(status="Ready For Pick Up").count()
-        cards["in_transit"] = loads.filter(status="In Transit").count()
+            status__in=[
+                "Created",
+                AWAITING_CUSTOMER,
+                ASSINING_CARRIER,
+                AWAITING_CARRIER,
+                AWAITING_DISPATCHER,
+            ]
+        ).count()
+
+        cards["ready_for_pick_up"] = loads.filter(status=READY_FOR_PICKUP).count()
+        cards["in_transit"] = loads.filter(status=IN_TRANSIT).count()
         cards["delivered"] = loads.filter(status="Delivered").count()
         cards["canceled"] = loads.filter(status="Canceled").count()
 
@@ -2054,7 +2119,7 @@ class DashboardView(APIView):
         cards["loads"] = loads
         result["cards"] = cards
         result["chart"] = []
-        
+
         year = datetime.now().year
         loads = models.Load.objects.filter(filter_query)
         for i in range(1, 13):
@@ -2074,15 +2139,17 @@ class DashboardView(APIView):
             obj["pending"] = monthly_loads.filter(
                 status__in=[
                     "Created",
-                    "Awaiting Customer",
-                    "Assigning Carrier",
-                    "Awaiting Carrier",
-                    "Awaiting Broker",
+                    AWAITING_CUSTOMER,
+                    ASSINING_CARRIER,
+                    AWAITING_CARRIER,
+                    AWAITING_DISPATCHER,
                 ]
             ).count()
-        
-            obj["ready_for_pick_up"] = monthly_loads.filter(status="Ready For Pick Up").count()
-            obj["in_transit"] = monthly_loads.filter(status="In Transit").count()
+
+            obj["ready_for_pick_up"] = monthly_loads.filter(
+                status=READY_FOR_PICKUP
+            ).count()
+            obj["in_transit"] = monthly_loads.filter(status=IN_TRANSIT).count()
             obj["delivered"] = monthly_loads.filter(status="Delivered").count()
             obj["canceled"] = monthly_loads.filter(status="Canceled").count()
             result["chart"].append(obj)

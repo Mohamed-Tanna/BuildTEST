@@ -32,10 +32,12 @@ urlpatterns = [
     path("hc/", views.HealthCheckView.as_view()),
     path("shipment-party/", views.ShipmentPartyView.as_view()),
     path("carrier/", views.CarrierView.as_view()),
-    path("broker/", views.BrokerView.as_view()),
+    path("dispatcher/", views.DispatcherView.as_view()),
     path("company/", views.CompanyView.as_view()),
     path("user-tax/", views.UserTaxView.as_view()),
     path("company-employee/", views.CompanyEmployeeView.as_view()),
     path("check-company/", views.CheckCompanyView.as_view()),
     path("tax-info/", views.TaxInfoView.as_view()),
+    path("add-role/", views.AddRoleView.as_view()),
+    path("select-role/", views.SelectRoleView.as_view()),
 ]

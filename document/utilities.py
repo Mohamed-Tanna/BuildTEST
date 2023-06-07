@@ -2,13 +2,16 @@
 import os
 import environ
 from datetime import datetime, timedelta
+
 # third party imports
 from google.cloud import storage
 from google.auth import compute_engine
 from google.oauth2 import service_account
 from google.auth.transport import requests
+
 # module imports
 from freightmonster.settings.base import BASE_DIR
+
 if os.getenv("ENV") == "DEV":
     from freightmonster.settings.dev import GS_BUCKET_NAME
 elif os.getenv("ENV") == "STAGING":
@@ -25,13 +28,13 @@ def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600
         blob = bucket.blob("pdfs/" + object_name)
         if not blob.exists():
             raise NameError
-        
+
         signing_creds = get_signing_creds(storage_client._credentials)
         url = blob.generate_signed_url(
             version="v4",
             expiration=datetime.utcnow() + timedelta(seconds=expiration),
             method="GET",
-            credentials=signing_creds
+            credentials=signing_creds,
         )
 
         return url
@@ -46,7 +49,7 @@ def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600
 
 
 def upload_to_gcs(uploaded_file, bucket_name=GS_BUCKET_NAME):
-    """Uploads a file to the bucket.""" 
+    """Uploads a file to the bucket."""
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob("pdfs/" + uploaded_file.name)
@@ -66,10 +69,12 @@ def get_storage_client():
     else:
         storage_client = storage.Client()
         return storage_client
-    
+
 
 def get_signing_creds(credentials):
     """Returns a signing credentials object."""
     auth_request = requests.Request()
-    signing_credentials = compute_engine.IDTokenCredentials(auth_request, "", service_account_email=credentials.service_account_email)
+    signing_credentials = compute_engine.IDTokenCredentials(
+        auth_request, "", service_account_email=credentials.service_account_email
+    )
     return signing_credentials

@@ -33,7 +33,7 @@ class LoadListSerializer(serializers.ModelSerializer):
             "customer",
             "shipper",
             "consignee",
-            "broker",
+            "dispatcher",
             "carrier",
             "pick_up_location",
             "destination",
@@ -51,7 +51,7 @@ class LoadListSerializer(serializers.ModelSerializer):
         rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
-        rep["broker"] = instance.broker.app_user.user.username
+        rep["dispatcher"] = instance.dispatcher.app_user.user.username
         rep["pick_up_location"] = instance.pick_up_location.building_name
         rep["destination"] = instance.destination.building_name
         try:
@@ -83,6 +83,7 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 class FacilityFilterSerializer(serializers.ModelSerializer):
     city = serializers.ReadOnlyField(source=f"{models.Address.city}")
     state = serializers.ReadOnlyField(source=f"{models.Address.state}")
+
     class Meta:
         model = models.Facility
         fields = ["id", "building_name", "city", "state"]
@@ -126,11 +127,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             "carrier": {"required": False},
             "quantity": {"required": False},
         }
-        read_only_fields = (
-            "id",
-            "status",
-            "created_at"
-        )
+        read_only_fields = ("id", "status", "created_at")
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -139,10 +136,10 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
         try:
-            rep["broker"] = instance.broker.app_user.user.username
+            rep["dispatcher"] = instance.dispatcher.app_user.user.username
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
-            rep["broker"] = None
+            rep["dispatcher"] = None
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
         except (BaseException) as e:
@@ -152,13 +149,13 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             "id": instance.pick_up_location.id,
             "building_name": instance.pick_up_location.building_name,
             "city": instance.pick_up_location.address.city,
-            "state": instance.pick_up_location.address.state
+            "state": instance.pick_up_location.address.state,
         }
         rep["destination"] = {
             "id": instance.destination.id,
             "building_name": instance.destination.building_name,
             "city": instance.destination.address.city,
-            "state": instance.destination.address.state
+            "state": instance.destination.address.state,
         }
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
