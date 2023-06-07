@@ -53,7 +53,7 @@ gcloud auth configure-docker \
     us-west1-docker.pkg.dev
 echo y
 
-IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA 
+IMAGE_1=us-west1-docker.pkg.dev/freightslayer-staging/backend/backend:$commit_SHA
 IMAGE_2=us-west1-docker.pkg.dev/freightslayer-staging/nginx/backend-nginx:$commit_SHA
 export IMAGE_1
 export IMAGE_2

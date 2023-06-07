@@ -16,7 +16,10 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         Changing the confirmation URL to fit the domain that we are working on
         """
 
-        url = "https://dev.freightslayer.com/verify/" + emailconfirmation.key
+        url = (
+            "https://staging.freightslayer.com/verify/"
+            + emailconfirmation.key
+        )
         return url
 
     def save_user(self, request, user, form, commit=False):
