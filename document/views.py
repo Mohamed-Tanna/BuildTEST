@@ -176,10 +176,12 @@ class BillingDocumentsView(APIView):
             )
         elif user == load.customer:
             return Response(
-                serializers.CustomerFinalAgreementSerializer(final_agreement).data
+                status=status.HTTP_200_OK,
+                data=serializers.CustomerFinalAgreementSerializer(final_agreement).data,
             )
 
-        return Response(serializers.BOLSerializer(final_agreement).data)
+        return Response(status=status.HTTP_200_OK,
+                data=serializers.BOLSerializer(final_agreement).data)
 
 
 class ValidateFinalAgreementView(APIView):
