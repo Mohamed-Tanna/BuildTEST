@@ -23,12 +23,13 @@ secret_key = client.access_secret_version(
 
 SECRET_KEY = secret_key.payload.data.decode("UTF-8")
 
+BASE_URL="https://staging.freightslayer.com"
 ALLOWED_HOSTS = ["app-staging.freightslayer.com"]
+CSRF_TRUSTED_ORIGINS = ["https://app-staging.freightslayer.com/"]
 
 for ip in ipaddress.IPv4Network("10.0.1.0/24"):
     ALLOWED_HOSTS.append(str(ip))
 
-CSRF_TRUSTED_ORIGINS = ["https://app-staging.freightslayer.com/"]
 
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 

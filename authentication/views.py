@@ -1,4 +1,5 @@
 # Python imports
+import os
 import uuid
 from rest_framework.exceptions import ValidationError
 
@@ -29,9 +30,15 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 
 # third party imports
 from drf_yasg import openapi
-from google.cloud import secretmanager
 from drf_yasg.utils import swagger_auto_schema
 from allauth.account.models import EmailAddress
+
+if os.getenv("ENV") == "DEV":
+    from freightmonster.settings.dev import BASE_URL
+elif os.getenv("ENV") == "STAGING":
+    from freightmonster.settings.staging import BASE_URL
+else:
+    from freightmonster.settings.local import BASE_URL
 
 SHIPMENT_PARTY = "shipment party"
 
@@ -1180,20 +1187,37 @@ class CreateInvitationView(APIView):
     queryset = models.Invitation.objects.all()
 
     def post(self, request, *args, **kwargs):
-        if "email" not in request.data:
+        print(request.data)
+        if "invitee" not in request.data:
             return Response(
                 [{"details": "invitee field is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        invitee_email = request.data["email"]
-        token = uuid.uuid4()
-        invitation = models.Invitation.objects.create(
-            inviter=request.user, invitee=invitee_email, token=token
-        )
-        invitation.save()
-        # remaining code to send email including the signup URL with the token attached to it
-        return Response(
-            status=status.HTTP_201_CREATED,
-            data=serializers.InvitationsSerializer(invitation).data,
-        )
+        invitee_email = request.data["invitee"]
+        try:
+            User.objects.get(email=invitee_email)
+            return Response({"details": "user already exists, try adding them as a contact."}, status=status.HTTP_409_CONFLICT)
+        except User.DoesNotExist:
+            token = uuid.uuid4()
+            invitation = models.Invitation.objects.create(
+                inviter=request.user, invitee=invitee_email, token=token
+            )
+            invitation.save()
+            utils.send_invite(
+                subject="Invitation to Join Freight Slayer",
+                template="send_invite.html",
+                to=invitee_email,
+                inviter_email=invitation.inviter.email,
+                url=f"{BASE_URL}/register/{invitation.token}/",
+            )
+            return Response(
+                status=status.HTTP_201_CREATED,
+                data=serializers.InvitationsSerializer(invitation).data,
+            )
+        except (BaseException) as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            return Response(
+                {"details": "something went wrong - CrINV."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
