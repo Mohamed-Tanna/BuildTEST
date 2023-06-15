@@ -1150,35 +1150,43 @@ class InvitationsHandlingView(APIView):
             )
 
     def post(self, request, *args, **kwargs):
-        if "token" not in request.data:
+        if "token" not in request.data or "action" not in request.data:
             return Response(
-                [{"details": "token field is required"}],
+                [{"details": "token and action fields are required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         token = request.data["token"]
+        action = request.data["action"]
         invitation = get_object_or_404(models.Invitation, token=token)
         if invitation.inviter != request.user and invitation.invitee != request.user:
-            return Response(
-                [{"details": "you do not have access to this resource."}],
-                status=status.HTTP_403_FORBIDDEN,
+                return Response(
+                    [{"details": "you do not have access to this resource."}],
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        if action == "accept":
+            inviter_user = User.objects.get(id=invitation.inviter.id)
+            invitee_user = User.objects.get(email=invitation.invitee)
+            inviter_app_user = get_object_or_404(models.AppUser, user=inviter_user)
+            invitee_app_user = get_object_or_404(models.AppUser, user=invitee_user)
+            iniviter_contact = ship_models.Contact.objects.create(
+                origin=inviter_user, contact=invitee_app_user
             )
-        inviter_user = User.objects.get(id=invitation.invitee.id)
-        invitee_user = User.objects.get(email=invitation.invitee)
-        inviter_app_user = models.AppUser.objects.get(user=inviter_user)
-        invitee_app_user = models.AppUser.objects.get(user=invitee_user)
-        iniviter_contact = ship_models.Contact.objects.create(
-            origin=inviter_user, contact=invitee_app_user
-        )
-        invitee_contact = ship_models.Contact.objects.create(
-            origin=invitee_user, contact=inviter_app_user
-        )
-        data = {
-            "inviter": ship_serializers.ContactCreateSerializer(iniviter_contact).data,
-            "invitee": ship_serializers.ContactCreateSerializer(invitee_contact).data,
-        }
-        invitation.delete()
-        return Response(status=status.HTTP_201_CREATED, data=data)
+            invitee_contact = ship_models.Contact.objects.create(
+                origin=invitee_user, contact=inviter_app_user
+            )
+            invitation.status = "accepted"
+            invitation.save()
+            data = {
+                "inviter": ship_serializers.ContactCreateSerializer(iniviter_contact).data,
+                "invitee": ship_serializers.ContactCreateSerializer(invitee_contact).data,
+            }
+            return Response(status=status.HTTP_201_CREATED, data=data)
+        
+        elif action == "reject":
+            invitation.status = "rejected"
+            invitation.save()
+            return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitation).data)
 
 
 class CreateInvitationView(APIView):
