@@ -1229,21 +1229,25 @@ class CreateInvitationView(GenericAPIView):
             )
         except User.DoesNotExist:
             inviter_app_user = get_object_or_404(models.AppUser, user=request.user)
-            invitation = models.Invitation.objects.create(
-                inviter=inviter_app_user, invitee=invitee_email
-            )
-            invitation.save()
-            utils.send_invite(
-                subject="Invitation to Join Freight Slayer",
-                template="send_invite.html",
-                to=invitee_email,
-                inviter_email=invitation.inviter.email,
-                url=f"{BASE_URL}/register/",
-            )
-            return Response(
-                status=status.HTTP_201_CREATED,
-                data=serializers.InvitationsSerializer(invitation).data,
-            )
+            try:
+                models.Invitation.objects.get(inviter=inviter_app_user, invitee=invitee_email)
+                return Response(data={"details": "you have already sent an invite to this email."}, status=status.HTTP_409_CONFLICT)
+            except models.Invitation.DoesNotExist:   
+                invitation = models.Invitation.objects.create(
+                    inviter=inviter_app_user, invitee=invitee_email
+                )
+                invitation.save()
+                utils.send_invite(
+                    subject="Invitation to Join Freight Slayer",
+                    template="send_invite.html",
+                    to=invitee_email,
+                    inviter_email=invitation.inviter.user.email,
+                    url=f"{BASE_URL}/register/",
+                )
+                return Response(
+                    status=status.HTTP_201_CREATED,
+                    data=serializers.InvitationsSerializer(invitation).data,
+                )
         except (BaseException) as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(
