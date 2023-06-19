@@ -1129,7 +1129,7 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
-    
+
     def post(self, request, *args, **kwargs):
         if "action" not in request.data or "id" not in request.data:
             return Response(
@@ -1139,12 +1139,14 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
 
         invitation_id = request.data["id"]
         action = request.data["action"]
-        invitation = get_object_or_404(models.Invitation, id=invitation_id, status="pending")
+        invitation = get_object_or_404(
+            models.Invitation, id=invitation_id, status="pending"
+        )
         if invitation.invitee != request.user.email:
-                return Response(
-                    [{"details": "you do not have permission to edit this resource."}],
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            return Response(
+                [{"details": "you do not have permission to edit this resource."}],
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if action == "accept":
             invitee_user = get_object_or_404(User, email=invitation.invitee)
             invitee_app_user = get_object_or_404(models.AppUser, user=invitee_user)
@@ -1157,41 +1159,41 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
             invitation.status = "accepted"
             invitation.save()
             data = {
-                "inviter": ship_serializers.ContactCreateSerializer(iniviter_contact).data,
-                "invitee": ship_serializers.ContactCreateSerializer(invitee_contact).data,
+                "inviter": ship_serializers.ContactCreateSerializer(
+                    iniviter_contact
+                ).data,
+                "invitee": ship_serializers.ContactCreateSerializer(
+                    invitee_contact
+                ).data,
             }
             return Response(status=status.HTTP_201_CREATED, data=data)
-        
+
         elif action == "reject":
             invitation.status = "rejected"
             invitation.save()
-            return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitation).data)
+            return Response(
+                status=status.HTTP_200_OK,
+                data=serializers.InvitationsSerializer(invitation).data,
+            )
 
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method." % self.__class__.__name__
+            "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method."
+            % self.__class__.__name__
         )
-        app_user = get_object_or_404(models.AppUser, user=self.request.user) 
-        inviter_invitations = models.Invitation.objects.filter(inviter=app_user)
-        invitee_invitations = models.Invitation.objects.filter(invitee=app_user.user.email, status="pending")
-        queryset = inviter_invitations.union(invitee_invitations)
+        app_user = get_object_or_404(models.AppUser, user=self.request.user)
+        queryset = models.Invitation.objects.filter(inviter=app_user)
         return queryset
-    
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        if not queryset.exists():
-            return Response(
-                {"detail": "No invitations found for the user."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
-class CreateInvitationView(APIView):
+
+class CreateInvitationView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
     queryset = models.Invitation.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        self.list(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         if "invitee" not in request.data:
@@ -1203,7 +1205,10 @@ class CreateInvitationView(APIView):
         invitee_email = request.data["invitee"]
         try:
             User.objects.get(email=invitee_email)
-            return Response({"details": "user already exists, try adding them as a contact."}, status=status.HTTP_409_CONFLICT)
+            return Response(
+                {"details": "user already exists, try adding them as a contact."},
+                status=status.HTTP_409_CONFLICT,
+            )
         except User.DoesNotExist:
             inviter_app_user = get_object_or_404(models.AppUser, user=request.user)
             invitation = models.Invitation.objects.create(
@@ -1227,3 +1232,25 @@ class CreateInvitationView(APIView):
                 {"details": "something went wrong - CrINV."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    def get_queryset(self):
+        queryset = self.queryset
+        assert queryset is not None, (
+            "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method."
+            % self.__class__.__name__
+        )
+        app_user = models.AppUser.objects.get(user=self.request.user)
+        queryset = models.Invitation.objects.filter(
+            invitee=app_user.user.email, status="pending"
+        )
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        if not queryset.exists():
+            return Response(
+                {"detail": "No invitations found for the user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

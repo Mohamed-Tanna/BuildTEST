@@ -142,5 +142,5 @@ class InvitationsSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance: models.Invitation):
         rep = super().to_representation(instance)
-        rep["inviter"] = UserSerializer(instance.inviter).data
+        rep["inviter"] = AppUserSerializer(instance.inviter).data
         return rep
