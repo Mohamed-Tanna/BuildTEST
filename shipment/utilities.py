@@ -3,9 +3,6 @@ import shipment.models as models
 from rest_framework import status
 from rest_framework.response import Response
 import string, random
-from django.template.loader import get_template
-from django.utils.html import strip_tags
-from django.core.mail import EmailMultiAlternatives
 
 
 def get_shipment_party_by_username(username):

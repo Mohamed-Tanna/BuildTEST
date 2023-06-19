@@ -150,9 +150,8 @@ class UserTax(models.Model):
 
 
 class Invitation(models.Model):
-    inviter = models.ForeignKey(User, on_delete=models.CASCADE)
+    inviter = models.ForeignKey(AppUser, on_delete=models.CASCADE)
     invitee = models.EmailField()
-    token = models.UUIDField(unique=True, null=False, blank=False, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         choices=[("pending", "pending"), ("accepted", "accepted"), ("rejected", "rejected")],

@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
+from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelMixin
 
 # third party imports
 from drf_yasg import openapi
@@ -1122,58 +1122,37 @@ class SelectRoleView(APIView):
         )
 
 
-class InvitationsHandlingView(APIView):
+class InvitationsHandlingView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
     queryset = models.Invitation.objects.all()
 
     def get(self, request, *args, **kwargs):
-        if "token" in request.query_params:
-            token = request.query_params["token"]
-            invitation = get_object_or_404(models.Invitation, token=token)
-            invitee = User.objects.get(email=invitation.invitee)
-            if invitee != request.user:
-                return Response(
-                    [{"details": "you are not the invitee"}],
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            return Response(
-                status=status.HTTP_200_OK,
-                data=serializers.InvitationsSerializer(invitation).data,
-            )
-
-        else:
-            invitations = models.Invitation.objects.filter(inviter=request.user)
-            return Response(
-                status=status.HTTP_200_OK,
-                data=serializers.InvitationsSerializer(invitations, many=True).data,
-            )
-
+        return self.list(request, *args, **kwargs)
+    
     def post(self, request, *args, **kwargs):
-        if "token" not in request.data or "action" not in request.data:
+        if "action" not in request.data or "id" not in request.data:
             return Response(
-                [{"details": "token and action fields are required"}],
+                [{"details": "id and action fields are required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        token = request.data["token"]
+        invitation_id = request.data["id"]
         action = request.data["action"]
-        invitation = get_object_or_404(models.Invitation, token=token)
-        if invitation.inviter != request.user and invitation.invitee != request.user:
+        invitation = get_object_or_404(models.Invitation, id=invitation_id, status="pending")
+        if invitation.invitee != request.user.email:
                 return Response(
-                    [{"details": "you do not have access to this resource."}],
+                    [{"details": "you do not have permission to edit this resource."}],
                     status=status.HTTP_403_FORBIDDEN,
                 )
         if action == "accept":
-            inviter_user = User.objects.get(id=invitation.inviter.id)
-            invitee_user = User.objects.get(email=invitation.invitee)
-            inviter_app_user = get_object_or_404(models.AppUser, user=inviter_user)
+            invitee_user = get_object_or_404(User, email=invitation.invitee)
             invitee_app_user = get_object_or_404(models.AppUser, user=invitee_user)
             iniviter_contact = ship_models.Contact.objects.create(
-                origin=inviter_user, contact=invitee_app_user
+                origin=invitation.inviter.user, contact=invitee_app_user
             )
             invitee_contact = ship_models.Contact.objects.create(
-                origin=invitee_user, contact=inviter_app_user
+                origin=invitee_user, contact=invitation.inviter
             )
             invitation.status = "accepted"
             invitation.save()
@@ -1188,6 +1167,26 @@ class InvitationsHandlingView(APIView):
             invitation.save()
             return Response(status=status.HTTP_200_OK, data=serializers.InvitationsSerializer(invitation).data)
 
+    def get_queryset(self):
+        queryset = self.queryset
+        assert queryset is not None, (
+            "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        app_user = get_object_or_404(models.AppUser, user=self.request.user) 
+        inviter_invitations = models.Invitation.objects.filter(inviter=app_user)
+        invitee_invitations = models.Invitation.objects.filter(invitee=app_user.user.email, status="pending")
+        queryset = inviter_invitations.union(invitee_invitations)
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        if not queryset.exists():
+            return Response(
+                {"detail": "No invitations found for the user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CreateInvitationView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
@@ -1195,7 +1194,6 @@ class CreateInvitationView(APIView):
     queryset = models.Invitation.objects.all()
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
         if "invitee" not in request.data:
             return Response(
                 [{"details": "invitee field is required"}],
@@ -1207,9 +1205,9 @@ class CreateInvitationView(APIView):
             User.objects.get(email=invitee_email)
             return Response({"details": "user already exists, try adding them as a contact."}, status=status.HTTP_409_CONFLICT)
         except User.DoesNotExist:
-            token = uuid.uuid4()
+            inviter_app_user = get_object_or_404(models.AppUser, user=request.user)
             invitation = models.Invitation.objects.create(
-                inviter=request.user, invitee=invitee_email, token=token
+                inviter=inviter_app_user, invitee=invitee_email
             )
             invitation.save()
             utils.send_invite(
@@ -1217,7 +1215,7 @@ class CreateInvitationView(APIView):
                 template="send_invite.html",
                 to=invitee_email,
                 inviter_email=invitation.inviter.email,
-                url=f"{BASE_URL}/register/{invitation.token}/",
+                url=f"{BASE_URL}/register/",
             )
             return Response(
                 status=status.HTTP_201_CREATED,
