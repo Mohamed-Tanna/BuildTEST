@@ -1175,6 +1175,12 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
                 status=status.HTTP_200_OK,
                 data=serializers.InvitationsSerializer(invitation).data,
             )
+        
+        else:
+            return Response(
+                [{"details": "invalid action"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     def get_queryset(self):
         queryset = self.queryset
@@ -1187,13 +1193,25 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class CreateInvitationView(GenericAPIView, ListModelMixin):
+class CreateInvitationView(GenericAPIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
     queryset = models.Invitation.objects.all()
 
     def get(self, request, *args, **kwargs):
-        self.list(request, *args, **kwargs)
+        app_user = models.AppUser.objects.get(user=self.request.user)
+        queryset = models.Invitation.objects.filter(
+            invitee=app_user.user.email, status="pending"
+        )
+        if not queryset.exists():
+            return Response(
+                {"detail": "No invitations found for the user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+            
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
 
     def post(self, request, *args, **kwargs):
         if "invitee" not in request.data:
@@ -1232,25 +1250,3 @@ class CreateInvitationView(GenericAPIView, ListModelMixin):
                 {"details": "something went wrong - CrINV."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    def get_queryset(self):
-        queryset = self.queryset
-        assert queryset is not None, (
-            "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method."
-            % self.__class__.__name__
-        )
-        app_user = models.AppUser.objects.get(user=self.request.user)
-        queryset = models.Invitation.objects.filter(
-            invitee=app_user.user.email, status="pending"
-        )
-        return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        if not queryset.exists():
-            return Response(
-                {"detail": "No invitations found for the user."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
