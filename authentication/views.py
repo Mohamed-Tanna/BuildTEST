@@ -1184,12 +1184,18 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
 
     def get_queryset(self):
         queryset = self.queryset
+        target = self.request.query_params.get("target", "all")
         assert queryset is not None, (
             "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method."
             % self.__class__.__name__
         )
         app_user = get_object_or_404(models.AppUser, user=self.request.user)
-        queryset = models.Invitation.objects.filter(inviter=app_user)
+        if target=="all":
+            queryset = models.Invitation.objects.filter(inviter=app_user)
+        elif target == "pending" or target == "accepted" or target == "rejected":
+            queryset = models.Invitation.objects.filter(inviter=app_user, status=target)
+        else:
+            queryset = models.Invitation.objects.none()
         return queryset
 
 
