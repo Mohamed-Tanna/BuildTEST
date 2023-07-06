@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "defender",
     "corsheaders",
     "drf_yasg",
+    "notifications",
 ]
 
 MIDDLEWARE = [
