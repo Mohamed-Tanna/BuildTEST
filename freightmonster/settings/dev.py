@@ -89,6 +89,12 @@ MEMORYSTOREIP = client.access_secret_version(
 
 REDIS_HOST = f"{MEMORYSTOREIP}:6379"
 
+MEMORYSTOREIP = client.access_secret_version(
+    request={
+        "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('RED_IP')}/versions/latest"
+    }
+).payload.data.decode("UTF-8")
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",

@@ -30,7 +30,6 @@ CSRF_TRUSTED_ORIGINS = ["https://app-staging.freightslayer.com/"]
 for ip in ipaddress.IPv4Network("10.0.1.0/24"):
     ALLOWED_HOSTS.append(str(ip))
 
-
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
 email_host_password = client.access_secret_version(
