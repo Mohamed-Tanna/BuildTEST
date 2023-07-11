@@ -31,4 +31,5 @@ urlpatterns = [
     path("authentication/", include("authentication.urls")),
     path("shipment/", include("shipment.urls")),
     path("docs/", include("document.urls")),
+    path("invites/", include("invitation.urls")),
 ]

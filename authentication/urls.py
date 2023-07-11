@@ -40,6 +40,5 @@ urlpatterns = [
     path("tax-info/", views.TaxInfoView.as_view()),
     path("add-role/", views.AddRoleView.as_view()),
     path("select-role/", views.SelectRoleView.as_view()),
-    path("send-invite/", views.CreateInvitationView.as_view()),
-    path("handle-invite/", views.InvitationsHandlingView.as_view()),
+    path("change-password/", views.ChangePasswordView.as_view()),
 ]

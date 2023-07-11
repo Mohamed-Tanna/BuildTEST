@@ -15,7 +15,7 @@ class NotificationSetting(models.Model):
     methods = models.CharField(
         choices=[("email", "email"), ("sms", "sms"), ("both", "both")],
         default="email",
-        max_length=4,
+        max_length=5,
     )
     add_as_contact = models.BooleanField(default=True)
     add_to_load = models.BooleanField(default=True)
@@ -27,3 +27,4 @@ class NotificationSetting(models.Model):
     load_to_delivered = models.BooleanField(default=True)
     load_to_canceled = models.BooleanField(default=True)
     RC_approved = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)

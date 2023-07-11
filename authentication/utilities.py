@@ -127,27 +127,3 @@ def check_mc_number(mc_number):
                 ],
                 status=status.HTTP_403_FORBIDDEN,
             )
-
-
-def send_invite(subject, template, to, inviter_email, url):
-    username = to.split("@")[0].capitalize()
-    html_content = get_template(template).render(
-        {
-            "username": username,
-            "inviter": inviter_email,
-            "url": url,
-        }
-    )
-    text_content = strip_tags(html_content)
-    message = EmailMultiAlternatives(
-        subject=subject,
-        body=html_content,
-        from_email="notifications@freightslayer.com",
-        to=[to],
-        reply_to=["a.othman@cloudypedia.com"],
-    )
-    message.attach_alternative(html_content, "text/html")
-    message.content_subtype = "html"
-    message.mixed_subtype = "related"
-    res = message.send()
-    print(res)

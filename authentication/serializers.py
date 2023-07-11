@@ -134,13 +134,3 @@ class UserTaxSerializer(serializers.ModelSerializer):
         rep["address"] = AddressSerializer(instance.address).data
         return rep
 
-
-class InvitationsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Invitation
-        fields = "__all__"
-
-    def to_representation(self, instance: models.Invitation):
-        rep = super().to_representation(instance)
-        rep["inviter"] = AppUserSerializer(instance.inviter).data
-        return rep

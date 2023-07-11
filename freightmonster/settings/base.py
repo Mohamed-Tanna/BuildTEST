@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_yasg",
     "notifications",
+    "invitation",
 ]
 
 MIDDLEWARE = [
@@ -86,7 +87,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {
-            "min_length": 12,
+            "min_length": 8,
         },
     },
     {
@@ -98,6 +99,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "pwned_passwords_django.validators.PwnedPasswordsValidator",
     },
+    {
+        "NAME": "authentication.validators.CustomPasswordValidator",
+    }
 ]
 
 REST_FRAMEWORK = {

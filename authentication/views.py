@@ -1,8 +1,3 @@
-# Python imports
-import os
-import uuid
-from rest_framework.exceptions import ValidationError
-
 # Module imports
 import authentication.models as models
 import shipment.utilities as ship_utils
@@ -25,20 +20,15 @@ from rest_framework import exceptions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelMixin
+from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 
 # third party imports
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from allauth.account.models import EmailAddress
 
-if os.getenv("ENV") == "DEV":
-    from freightmonster.settings.dev import BASE_URL
-elif os.getenv("ENV") == "STAGING":
-    from freightmonster.settings.staging import BASE_URL
-else:
-    from freightmonster.settings.local import BASE_URL
 
 SHIPMENT_PARTY = "shipment party"
 
@@ -1122,141 +1112,52 @@ class SelectRoleView(APIView):
         )
 
 
-class InvitationsHandlingView(GenericAPIView, ListModelMixin):
+class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
-    serializer_class = serializers.InvitationsSerializer
-    queryset = models.Invitation.objects.all()
 
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        if "action" not in request.data or "id" not in request.data:
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["old_password", "new_password"],
+            properties={
+                "old_password": openapi.Schema(type=openapi.TYPE_STRING),
+                "new_password": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: "OK",
+            400: "BAD REQUEST",
+            404: "NOT FOUND",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        if "old_password" not in request.data or "new_password" not in request.data:
             return Response(
-                [{"details": "id and action fields are required"}],
+                [{"details": "old password and new_password fields are required"}],
                 status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        invitation_id = request.data["id"]
-        action = request.data["action"]
-        invitation = get_object_or_404(
-            models.Invitation, id=invitation_id, status="pending"
-        )
-        if invitation.invitee != request.user.email:
-            return Response(
-                [{"details": "you do not have permission to edit this resource."}],
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if action == "accept":
-            invitee_user = get_object_or_404(User, email=invitation.invitee)
-            invitee_app_user = get_object_or_404(models.AppUser, user=invitee_user)
-            iniviter_contact = ship_models.Contact.objects.create(
-                origin=invitation.inviter.user, contact=invitee_app_user
-            )
-            invitee_contact = ship_models.Contact.objects.create(
-                origin=invitee_user, contact=invitation.inviter
-            )
-            invitation.status = "accepted"
-            invitation.save()
-            data = {
-                "inviter": ship_serializers.ContactCreateSerializer(
-                    iniviter_contact
-                ).data,
-                "invitee": ship_serializers.ContactCreateSerializer(
-                    invitee_contact
-                ).data,
-            }
-            return Response(status=status.HTTP_201_CREATED, data=data)
-
-        elif action == "reject":
-            invitation.status = "rejected"
-            invitation.save()
-            return Response(
-                status=status.HTTP_200_OK,
-                data=serializers.InvitationsSerializer(invitation).data,
             )
         
-        else:
+        if request.data["old_password"] == request.data["new_password"]:
             return Response(
-                [{"details": "invalid action"}],
+                [{"details": "old password and new password cannot be the same"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-    def get_queryset(self):
-        queryset = self.queryset
-        target = self.request.query_params.get("target", "all")
-        assert queryset is not None, (
-            "'%s' should either include a `queryset` attribute, or override the `get_queryset()` method."
-            % self.__class__.__name__
-        )
-        app_user = get_object_or_404(models.AppUser, user=self.request.user)
-        if target=="all":
-            queryset = models.Invitation.objects.filter(inviter=app_user)
-        elif target == "pending" or target == "accepted" or target == "rejected":
-            queryset = models.Invitation.objects.filter(inviter=app_user, status=target)
-        else:
-            queryset = models.Invitation.objects.none()
-        return queryset
-
-
-class CreateInvitationView(GenericAPIView):
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
-    serializer_class = serializers.InvitationsSerializer
-    queryset = models.Invitation.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        app_user = models.AppUser.objects.get(user=self.request.user)
-        queryset = models.Invitation.objects.filter(
-            invitee=app_user.user.email, status="pending"
-        )
-        if not queryset.exists():
-            return Response(
-                {"detail": "No invitations found for the user."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-            
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
         
-
-    def post(self, request, *args, **kwargs):
-        if "invitee" not in request.data:
+        if request.data["new_password"] != request.data["confirm_password"]:
             return Response(
-                [{"details": "invitee field is required"}],
+                [{"details": "new password and confirm password do not match"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        invitee_email = request.data["invitee"]
-        try:
-            User.objects.get(email=invitee_email)
+        if (
+            not request.user.check_password(request.data["old_password"])
+        ):
             return Response(
-                {"details": "user already exists, try adding them as a contact."},
-                status=status.HTTP_409_CONFLICT,
+                [{"details": "old password is incorrect"}],
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except User.DoesNotExist:
-            inviter_app_user = get_object_or_404(models.AppUser, user=request.user)
-            try:
-                models.Invitation.objects.get(inviter=inviter_app_user, invitee=invitee_email)
-                return Response(data={"details": "you have already sent an invite to this email."}, status=status.HTTP_409_CONFLICT)
-            except models.Invitation.DoesNotExist:   
-                invitation = models.Invitation.objects.create(
-                    inviter=inviter_app_user, invitee=invitee_email
-                )
-                invitation.save()
-                utils.send_invite(
-                    subject="Invitation to Join Freight Slayer",
-                    template="send_invite.html",
-                    to=invitee_email,
-                    inviter_email=invitation.inviter.user.email,
-                    url=f"{BASE_URL}/register/",
-                )
-                return Response(
-                    status=status.HTTP_201_CREATED,
-                    data=serializers.InvitationsSerializer(invitation).data,
-                )
-        except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            return Response(
-                {"details": "something went wrong - CrINV."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+
+        request.user.set_password(request.data["new_password"])
+        request.user.save()
+        return Response(status=status.HTTP_200_OK)
