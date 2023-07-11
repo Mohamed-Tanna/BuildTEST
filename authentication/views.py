@@ -1134,19 +1134,19 @@ class ChangePasswordView(APIView):
     def put(self, request, *args, **kwargs):
         if "old_password" not in request.data or "new_password" not in request.data:
             return Response(
-                [{"details": "old password and new_password fields are required"}],
+                {"details": "old password and new password fields are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
         if request.data["old_password"] == request.data["new_password"]:
             return Response(
-                [{"details": "old password and new password cannot be the same"}],
+                {"details": "old password and new password cannot be the same"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
         if request.data["new_password"] != request.data["confirm_password"]:
             return Response(
-                [{"details": "new password and confirm password do not match"}],
+                {"details": "new password and confirm password do not match"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -1154,7 +1154,7 @@ class ChangePasswordView(APIView):
             not request.user.check_password(request.data["old_password"])
         ):
             return Response(
-                [{"details": "old password is incorrect"}],
+                {"details": "old password is incorrect"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
