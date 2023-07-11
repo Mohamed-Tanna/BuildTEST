@@ -1,7 +1,3 @@
-# Python imports
-import uuid
-from rest_framework.exceptions import ValidationError
-
 # Module imports
 import authentication.models as models
 import shipment.utilities as ship_utils
@@ -24,14 +20,15 @@ from rest_framework import exceptions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 
 # third party imports
 from drf_yasg import openapi
-from google.cloud import secretmanager
 from drf_yasg.utils import swagger_auto_schema
 from allauth.account.models import EmailAddress
+
 
 SHIPMENT_PARTY = "shipment party"
 
@@ -1115,85 +1112,52 @@ class SelectRoleView(APIView):
         )
 
 
-class InvitationsHandlingView(APIView):
+class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
-    serializer_class = serializers.InvitationsSerializer
-    queryset = models.Invitation.objects.all()
 
-    def get(self, request, *args, **kwargs):
-        if "token" in request.query_params:
-            token = request.query_params["token"]
-            invitation = get_object_or_404(models.Invitation, token=token)
-            invitee = User.objects.get(email=invitation.invitee)
-            if invitee != request.user:
-                return Response(
-                    [{"details": "you are not the invitee"}],
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["old_password", "new_password"],
+            properties={
+                "old_password": openapi.Schema(type=openapi.TYPE_STRING),
+                "new_password": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            200: "OK",
+            400: "BAD REQUEST",
+            404: "NOT FOUND",
+            500: "INTERNAL SERVER ERROR",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        if "old_password" not in request.data or "new_password" not in request.data:
             return Response(
-                status=status.HTTP_200_OK,
-                data=serializers.InvitationsSerializer(invitation).data,
+                [{"details": "old password and new_password fields are required"}],
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
-        else:
-            invitations = models.Invitation.objects.filter(inviter=request.user)
+        
+        if request.data["old_password"] == request.data["new_password"]:
             return Response(
-                status=status.HTTP_200_OK,
-                data=serializers.InvitationsSerializer(invitations, many=True).data,
+                [{"details": "old password and new password cannot be the same"}],
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
-    def post(self, request, *args, **kwargs):
-        if "token" not in request.data:
+        
+        if request.data["new_password"] != request.data["confirm_password"]:
             return Response(
-                [{"details": "token field is required"}],
+                [{"details": "new password and confirm password do not match"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        token = request.data["token"]
-        invitation = get_object_or_404(models.Invitation, token=token)
-        if invitation.inviter != request.user and invitation.invitee != request.user:
+        if (
+            not request.user.check_password(request.data["old_password"])
+        ):
             return Response(
-                [{"details": "you do not have access to this resource."}],
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        inviter_user = User.objects.get(id=invitation.invitee.id)
-        invitee_user = User.objects.get(email=invitation.invitee)
-        inviter_app_user = models.AppUser.objects.get(user=inviter_user)
-        invitee_app_user = models.AppUser.objects.get(user=invitee_user)
-        iniviter_contact = ship_models.Contact.objects.create(
-            origin=inviter_user, contact=invitee_app_user
-        )
-        invitee_contact = ship_models.Contact.objects.create(
-            origin=invitee_user, contact=inviter_app_user
-        )
-        data = {
-            "inviter": ship_serializers.ContactCreateSerializer(iniviter_contact).data,
-            "invitee": ship_serializers.ContactCreateSerializer(invitee_contact).data,
-        }
-        invitation.delete()
-        return Response(status=status.HTTP_201_CREATED, data=data)
-
-
-class CreateInvitationView(APIView):
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
-    serializer_class = serializers.InvitationsSerializer
-    queryset = models.Invitation.objects.all()
-
-    def post(self, request, *args, **kwargs):
-        if "email" not in request.data:
-            return Response(
-                [{"details": "invitee field is required"}],
+                [{"details": "old password is incorrect"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        invitee_email = request.data["email"]
-        token = uuid.uuid4()
-        invitation = models.Invitation.objects.create(
-            inviter=request.user, invitee=invitee_email, token=token
-        )
-        invitation.save()
-        # remaining code to send email including the signup URL with the token attached to it
-        return Response(
-            status=status.HTTP_201_CREATED,
-            data=serializers.InvitationsSerializer(invitation).data,
-        )
+        request.user.set_password(request.data["new_password"])
+        request.user.save()
+        return Response(status=status.HTTP_200_OK)

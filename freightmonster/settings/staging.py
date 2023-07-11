@@ -23,6 +23,7 @@ secret_key = client.access_secret_version(
 
 SECRET_KEY = secret_key.payload.data.decode("UTF-8")
 
+BASE_URL="https://staging.freightslayer.com"
 ALLOWED_HOSTS = ["app-staging.freightslayer.com"]
 CSRF_TRUSTED_ORIGINS = ["https://app-staging.freightslayer.com/"]
 

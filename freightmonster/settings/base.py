@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     "defender",
     "corsheaders",
     "drf_yasg",
+    "notifications",
+    "invitation",
 ]
 
 MIDDLEWARE = [
@@ -59,7 +61,7 @@ ROOT_URLCONF = "freightmonster.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, 'templates')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -85,7 +87,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {
-            "min_length": 12,
+            "min_length": 8,
         },
     },
     {
@@ -97,6 +99,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "pwned_passwords_django.validators.PwnedPasswordsValidator",
     },
+    {
+        "NAME": "authentication.validators.CustomPasswordValidator",
+    }
 ]
 
 REST_FRAMEWORK = {

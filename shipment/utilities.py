@@ -225,3 +225,4 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
     if load.carrier.app_user == app_user:
         return True
     return False
+

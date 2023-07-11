@@ -2,7 +2,10 @@ from rest_framework import status
 import authentication.models as models
 from google.cloud import secretmanager
 import string, random, os, re, requests
+from django.utils.html import strip_tags
 from rest_framework.response import Response
+from django.template.loader import get_template
+from django.core.mail import EmailMultiAlternatives
 
 
 def create_address(created_by, address, city, state, country, zip_code):

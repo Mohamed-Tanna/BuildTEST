@@ -147,13 +147,3 @@ class UserTax(models.Model):
     address = models.OneToOneField(
         to=Address, null=False, blank=False, on_delete=models.CASCADE
     )
-
-
-class Invitation(models.Model):
-    inviter = models.ForeignKey(User, on_delete=models.CASCADE)
-    invitee = models.EmailField()
-    token = models.UUIDField(unique=True, null=False, blank=False, editable=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.inviter} invited {self.invitee} at {self.created_at}"

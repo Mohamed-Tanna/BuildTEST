@@ -42,16 +42,11 @@ class UserTaxAdmin(admin.ModelAdmin):
     list_display = ["id", "app_user", "TIN"]
 
 
-class InvitationAdmin(admin.ModelAdmin):
-    list_display = ["id", "inviter", "invitee", "created_at"]
-
-
 admin.site.register(models.AppUser, admin_class=AppUserAdmin)
 admin.site.register(models.Carrier, admin_class=CarrierAdmin)
-admin.site.register(models.Dispatcher, admin_class=DispatcherAdmin)
-admin.site.register(models.ShipmentParty, admin_class=ShipmentPartyAdmin)
 admin.site.register(models.Company, admin_class=CompanyAdmin)
 admin.site.register(models.Address, admin_class=AddressAdmin)
-admin.site.register(models.CompanyEmployee, admin_class=CompanyEmployeeAdmin)
 admin.site.register(models.UserTax, admin_class=UserTaxAdmin)
-admin.site.register(models.Invitation, admin_class=InvitationAdmin)
+admin.site.register(models.Dispatcher, admin_class=DispatcherAdmin)
+admin.site.register(models.ShipmentParty, admin_class=ShipmentPartyAdmin)
+admin.site.register(models.CompanyEmployee, admin_class=CompanyEmployeeAdmin)
