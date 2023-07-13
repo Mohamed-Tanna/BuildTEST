@@ -23,7 +23,6 @@ else:
     from freightmonster.settings.local import BASE_URL
 
 
-
 class InvitationsHandlingView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer

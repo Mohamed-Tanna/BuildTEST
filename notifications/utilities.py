@@ -48,26 +48,26 @@ def get_notification_msg(
     user: User = None,
 ):
     if action == "added as a contact":
-        return f"{user.username} has added you as a contact"
+        return f"You have been added as a contact by {user.username}."
     elif action == "added to a load":
         roles = find_user_roles_in_a_load(load, user)
-        return f"You have been added to this load {load.name} as a {', '.join(roles)}"
+        return f"You have been added to the load {load.name} as a {', '.join(roles)}"
     elif action == "got an offer":
-        return f"{load.dispatcher} has sent you an offer on this load {load.name}"
+        return f"{load.dispatcher} has sent you an offer for the load '{load.name}'."
     elif action == "got a counter":
-        return f"{user.username} has countered your offer on load {load.name}"
+        return f"{user.username} has countered your offer on the load '{load.name}'."
     elif action == "added as a shipment admin":
-        return f"{user.username} has added you as a shipment admin on shipment {shipment.name}"
+        return f"You have been added as a shipment admin by {user.username} for shipment '{shipment.name}'."
     elif action == "load is ready for pick up":
-        return f"load {load.name} is now ready for pickup" 
+        return f"The load '{load.name}' is now ready for pickup." 
     elif action == "load is in transit":
-        return f"load {load.name} has been picked up and is now in transit" 
+        return f"The load '{load.name}' has been picked up and is now in transit."
     elif action == "load is delivered":
-        return f"load {load.name} has been delivered succefully"
+        return f"The load '{load.name}' has been delivered successfully."
     elif action == "RC is approved":
-        return f"{user.username} has approved the rate confirmation on load {load.name}"
+        return f"{user.username} has approved the rate confirmation for the load '{load.name}'."
     elif action == "load is canceled":
-        return f"load {load.name} has been cancelled"
+        return f"The load '{load.name}' has been canceled."
 
 
 def find_user_roles_in_a_load(load:Load, user:User):

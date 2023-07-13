@@ -20,6 +20,8 @@ urlpatterns = [
     path("reject-load/", views.DispatcherRejectView.as_view()),
     path("load-status/", views.UpdateLoadStatus.as_view()),
     path("dashboard/", views.DashboardView.as_view()),
+    path("search-loads/", views.LoadSearchView.as_view()),
+    path("search-contacts/", views.ContactSearchView.as_view()),
     # Fixed URL - always insert above
     path("<id>/", views.ShipmentView.as_view()),
     path("", views.ShipmentView.as_view()),

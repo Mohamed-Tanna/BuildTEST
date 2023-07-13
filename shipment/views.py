@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.mixins import (
     CreateModelMixin,
     UpdateModelMixin,
@@ -2155,3 +2156,88 @@ class DashboardView(APIView):
             result["chart"].append(obj)
 
         return Response(data=result, status=status.HTTP_200_OK)
+
+
+class LoadSearchView(APIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+    pagination_class = PageNumberPagination
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "search": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="search string"
+                )
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: "Loads found.",
+            status.HTTP_400_BAD_REQUEST: "Validation Error",
+            status.HTTP_403_FORBIDDEN: "Forbidden",
+            status.HTTP_404_NOT_FOUND: "Loads Not Found",
+            status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal Server Error",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        app_user = utils.get_app_user_by_username(username=request.user.username)
+        filter_query = Q(created_by=app_user.id)
+        if app_user.selected_role == SHIPMENT_PARTY:
+            shipment_party = utils.get_shipment_party_by_username(
+                username=request.user.username
+            )
+            filter_query |= (
+                Q(shipper=shipment_party)
+                | Q(consignee=shipment_party)
+                | Q(customer=shipment_party)
+            )
+
+        elif app_user.selected_role == "dispatcher":
+            dispatcher = utils.get_dispatcher_by_username(
+                username=request.user.username
+            )
+            filter_query |= Q(dispatcher=dispatcher)
+
+        elif app_user.selected_role == "carrier":
+            carrier = utils.get_carrier_by_username(username=request.user.username)
+            filter_query |= Q(carrier=carrier)
+
+        loads = models.Load.objects.filter(filter_query)
+        if loads.exists() is False:
+            return Response(
+                data={"detail": "No loads found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if "search" in request.data:
+            search = request.data["search"]
+            loads = loads.filter(name__icontains=search)
+
+        paginator = self.pagination_class()
+        paginated_loads = paginator.paginate_queryset(loads.order_by("-id"), request)
+        loads = serializers.LoadListSerializer(paginated_loads, many=True).data
+
+        return paginator.get_paginated_response(loads)
+
+
+class ContactSearchView(GenericAPIView, ListModelMixin):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+
+    def post(self, request, *args, **kwargs):
+        """search for contacts"""
+        return self.list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        assert self.queryset is not None, (
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+        )
+        if "search" not in self.request.data:
+            queryset = models.Contact.objects.filter(origin=self.request.user.id)
+            return queryset
+        
+        search = self.request.data["search"]
+        queryset = models.Contact.objects.filter(
+            Q(origin=self.request.user.id) & Q(contact__username__icontains=search)
+        )
+        if isinstance(queryset, QuerySet):
+            queryset = queryset.all()
+
+        return queryset
