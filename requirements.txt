@@ -33,7 +33,7 @@ django-ipware==4.0.2
 djangochannelsrestframework==1.1.0
 djangorestframework==3.13.1
 djangorestframework-simplejwt==5.2.0
-drf-spectacular==0.26.3
+# drf-spectacular==0.26.3
 google-api-core==2.10.2
 google-auth==2.14.1
 google-cloud-core==2.3.2
