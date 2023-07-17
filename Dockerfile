@@ -31,8 +31,6 @@ RUN apk add --no-cache bash
 
 RUN pip install --upgrade pip
 
-RUN pip install drf-spectacular==0.26.3
-
 RUN pip install \
         -r /wheels/requirements.txt \
         -f /wheels \
