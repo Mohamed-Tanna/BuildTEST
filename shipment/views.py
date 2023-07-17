@@ -32,8 +32,8 @@ from rest_framework.mixins import (
 )
 
 # ThirdParty imports
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, OpenApiExample
 
 IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
@@ -58,32 +58,68 @@ class FacilityView(
     queryset = models.Facility.objects.all()
     serializer_class = serializers.FacilitySerializer
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=[
-                "address",
-                "building_name",
-                "city",
-                "state",
-                "zip_code",
-                "country",
-            ],
-            properties={
-                "address": openapi.Schema(type=openapi.TYPE_STRING),
-                "building_name": openapi.Schema(type=openapi.TYPE_STRING),
-                "city": openapi.Schema(type=openapi.TYPE_STRING),
-                "state": openapi.Schema(type=openapi.TYPE_STRING),
-                "zip_code": openapi.Schema(type=openapi.TYPE_STRING),
-                "country": openapi.Schema(type=openapi.TYPE_STRING),
-                "extra_info": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            201: "CREATED",
-            400: "BAD REQUEST",
-            500: "INTERNAL SERVER ERROR",
-        },
+    @extend_schema(
+        request=serializers.FacilitySerializer,
+        responses={200: serializers.FacilitySerializer},
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                description="Facility ID",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="name",
+                description="Facility Name",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="address",
+                description="Facility Address",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="city",
+                description="Facility City",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="state",
+                description="Facility State",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="country",
+                description="Facility Country",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="zip_code",
+                description="Facility Zip Code",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+        examples=[
+            OpenApiExample(
+                "Example 1",
+                summary="Example 1",
+                description="Example 1",
+                value={
+                    "id": "1",
+                    "name": "Facility Name",
+                    "city": "Facility City",
+                    "state": "Facility State",
+                    "country": "Facility Country",
+                    "zip_code": "Facility Zip Code",
+                },
+            ),
+        ],
     )
     def post(self, request, *args, **kwargs):
 
@@ -98,16 +134,68 @@ class FacilityView(
 
         return self.create(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Return a list of facilities or a specific facility based on a given ID.",
-                serializers.FacilitySerializer,
+    @extend_schema(
+        request=serializers.FacilitySerializer,
+        responses={200: serializers.FacilitySerializer},
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                description="Facility ID",
+                required=False,
+                type=OpenApiTypes.STR,
             ),
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
+            OpenApiParameter(
+                name="name",
+                description="Facility Name",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="address",
+                description="Facility Address",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="city",
+                description="Facility City",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="state",
+                description="Facility State",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="country",
+                description="Facility Country",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="zip_code",
+                description="Facility Zip Code",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+        examples=[
+            OpenApiExample(
+                "Example 1",
+                summary="Example 1",
+                description="Example 1",
+                value={
+                    "id": "1",
+                    "name": "Facility Name",
+                    "city": "Facility City",
+                    "state": "Facility State",
+                    "country": "Facility Country",
+                    "zip_code": "Facility Zip Code",
+                },
+            ),
+        ],
     )
     def get(self, request, *args, **kwargs):
         """
@@ -183,42 +271,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     queryset = models.Load.objects.all()
     lookup_field = "id"
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=[
-                "shipment",
-                "shipper",
-                "consignee",
-                "pick_up_date",
-                "delivery_date",
-                "pick_up_location",
-                "destination",
-                "height",
-                "width",
-                "depth",
-            ],
-            properties={
-                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
-                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "dispatcher": openapi.Schema(type=openapi.TYPE_STRING),
-                "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
-                "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
-                "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
-                "destination": openapi.Schema(type=openapi.TYPE_STRING),
-                "height": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "width": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "depth": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "quantity": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "shipment": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            201: "CREATED",
-            400: "BAD REQUEST",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         Create a Load
@@ -231,41 +283,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return self.create(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "created_by": openapi.Schema(type=openapi.TYPE_STRING),
-                "name": openapi.Schema(type=openapi.TYPE_STRING),
-                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
-                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "dispatcher": openapi.Schema(type=openapi.TYPE_STRING),
-                "carrier": openapi.Schema(type=openapi.TYPE_STRING),
-                "pick_up_date": openapi.Schema(type=openapi.TYPE_STRING),
-                "delivery_date": openapi.Schema(type=openapi.TYPE_STRING),
-                "pick_up_location": openapi.Schema(type=openapi.TYPE_STRING),
-                "destination": openapi.Schema(type=openapi.TYPE_STRING),
-                "height": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "width": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "weight": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "depth": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "quantity": openapi.Schema(type=openapi.FORMAT_DECIMAL),
-                "goods_info": openapi.Schema(type=openapi.TYPE_STRING),
-                "load_type": openapi.Schema(type=openapi.TYPE_STRING),
-                "status": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the updated Load.", serializers.LoadCreateRetrieveSerializer
-            ),
-            204: "NO CONTENT",
-            304: "NOT MODIFIED",
-            422: "UNPROCESSABLE ENTITY",
-            400: "BAD REQUEST",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def put(self, request, *args, **kwargs):
         """
         Update load's shipper, consignee, dispatcher, carrier, pick up location, destination, pick up date, delivery date
@@ -519,17 +536,6 @@ class ListLoadView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.LoadListSerializer
     queryset = models.Load.objects.all()
 
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Returns a load list.",
-                serializers.LoadListSerializer,
-            ),
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def get(self, request, *args, **kwargs):
         """
         List all loads related to a user to be represented in a table.
@@ -598,18 +604,6 @@ class RetrieveLoadView(
     queryset = models.Load.objects.all()
     lookup_field = "id"
 
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Return the contact list of a specific type.",
-                serializers.LoadCreateRetrieveSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def get(self, request, *args, **kwargs):
 
         return self.retrieve(request, *args, **kwargs)
@@ -672,43 +666,9 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
     ]
     queryset = models.Contact.objects.all()
 
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Return the contact list of a specific type.",
-                serializers.ContactListSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=[
-                "contact",
-            ],
-            properties={
-                "contact": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the created contact object.",
-                serializers.ContactCreateSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            404: "DOES NOT EXIST",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         Add Contact
@@ -825,16 +785,6 @@ class ShipmentView(
     queryset = models.Shipment.objects.all()
     lookup_field = "id"
 
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Returns a list of shipments.", serializers.ShipmentSerializer
-            ),
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        }
-    )
     def get(self, request, *args, **kwargs):
         """
         List all shipments that is created by the authenticated user
@@ -844,25 +794,6 @@ class ShipmentView(
         else:
             return self.list(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={"name": openapi.Schema(type=openapi.TYPE_STRING)},
-            required=[
-                "name",
-            ],
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the created shipment.",
-                serializers.ShipmentSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         Create a shipment.
@@ -872,26 +803,6 @@ class ShipmentView(
         """
         return self.create(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "name": openapi.TYPE_STRING,
-                "status": openapi.TYPE_STRING,
-                "created_by": openapi.TYPE_INTEGER,
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the updated shipment.",
-                serializers.ShipmentSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def put(self, request, *args, **kwargs):
         """
         Update a shipment.
@@ -989,24 +900,6 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.ShipmentSerializer
     queryset = models.Shipment.objects.all()
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the contact list of a specific type.",
-                serializers.ShipmentSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         List your shipments base on a keyword.
@@ -1054,26 +947,6 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.FacilityFilterSerializer
     queryset = models.Facility.objects.all()
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "shipper": openapi.Schema(type=openapi.TYPE_STRING),
-                "consignee": openapi.Schema(type=openapi.TYPE_STRING),
-                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the facility name, state and city.",
-                serializers.FacilityFilterSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         List Facilities for the purpose of creating a Load.
@@ -1132,26 +1005,6 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.ContactListSerializer
     queryset = models.Contact.objects.all()
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "type": openapi.Schema(type=openapi.TYPE_STRING),
-                "keyword": openapi.Schema(type=openapi.TYPE_STRING),
-                "shipment": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the contact list of a specific type.",
-                serializers.ContactListSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         List a specific type of contacts for the purpose of searching.
@@ -1281,18 +1134,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     queryset = models.Offer.objects.all()
     lookup_field = "id"
 
-    @swagger_auto_schema(
-        responses={
-            200: openapi.Response(
-                "Return the offer related to a load, you need to specify the load id in the kwargs",
-                serializers.OfferSerializer,
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def get(self, request, *args, **kwargs):
         if self.kwargs:
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
@@ -1318,28 +1159,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "party_1": openapi.Schema(type=openapi.TYPE_STRING),
-                "party_2": openapi.Schema(type=openapi.TYPE_STRING),
-                "initial": openapi.Schema(type=openapi.TYPE_INTEGER),
-                "current": openapi.Schema(type=openapi.TYPE_INTEGER),
-                "load": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-            required=["party_1", "party_2", "initial", "current", "load"],
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the created offer.", serializers.OfferSerializer
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         Create an offer on a load
@@ -1349,27 +1168,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         """
         return self.create(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "current": openapi.Schema(type=openapi.TYPE_INTEGER),
-                "action": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-            required=[
-                "action",
-            ],
-        ),
-        responses={
-            200: openapi.Response(
-                "Return the updated offer.", serializers.OfferSerializer
-            ),
-            400: "BAD REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            500: "INTERNAL SERVER ERROR",
-        },
-    )
     def put(self, request, *args, **kwargs):
 
         return self.partial_update(request, *args, **kwargs)
@@ -1811,12 +1609,6 @@ class ShipmentAdminView(
     serializer_class = serializers.ShipmentAdminSerializer
     queryset = models.ShipmentAdmin.objects.all()
 
-    @swagger_auto_schema(
-        responses={
-            status.HTTP_200_OK: "ShipmentAdminSerializer",
-            status.HTTP_404_NOT_FOUND: "Not Found",
-        }
-    )
     def get(self, request, *args, **kwargs):
         """
         Get all shipment admins of a specific admin
@@ -1825,14 +1617,6 @@ class ShipmentAdminView(
         """
         return self.list(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=serializers.ShipmentAdminSerializer,
-        responses={
-            status.HTTP_201_CREATED: "ShipmentAdminSerializer",
-            status.HTTP_400_BAD_REQUEST: "Validation Error",
-            status.HTTP_404_NOT_FOUND: "Not Found",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         Create a shipment admin and attach a shipment to it
@@ -1841,14 +1625,6 @@ class ShipmentAdminView(
         """
         return self.create(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        request_body=serializers.ShipmentAdminSerializer,
-        responses={
-            status.HTTP_201_CREATED: "ShipmentAdminSerializer",
-            status.HTTP_400_BAD_REQUEST: "Validation Error",
-            status.HTTP_404_NOT_FOUND: "Not Found",
-        },
-    )
     def put(self, request, *args, **kwargs):
         """
         Update a shipment admin
@@ -1948,20 +1724,6 @@ class ShipmentAdminView(
 
 
 class DispatcherRejectView(APIView):
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "load": openapi.Schema(type=openapi.TYPE_INTEGER, description="load id")
-            },
-        ),
-        responses={
-            status.HTTP_200_OK: "load canceled.",
-            status.HTTP_400_BAD_REQUEST: "Validation Error",
-            status.HTTP_403_FORBIDDEN: "Forbidden",
-            status.HTTP_404_NOT_FOUND: "Not Found",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """
         Dispatcher reject a load
@@ -1982,27 +1744,6 @@ class DispatcherRejectView(APIView):
 class UpdateLoadStatus(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "load": openapi.Schema(
-                    type=openapi.TYPE_INTEGER, description="load id"
-                ),
-                "status": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="IT: In Transit, DL: Delivered",
-                ),
-            },
-        ),
-        responses={
-            status.HTTP_200_OK: "load status updated.",
-            status.HTTP_400_BAD_REQUEST: "Validation Error",
-            status.HTTP_403_FORBIDDEN: "Forbidden",
-            status.HTTP_404_NOT_FOUND: "Not Found",
-            status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal Server Error",
-        },
-    )
     def put(self, request, *args, **kwargs):
         load_id = request.data["load"]
         load = get_object_or_404(models.Load, id=load_id)
@@ -2058,15 +1799,6 @@ class UpdateLoadStatus(APIView):
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
-    @swagger_auto_schema(
-        responses={
-            status.HTTP_200_OK: "Dashboard data.",
-            status.HTTP_400_BAD_REQUEST: "Validation Error",
-            status.HTTP_403_FORBIDDEN: "Forbidden",
-            status.HTTP_404_NOT_FOUND: "Loads Not Found",
-            status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal Server Error",
-        },
-    )
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
@@ -2161,23 +1893,7 @@ class DashboardView(APIView):
 class LoadSearchView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
     pagination_class = PageNumberPagination
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "search": openapi.Schema(
-                    type=openapi.TYPE_STRING, description="search string"
-                )
-            },
-        ),
-        responses={
-            status.HTTP_200_OK: "Loads found.",
-            status.HTTP_400_BAD_REQUEST: "Validation Error",
-            status.HTTP_403_FORBIDDEN: "Forbidden",
-            status.HTTP_404_NOT_FOUND: "Loads Not Found",
-            status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal Server Error",
-        },
-    )
+
     def post(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
@@ -2224,7 +1940,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
     def post(self, request, *args, **kwargs):
         """search for contacts"""
         return self.list(request, *args, **kwargs)
-    
+
     def get_queryset(self):
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
@@ -2232,7 +1948,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         if "search" not in self.request.data:
             queryset = models.Contact.objects.filter(origin=self.request.user.id)
             return queryset
-        
+
         search = self.request.data["search"]
         queryset = models.Contact.objects.filter(
             Q(origin=self.request.user.id) & Q(contact__username__icontains=search)

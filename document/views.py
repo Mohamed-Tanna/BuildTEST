@@ -14,10 +14,6 @@ from django.utils import timezone
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 
-# third party imports
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-
 # module imports
 import document.models as models
 import shipment.models as ship_models
@@ -37,17 +33,6 @@ class FileUploadView(GenericAPIView, ListModelMixin):
     ]
     queryset = models.UploadedFile.objects.all()
 
-    @swagger_auto_schema(
-        operation_description="Get all files related to a load.",
-        responses={
-            200: serializers.RetrieveFileSerializer,
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
-        },
-    )
     def get(self, request, *args, **kwargs):
         """Get all files related to a load."""
         load_id = request.query_params.get("load")
@@ -58,18 +43,6 @@ class FileUploadView(GenericAPIView, ListModelMixin):
                 [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
             )
 
-    @swagger_auto_schema(
-        operation_description="Upload a file to a load.",
-        request_body=serializers.UploadFileSerializer,
-        responses={
-            200: serializers.UploadFileSerializer,
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
-        },
-    )
     def post(self, request, *args, **kwargs):
         """Create a new file."""
         serializer = self.get_serializer(data=request.data)
@@ -186,24 +159,7 @@ class BillingDocumentsView(APIView):
 
 class ValidateFinalAgreementView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
-
-    @swagger_auto_schema(
-        operation_description="Validate a final agreement.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "load": openapi.Schema(type=openapi.TYPE_INTEGER),
-            },
-        ),
-        responses={
-            200: "OK.",
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
-        },
-    )
+  
     def get(self, request, *args, **kwargs):
         """Get all billing documents related to a load."""
 
@@ -248,23 +204,6 @@ class ValidateFinalAgreementView(APIView):
 
         return Response(status=status.HTTP_200_OK, data=data)
 
-    @swagger_auto_schema(
-        operation_description="Validate a final agreement.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "load": openapi.Schema(type=openapi.TYPE_INTEGER),
-            },
-        ),
-        responses={
-            200: "OK.",
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
-        },
-    )
     def put(self, request, *args, **kwargs):
         """Validate a final agreement."""
         if "load" not in request.data:
