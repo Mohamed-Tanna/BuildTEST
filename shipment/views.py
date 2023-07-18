@@ -18,6 +18,7 @@ from django.shortcuts import get_object_or_404
 
 # DRF imports
 from rest_framework import status
+from rest_framework import serializers as drf_serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
@@ -33,7 +34,12 @@ from rest_framework.mixins import (
 
 # ThirdParty imports
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, OpenApiExample
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    OpenApiExample,
+    inline_serializer,
+)
 
 IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
@@ -271,6 +277,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     queryset = models.Load.objects.all()
     lookup_field = "id"
 
+    @extend_schema(
+        request=serializers.LoadCreateRetrieveSerializer,
+        responses={200: serializers.LoadCreateRetrieveSerializer},
+    )
     def post(self, request, *args, **kwargs):
         """
         Create a Load
@@ -283,6 +293,120 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return self.create(request, *args, **kwargs)
 
+    @extend_schema(
+        request=serializers.LoadCreateRetrieveSerializer,
+        responses={200: serializers.LoadCreateRetrieveSerializer},
+        parameters=[
+            OpenApiParameter(
+                name="pick_up_date",
+                description="Pick Up Date",
+                required=False,
+                type=OpenApiTypes.STR,
+                ),
+                OpenApiParameter(
+                name="delivery_date",
+                description="Delivery Date",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="pick_up_location",
+                description="Pick Up Location",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="destination",
+                description="Destination",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="shipper",
+                description="Shipper",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="consignee",
+                description="Consignee",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="dispatcher",
+                description="Dispatcher",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="carrier",
+                description="Carrier",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="customer",
+                description="Customer",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="equipment",
+                description="Equipment",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="commodity",
+                description="Commodity",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="length",
+                description="Length",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="width",
+                description="Width",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="height",
+                description="Height",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="weight",
+                description="Weight",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="quantity",
+                description="Quantity",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="goods_info",
+                description="Goods Info",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="load_type",
+                description="Load Type",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+    )
     def put(self, request, *args, **kwargs):
         """
         Update load's shipper, consignee, dispatcher, carrier, pick up location, destination, pick up date, delivery date
@@ -536,6 +660,9 @@ class ListLoadView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.LoadListSerializer
     queryset = models.Load.objects.all()
 
+    @extend_schema(
+        responses={200: serializers.LoadListSerializer},
+    )
     def get(self, request, *args, **kwargs):
         """
         List all loads related to a user to be represented in a table.
@@ -604,6 +731,17 @@ class RetrieveLoadView(
     queryset = models.Load.objects.all()
     lookup_field = "id"
 
+    @extend_schema(
+        responses={200: serializers.LoadCreateRetrieveSerializer},
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                description="Load ID",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+    )
     def get(self, request, *args, **kwargs):
 
         return self.retrieve(request, *args, **kwargs)
@@ -658,7 +796,7 @@ class RetrieveLoadView(
         )
 
 
-class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModelMixin):
+class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     permission_classes = [
         IsAuthenticated,
@@ -666,9 +804,24 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin, DestroyModel
     ]
     queryset = models.Contact.objects.all()
 
+    @extend_schema(
+        responses={200: serializers.ContactListSerializer},
+    )
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
+    @extend_schema(
+        request=serializers.ContactCreateSerializer,
+        responses={200: serializers.ContactCreateSerializer},
+        parameters=[
+            OpenApiParameter(
+                name="contact",
+                description="Contact User",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+        ]
+    )
     def post(self, request, *args, **kwargs):
         """
         Add Contact
@@ -785,6 +938,9 @@ class ShipmentView(
     queryset = models.Shipment.objects.all()
     lookup_field = "id"
 
+    @extend_schema(
+        responses={200: serializers.ShipmentSerializer(many=True)},
+    )
     def get(self, request, *args, **kwargs):
         """
         List all shipments that is created by the authenticated user
@@ -794,6 +950,30 @@ class ShipmentView(
         else:
             return self.list(request, *args, **kwargs)
 
+    @extend_schema(
+        request=serializers.ShipmentSerializer,
+        responses={200: serializers.ShipmentSerializer},
+        parameters=[
+            OpenApiParameter(
+                name="name",
+                description="Shipment Name",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="status",
+                description="Shipment Status",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="created_by",
+                description="Shipment Creator",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+    )
     def post(self, request, *args, **kwargs):
         """
         Create a shipment.
@@ -900,6 +1080,17 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.ShipmentSerializer
     queryset = models.Shipment.objects.all()
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="keyword",
+                description="keyword to search for",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+        responses={200: serializers.ShipmentSerializer},
+    )
     def post(self, request, *args, **kwargs):
         """
         List your shipments base on a keyword.
@@ -947,6 +1138,29 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.FacilityFilterSerializer
     queryset = models.Facility.objects.all()
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="keyword",
+                description="keyword to search for",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="shipper",
+                description="shipper username",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="consignee",
+                description="consignee username",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+        responses={200: serializers.FacilityFilterSerializer},
+    )
     def post(self, request, *args, **kwargs):
         """
         List Facilities for the purpose of creating a Load.
@@ -1005,6 +1219,32 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.ContactListSerializer
     queryset = models.Contact.objects.all()
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="type",
+                description="type of contact",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="keyword",
+                description="keyword to search for",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="tax", description="tax id", required=False, type=OpenApiTypes.STR
+            ),
+            OpenApiParameter(
+                name="shipment",
+                description="shipment id",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+        responses={200: serializers.ContactListSerializer},
+    )
     def post(self, request, *args, **kwargs):
         """
         List a specific type of contacts for the purpose of searching.
@@ -1081,6 +1321,23 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.LoadListSerializer
     queryset = models.Load.objects.all()
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="shipment",
+                description="shipment id",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+            OpenApiParameter(
+                name="keyword",
+                description="keyword to search for",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+        responses={200: serializers.LoadListSerializer},
+    )
     def post(self, request, *args, **kwargs):
         """List all loads depending on a certain value of a field
 
@@ -1094,33 +1351,24 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        data = self.request.data
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
+        app_user = models.AppUser.objects.get(user=self.request.user.id)
+        shipment_id = self.request.data.get("shipment")
+        keyword = self.request.data.get("keyword")
 
-        if "shipment" in data:
-            shipment_id = data["shipment"]
-            queryset = models.Load.objects.filter(shipment=shipment_id)
-        elif "keyword" in data and "shipment" in data:
-            keyword = data["keyword"]
-            shipment_id = data["shipment"]
-            queryset = models.Load.objects.filter(
-                name__icontains=keyword, shipment=shipment_id
-            )
-        elif "keyword" in data:
-            keyword = data["keyword"]
-            app_user = models.AppUser.objects.get(user=self.request.user.id)
-            queryset = models.Load.objects.filter(
-                created_by=app_user.id, name__icontains=keyword
-            )
-        else:
-            queryset = []
-            return queryset
+        queryset = models.Load.objects.filter(created_by=app_user.id)
+        filters = Q()
 
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
+        if shipment_id is not None:
+            filters &= Q(shipment=shipment_id)
+
+        if keyword is not None:
+            filters &= Q(name__icontains=keyword)
+
+        queryset = queryset.filter(filters)
+
         return queryset
 
 
@@ -1134,6 +1382,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     queryset = models.Offer.objects.all()
     lookup_field = "id"
 
+    @extend_schema(
+        request=serializers.OfferSerializer,
+        responses={200: serializers.OfferSerializer},
+    )
     def get(self, request, *args, **kwargs):
         if self.kwargs:
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
@@ -1159,6 +1411,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        request=serializers.OfferSerializer,
+        responses={200: serializers.OfferSerializer},
+    )
     def post(self, request, *args, **kwargs):
         """
         Create an offer on a load
@@ -1168,6 +1424,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         """
         return self.create(request, *args, **kwargs)
 
+    @extend_schema(
+        request=serializers.OfferSerializer,
+        responses={200: serializers.OfferSerializer},
+    )
     def put(self, request, *args, **kwargs):
 
         return self.partial_update(request, *args, **kwargs)
@@ -1609,6 +1869,16 @@ class ShipmentAdminView(
     serializer_class = serializers.ShipmentAdminSerializer
     queryset = models.ShipmentAdmin.objects.all()
 
+    @extend_schema(
+        request=inline_serializer(
+            name="ShipmentAdmin",
+            fields={
+                "shipment": OpenApiTypes.STR,
+                "admin": OpenApiTypes.STR,
+            },
+        ),
+        responses={200: serializers.ShipmentAdminSerializer()},
+    )
     def get(self, request, *args, **kwargs):
         """
         Get all shipment admins of a specific admin
@@ -1617,6 +1887,16 @@ class ShipmentAdminView(
         """
         return self.list(request, *args, **kwargs)
 
+    @extend_schema(
+        request=inline_serializer(
+            name="ShipmentAdmin",
+            fields={
+                "shipment": OpenApiTypes.STR,
+                "admin": OpenApiTypes.STR,
+            },
+        ),
+        responses={200: serializers.ShipmentAdminSerializer()},
+    )
     def post(self, request, *args, **kwargs):
         """
         Create a shipment admin and attach a shipment to it
@@ -1625,6 +1905,16 @@ class ShipmentAdminView(
         """
         return self.create(request, *args, **kwargs)
 
+    @extend_schema(
+        request=inline_serializer(
+            name="ShipmentAdmin",
+            fields={
+                "shipment": OpenApiTypes.STR,
+                "admin": OpenApiTypes.STR,
+            },
+        ),
+        responses={200: serializers.ShipmentAdminSerializer()},
+    )
     def put(self, request, *args, **kwargs):
         """
         Update a shipment admin
@@ -1632,11 +1922,20 @@ class ShipmentAdminView(
         """
         return self.partial_update(request, *args, **kwargs)
 
+    @extend_schema(
+        request=inline_serializer(
+            name="ShipmentAdmin",
+            fields={
+                "shipment": OpenApiTypes.STR,
+                "admin": OpenApiTypes.STR,
+            },
+        ),
+        responses={200: serializers.ShipmentAdminSerializer()},
+    )
     def delete(self, request, *args, **kwargs):
         """
         Delete a shipment admin
         """
-
         return self.destroy(request, *args, **kwargs)
 
     # override
@@ -1724,6 +2023,18 @@ class ShipmentAdminView(
 
 
 class DispatcherRejectView(APIView):
+
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+
+    @extend_schema(
+        request=inline_serializer(
+            name="DispatcherReject",
+            fields={
+                "load": OpenApiTypes.STR,
+            },
+        ),
+        responses={200: serializers.LoadCreateRetrieveSerializer()},
+    )
     def post(self, request, *args, **kwargs):
         """
         Dispatcher reject a load
@@ -1744,6 +2055,15 @@ class DispatcherRejectView(APIView):
 class UpdateLoadStatus(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
+    @extend_schema(
+        request=inline_serializer(
+            name="UpdateLoadStatus",
+            fields={
+                "load": OpenApiTypes.STR,
+            },
+        ),
+        responses={200: serializers.LoadCreateRetrieveSerializer()},
+    )
     def put(self, request, *args, **kwargs):
         load_id = request.data["load"]
         load = get_object_or_404(models.Load, id=load_id)
@@ -1799,6 +2119,44 @@ class UpdateLoadStatus(APIView):
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name="Dashboard",
+                fields={
+                    "cards": inline_serializer(
+                        name="Cards",
+                        fields={
+                            "total": drf_serializers.IntegerField(),
+                            "pending": drf_serializers.IntegerField(),
+                            "ready_for_pick_up": drf_serializers.IntegerField(),
+                            "in_transit": drf_serializers.IntegerField(),
+                            "delivered": drf_serializers.IntegerField(),
+                            "canceled": drf_serializers.IntegerField(),
+                            "loads": serializers.LoadListSerializer(),
+                        },
+                    ),
+                    "chart": inline_serializer(
+                        name="Chart",
+                        fields={
+                            "0": inline_serializer(
+                                name="Month",
+                                fields={
+                                    "name": drf_serializers.CharField(),
+                                    "total": drf_serializers.IntegerField(),
+                                    "pending": drf_serializers.IntegerField(),
+                                    "ready_for_pick_up": drf_serializers.IntegerField(),
+                                    "in_transit": drf_serializers.IntegerField(),
+                                    "delivered": drf_serializers.IntegerField(),
+                                    "canceled": drf_serializers.IntegerField(),
+                                },
+                            ),
+                        },
+                    ),
+                },
+            )
+        },
+    )
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
@@ -1894,6 +2252,17 @@ class LoadSearchView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
     pagination_class = PageNumberPagination
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                description="search for loads",
+                required=True,
+                type=OpenApiTypes.STR,
+            )
+        ],
+        responses={200: serializers.LoadListSerializer(many=True)},
+    )
     def post(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
@@ -1937,6 +2306,17 @@ class LoadSearchView(APIView):
 class ContactSearchView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                description="search for contacts",
+                required=True,
+                type=OpenApiTypes.STR,
+            )
+        ],
+        responses={200: serializers.ContactListSerializer(many=True)},
+    )
     def post(self, request, *args, **kwargs):
         """search for contacts"""
         return self.list(request, *args, **kwargs)

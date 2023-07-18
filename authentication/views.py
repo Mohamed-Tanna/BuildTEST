@@ -26,13 +26,15 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 
 # third party imports
 from allauth.account.models import EmailAddress
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 
 
 SHIPMENT_PARTY = "shipment party"
 
 
 class HealthCheckView(APIView):
-    
+    @extend_schema(description="Health check endpoint.", responses={200: "OK"})
     def get(self, request, *args, **kwargs):
 
         return Response(status=status.HTTP_200_OK)
@@ -46,6 +48,19 @@ class AppUserView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.AppUserSerializer
     queryset = models.AppUser.objects.all()
 
+    @extend_schema(
+        description="Create an AppUser from an existing user.",
+        request=inline_serializer(
+            name="AppUserCreate",
+            fields={
+                "user_type": OpenApiTypes.STR,
+                "phone_number": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.AppUserSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         """
@@ -76,6 +91,12 @@ class AppUserView(GenericAPIView, CreateModelMixin):
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_400_BAD_REQUEST, data=e.args[0])
 
+    @extend_schema(
+        description="Get an AppUser from an existing user.",
+        responses={
+            status.HTTP_200_OK: serializers.AppUserSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
 
         try:
@@ -119,6 +140,20 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
     queryset = User.objects.all()
     lookup_field = "id"
 
+    @extend_schema(
+        description="Update username, first name and last name.",
+        request=inline_serializer(
+            name="BaseUserUpdate",
+            fields={
+                "username": OpenApiTypes.STR,
+                "first_name": OpenApiTypes.STR,
+                "last_name": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: serializers.BaseUserUpdateSerializer,
+        },
+    )
     def put(self, request, *args, **kwargs):
 
         """
@@ -147,6 +182,18 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.ShipmentPartySerializer
     queryset = models.ShipmentParty.objects.all()
 
+    @extend_schema(
+        description="Create a Shipment Party from an existing App User.",
+        request=inline_serializer(
+            name="ShipmentPartyCreate",
+            fields={
+                "app_user": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.ShipmentPartySerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
         """
         Create a Shipment Party from an existing App User
@@ -187,6 +234,19 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.CarrierSerializer
     queryset = models.Carrier.objects.all()
 
+    @extend_schema(
+        description="Create a Carrier from an existing App User.",
+        request=inline_serializer(
+            name="CarrierCreate",
+            fields={
+                "app_user": OpenApiTypes.STR,
+                "DOT_number": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.CarrierSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
@@ -244,6 +304,19 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.DispatcherSerializer
     queryset = models.Dispatcher.objects.all()
 
+    @extend_schema(
+        description="Create a Dispatcher from an existing App User.",
+        request=inline_serializer(
+            name="DispatcherCreate",
+            fields={
+                "app_user": OpenApiTypes.STR,
+                "MC_number": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.DispatcherSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
@@ -298,6 +371,12 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.CompanySerializer
     queryset = models.Company.objects.all()
 
+    @extend_schema(
+        description="Retrieve a Company.",
+        responses={
+            status.HTTP_201_CREATED: serializers.CompanySerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
         company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user)
@@ -307,6 +386,23 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
         )
 
+    @extend_schema(
+        description="Create a Company.",
+        request=inline_serializer(
+            name="CompanyCreate",
+            fields={
+                "name": OpenApiTypes.STR,
+                "address": OpenApiTypes.STR,
+                "city": OpenApiTypes.STR,
+                "state": OpenApiTypes.STR,
+                "country": OpenApiTypes.STR,
+                "zip_code": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.CompanySerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
@@ -433,6 +529,20 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.UserTaxSerializer
     queryset = models.UserTax.objects.all()
 
+    @extend_schema(
+        description="Retrieve a User Tax.",
+        responses={
+            status.HTTP_200_OK: serializers.UserTaxSerializer,
+        },
+        parameters=[
+            OpenApiParameter(
+                name="tin",
+                description="Tax Identification Number",
+                required=False,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+    )
     def get(self, request, *args, **kwargs):
         if "tin" in request.query_params:
             tin = request.query_params["tin"]
@@ -465,6 +575,19 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 data=serializers.UserTaxSerializer(user_tax).data,
             )
 
+    @extend_schema(
+        description="Create a User Tax.",
+        request=inline_serializer(
+            name="UserTaxCreate",
+            fields={
+                "app_user": OpenApiTypes.STR,
+                "TIN": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.UserTaxSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
@@ -555,6 +678,12 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.CompanyEmployeeSerializer
     queryset = models.CompanyEmployee.objects.all()
 
+    @extend_schema(
+        description="Retrieve a Company Employee.",
+        responses={
+            status.HTTP_201_CREATED: serializers.CompanyEmployeeSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         """Get company employee"""
         if "ein" in request.query_params:
@@ -591,6 +720,19 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @extend_schema(
+        description="Create a Company Employee.",
+        request=inline_serializer(
+            name="CompanyEmployeeCreate",
+            fields={
+                "app_user": OpenApiTypes.STR,
+                "company": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.CompanyEmployeeSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         return self.create(request, *args, **kwargs)
@@ -615,6 +757,21 @@ class CheckCompanyView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        description="Check if a company exists.",
+        responses={
+            status.HTTP_200_OK: "means company exists",
+            status.HTTP_404_NOT_FOUND: "means company does not exist",
+        },
+        parameters=[
+            OpenApiParameter(
+                name="ein",
+                description="Employer Identification Number",
+                required=True,
+                type=OpenApiTypes.STR,
+            ),
+        ],
+    )
     def get(self, request, *args, **kwargs):
 
         if "ein" in request.query_params:
@@ -625,10 +782,26 @@ class CheckCompanyView(APIView):
                 status=status.HTTP_200_OK,
                 data=serializers.CompanySerializer(company).data,
             )
+        else:
+            return Response(
+                [
+                    {"details": "Please provide ein in the query params"},
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class TaxInfoView(APIView):
 
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+
+    @extend_schema(
+        description="Get the tax information of a user.",
+        responses={
+            status.HTTP_200_OK: "user tax info exists",
+            status.HTTP_404_NOT_FOUND: "user tax info does not exist",
+        },
+    )
     def get(self, request, *args, **kwargs):
         app_user = ship_utils.get_app_user_by_username(username=request.user.username)
         res = ship_utils.get_user_tax_or_company(app_user=app_user)
@@ -655,12 +828,24 @@ class TaxInfoView(APIView):
 
 
 class AddRoleView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
 
+    @extend_schema(
+        description="Add a role to an existing App User.",
+        request=inline_serializer(
+            name="AddRole",
+            fields={
+                "type": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.AppUserSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         app_user = models.AppUser.objects.get(user=request.user)
-        new_type = request.data.get("type")
+        new_type = request.data.get("type", None)
 
         if new_type is None or new_type not in [
             "carrier",
@@ -774,6 +959,18 @@ class AddRoleView(APIView):
 class SelectRoleView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
 
+    @extend_schema(
+        description="Select a role for an existing App User.",
+        request=inline_serializer(
+            name="SelectRole",
+            fields={
+                "type": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: serializers.AppUserSerializer,
+        },
+    )
     def put(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
         if "type" not in request.data:
@@ -799,28 +996,40 @@ class SelectRoleView(APIView):
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
 
+    @extend_schema(
+        description="Change password.",
+        request=inline_serializer(
+            name="ChangePassword",
+            fields={
+                "old_password": OpenApiTypes.STR,
+                "new_password": OpenApiTypes.STR,
+                "confirm_password": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: "Password changed successfully",
+        },
+    )
     def put(self, request, *args, **kwargs):
         if "old_password" not in request.data or "new_password" not in request.data:
             return Response(
                 {"details": "old password and new password fields are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         if request.data["old_password"] == request.data["new_password"]:
             return Response(
                 {"details": "old password and new password cannot be the same"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         if request.data["new_password"] != request.data["confirm_password"]:
             return Response(
                 {"details": "new password and confirm password do not match"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if (
-            not request.user.check_password(request.data["old_password"])
-        ):
+        if not request.user.check_password(request.data["old_password"]):
             return Response(
                 {"details": "old password is incorrect"},
                 status=status.HTTP_400_BAD_REQUEST,
