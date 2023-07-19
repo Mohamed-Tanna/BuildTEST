@@ -333,6 +333,7 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
 
         tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
         if isinstance(tax_info, Response):
+            app_user.delete()
             return tax_info
 
         if isinstance(request.data, QueryDict):
@@ -674,7 +675,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
 
 class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
-    permission_classes = [IsAuthenticated, permissions.HasRole]
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.CompanyEmployeeSerializer
     queryset = models.CompanyEmployee.objects.all()
 
