@@ -125,13 +125,13 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "FreightSlayer API",
     "DESCRIPTION": "The FreightSlayer app is a comprehensive solution for managing freight operations efficiently. The app simplifies freight management processes and facilitates seamless coordination between carriers, dispatchers, and shipment parties.",
     "VERSION": "0.0.2",
-    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_INCLUDE_SCHEMA": True,
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "persistAuthorization": True,
         "displayOperationId": True,
     },
-    "SWAGGER_UI_DIST": "//unpkg.com/swagger-ui-dist@3.35.1",  # default
+    "SWAGGER_UI_DIST": "//unpkg.com/swagger-ui-dist@latest",
     "SWAGGER_UI_FAVICON_HREF": "https://storage.googleapis.com/freight_static_files/freight-icon.png",
 }
 

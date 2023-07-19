@@ -2305,6 +2305,8 @@ class LoadSearchView(APIView):
 
 class ContactSearchView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.HasRole]
+    serializer_class = serializers.ContactListSerializer
+    queryset = models.Contact.objects.all()
 
     @extend_schema(
         parameters=[
@@ -2325,14 +2327,14 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
-        if "search" not in self.request.data:
+        search = self.request.data.get("search", None)
+        if search is None:
             queryset = models.Contact.objects.filter(origin=self.request.user.id)
-            return queryset
-
-        search = self.request.data["search"]
-        queryset = models.Contact.objects.filter(
-            Q(origin=self.request.user.id) & Q(contact__username__icontains=search)
-        )
+        else:
+            search = self.request.data["search"]
+            queryset = models.Contact.objects.filter(
+                Q(origin=self.request.user.id) & Q(contact__user__username__icontains=search)
+            )
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
 
