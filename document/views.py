@@ -14,16 +14,20 @@ from django.utils import timezone
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 
-# third party imports
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-
 # module imports
 import document.models as models
 import shipment.models as ship_models
 import shipment.utilities as ship_utils
 import document.serializers as serializers
 import authentication.permissions as permissions
+
+# ThirdParty imports
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    inline_serializer,
+)
 
 NOT_AUTH_MSG = "You are not authorized to view this document."
 SHIPMENT_PARTY = "shipment party"
@@ -37,16 +41,17 @@ class FileUploadView(GenericAPIView, ListModelMixin):
     ]
     queryset = models.UploadedFile.objects.all()
 
-    @swagger_auto_schema(
-        operation_description="Get all files related to a load.",
-        responses={
-            200: serializers.RetrieveFileSerializer,
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
-        },
+    @extend_schema(
+        description="Get all files related to a load.",
+        parameters=[
+            OpenApiParameter(
+                name="load",
+                description="Filter files by load.",
+                required=True,
+                type=OpenApiTypes.INT,
+            ),
+        ],
+        responses={status.HTTP_200_OK: serializers.RetrieveFileSerializer},
     )
     def get(self, request, *args, **kwargs):
         """Get all files related to a load."""
@@ -58,17 +63,19 @@ class FileUploadView(GenericAPIView, ListModelMixin):
                 [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
             )
 
-    @swagger_auto_schema(
-        operation_description="Upload a file to a load.",
-        request_body=serializers.UploadFileSerializer,
-        responses={
-            200: serializers.UploadFileSerializer,
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
-        },
+    @extend_schema(
+        description="Upload a file.",
+        request=inline_serializer(
+            name="UploadFile",
+            fields={
+                "load": OpenApiTypes.STR,
+                "uploaded_file": OpenApiTypes.BYTE,
+                "uploaded_by": OpenApiTypes.STR,
+                "name": OpenApiTypes.STR,
+                "size": OpenApiTypes.FLOAT,
+            },
+        ),
+        responses={status.HTTP_201_CREATED: serializers.UploadFileSerializer},
     )
     def post(self, request, *args, **kwargs):
         """Create a new file."""
@@ -106,6 +113,18 @@ class FileUploadView(GenericAPIView, ListModelMixin):
 class BillingDocumentsView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
+    @extend_schema(
+        description="Get all billing documents related to a load.",
+        parameters=[
+            OpenApiParameter(
+                name="load",
+                description="Filter billing documents by load.",
+                required=True,
+                type=OpenApiTypes.INT,
+            ),
+        ],
+        responses={status.HTTP_200_OK: serializers.DispatcherFinalAgreementSerializer},
+    )
     def get(self, request, *args, **kwargs):
         """Get all billing documents related to a load."""
         load_id = request.query_params.get("load")
@@ -187,21 +206,34 @@ class BillingDocumentsView(APIView):
 class ValidateFinalAgreementView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
-    @swagger_auto_schema(
-        operation_description="Validate a final agreement.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "load": openapi.Schema(type=openapi.TYPE_INTEGER),
+    @extend_schema(
+        description="Validate a final agreement.",
+        request=inline_serializer(
+            name="ValidateFinalAgreement",
+            fields={
+                "load": OpenApiTypes.STR,
             },
         ),
         responses={
-            200: "OK.",
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
+            status.HTTP_200_OK: inline_serializer(
+                name="ValidateFinalAgreement",
+                fields={
+                    "did_customer_agree": OpenApiTypes.BOOL,
+                    "did_carrier_agree": OpenApiTypes.BOOL,
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="ValidateFinalAgreement",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+            status.HTTP_403_FORBIDDEN: inline_serializer(
+                name="ValidateFinalAgreement",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
         },
     )
     def get(self, request, *args, **kwargs):
@@ -248,21 +280,28 @@ class ValidateFinalAgreementView(APIView):
 
         return Response(status=status.HTTP_200_OK, data=data)
 
-    @swagger_auto_schema(
-        operation_description="Validate a final agreement.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "load": openapi.Schema(type=openapi.TYPE_INTEGER),
+    @extend_schema(
+        description="Validate a final agreement.",
+        request=inline_serializer(
+            name="ValidateFinalAgreement",
+            fields={
+                "load": OpenApiTypes.STR,
             },
         ),
         responses={
-            200: "OK.",
-            400: "Bad request.",
-            401: "Unauthorized.",
-            403: "Forbidden.",
-            404: "Not found.",
-            500: "Internal server error.",
+            status.HTTP_200_OK: serializers.CustomerFinalAgreementSerializer,
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="ValidateFinalAgreement",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+            status.HTTP_403_FORBIDDEN: inline_serializer(
+                name="ValidateFinalAgreement",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
         },
     )
     def put(self, request, *args, **kwargs):

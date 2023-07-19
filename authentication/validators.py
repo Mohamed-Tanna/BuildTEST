@@ -4,7 +4,7 @@ from django.utils.translation import gettext as _
 
 
 class CustomPasswordValidator:
-    def validate(self, password):
+    def validate(self, password, user=None):
         if not re.search(r"[a-z]", password):
             raise ValidationError(
                 _("The password must contain at least one lowercase letter.")

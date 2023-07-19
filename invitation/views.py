@@ -15,6 +15,16 @@ from authentication.models import User
 import invitation.serializers as serializers
 import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
+# ThirdParty imports
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    OpenApiExample,
+    inline_serializer,
+    extend_schema_view,
+)
+
 if os.getenv("ENV") == "DEV":
     from freightmonster.settings.dev import BASE_URL
 elif os.getenv("ENV") == "STAGING":
@@ -22,8 +32,51 @@ elif os.getenv("ENV") == "STAGING":
 else:
     from freightmonster.settings.local import BASE_URL
 
-
-
+@extend_schema_view(
+    list=extend_schema(
+        description="Get all invitations.",
+        parameters=[
+            OpenApiParameter(
+                name="target",
+                description="Filter invitations by status.",
+                required=False,
+                type=OpenApiTypes.STR,
+                enum=["all", "pending", "accepted", "rejected"],
+            ),
+        ],
+        responses={status.HTTP_200_OK: serializers.InvitationsSerializer},
+    ),
+    create=extend_schema(
+        description="Accept an invitation.",
+        request=inline_serializer(
+            name="AcceptInvitation",
+            fields={
+                "action": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: ship_serializers.ContactCreateSerializer,
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="AcceptInvitation",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+            status.HTTP_409_CONFLICT: inline_serializer(
+                name="AcceptInvitation",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: inline_serializer(
+                name="AcceptInvitation",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+        },
+    ),
+)
 class InvitationsHandlingView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
@@ -101,6 +154,38 @@ class InvitationsHandlingView(GenericAPIView, ListModelMixin):
         return queryset
 
 
+@extend_schema_view(
+    create=extend_schema(
+        description="Create an invitation.",
+        request=inline_serializer(
+            name="CreateInvitation",
+            fields={
+                "invitee": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.InvitationsSerializer,
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="InvitationCreate",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+            status.HTTP_409_CONFLICT: inline_serializer(
+                name="InvitationCreate",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: inline_serializer(
+                name="InvitationCreate",
+                fields={
+                    "details": OpenApiTypes.STR,
+                },
+            ),
+        },
+    ),
+)
 class CreateInvitationView(GenericAPIView):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.InvitationsSerializer
