@@ -2334,7 +2334,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
             search = self.request.data["search"]
             queryset = models.Contact.objects.filter(
                 Q(origin=self.request.user.id) & Q(contact__user__username__icontains=search)
-            )
+            ).order_by("contact__user__username")
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
 
