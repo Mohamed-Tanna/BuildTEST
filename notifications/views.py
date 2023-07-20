@@ -15,12 +15,19 @@ class NotificationSettingView(GenericAPIView, UpdateModelMixin, RetrieveModelMix
     permission_classes = (IsAuthenticated, permissions.IsAppUser)
     serializer_class = serializers.NotificationSetting
     queryset = models.NotificationSetting.objects.all()
+    lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
     
     def put(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
+    
+    def retrieve(self, request, *args, **kwargs):
+        app_user = auth_models.AppUser.objects.get(id=request.user.id)
+        instance = models.NotificationSetting.objects.get(user=app_user)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
     
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
