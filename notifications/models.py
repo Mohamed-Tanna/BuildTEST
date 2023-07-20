@@ -13,7 +13,7 @@ class NotificationSetting(models.Model):
     user = models.OneToOneField(to=AppUser, on_delete=models.CASCADE, null=False)
     is_allowed = models.BooleanField(default=True)
     methods = models.CharField(
-        choices=[("email", "email"), ("sms", "sms"), ("both", "both")],
+        choices=[("email", "email"), ("sms", "sms"), ("both", "both"), ("none", "none")],
         default="email",
         max_length=5,
     )
