@@ -41,6 +41,7 @@ class NotificationSetting(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "updated_at",
+            "user",
         )
 
     def to_representation(self, instance):

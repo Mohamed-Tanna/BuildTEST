@@ -13,4 +13,5 @@ urlpatterns = [
     path("shipment/", include("shipment.urls")),
     path("docs/", include("document.urls")),
     path("invites/", include("invitation.urls")),
+    path("notifications/", include("notifications.urls")),
 ]
