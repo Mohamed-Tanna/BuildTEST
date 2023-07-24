@@ -31,10 +31,7 @@ class NotificationSettingSerializer(serializers.ModelSerializer):
             "got_offer": {"required": False},
             "offer_updated": {"required": False},
             "add_as_shipment_admin": {"required": False},
-            "load_to_ready_to_pickup": {"required": False},
-            "load_to_in_transit": {"required": False},
-            "load_to_delivered": {"required": False},
-            "load_to_canceled": {"required": False},
+            "load_status_changed": {"required": False},
             "RC_approved": {"required": False},
             "updated_at": {"required": False},
         }

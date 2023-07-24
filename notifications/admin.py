@@ -17,10 +17,7 @@ class NotificationSettingAdmin(admin.ModelAdmin):
         "got_offer",
         "offer_updated",
         "add_as_shipment_admin",
-        "load_to_ready_to_pickup",
-        "load_to_in_transit",
-        "load_to_delivered",
-        "load_to_canceled",
+        "load_status_changed",
         "RC_approved",
         "updated_at",
     )

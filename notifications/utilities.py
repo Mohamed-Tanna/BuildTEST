@@ -58,16 +58,10 @@ def get_notification_msg(
         return f"{user.username} has countered your offer on the load '{load.name}'."
     elif action == "added as a shipment admin":
         return f"You have been added as a shipment admin by {user.username} for shipment '{shipment.name}'."
-    elif action == "load is ready for pick up":
-        return f"The load '{load.name}' is now ready for pickup." 
-    elif action == "load is in transit":
-        return f"The load '{load.name}' has been picked up and is now in transit."
-    elif action == "load is delivered":
-        return f"The load '{load.name}' has been delivered successfully."
+    elif action == "load status changed":
+        return f"Kindly be informed that there has been a recent update regarding the load '{load.name}' status,  and it is now {load.status}."
     elif action == "RC is approved":
         return f"{user.username} has approved the rate confirmation for the load '{load.name}'."
-    elif action == "load is canceled":
-        return f"The load '{load.name}' has been canceled."
 
 
 def find_user_roles_in_a_load(load:Load, user:User):
