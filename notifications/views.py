@@ -3,17 +3,18 @@ import authentication.permissions as permissions
 import notifications.serializers as serializers
 import notifications.models as models
 import authentication.models as auth_models
+# Django imports
+from django.shortcuts import get_object_or_404
 # DRF imports
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import serializers as drf_serializers
 from rest_framework.mixins import UpdateModelMixin, RetrieveModelMixin
 
 class NotificationSettingView(GenericAPIView, UpdateModelMixin, RetrieveModelMixin):
     permission_classes = (IsAuthenticated, permissions.IsAppUser)
-    serializer_class = serializers.NotificationSetting
+    serializer_class = serializers.NotificationSettingSerializer
     queryset = models.NotificationSetting.objects.all()
     lookup_field = "id"
 
@@ -24,14 +25,17 @@ class NotificationSettingView(GenericAPIView, UpdateModelMixin, RetrieveModelMix
         return self.partial_update(request, *args, **kwargs)
     
     def retrieve(self, request, *args, **kwargs):
-        app_user = auth_models.AppUser.objects.get(id=request.user.id)
-        instance = models.NotificationSetting.objects.get(user=app_user)
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        app_user = get_object_or_404(auth_models.AppUser, user=request.user)
+        try:
+            instance = models.NotificationSetting.objects.get(user=app_user)
+        except (BaseException):
+            return Response({"details": "NotificationSetting not found for this user."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = serializers.NotificationSettingSerializer(instance).data
+        return Response(serializer)
     
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        app_user = auth_models.AppUser.objects.get(id=request.user.id)
+        app_user = get_object_or_404(auth_models.AppUser, user=request.user)
         if instance.user != app_user:
             return Response(status=status.HTTP_403_FORBIDDEN)
         

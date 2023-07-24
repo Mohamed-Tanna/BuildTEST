@@ -3,7 +3,7 @@ import notifications.models as models
 import authentication.serializers as auth_serializers
 
 
-class Notification(serializers.ModelSerializer):
+class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Notification
         fields = "__all__"
@@ -19,7 +19,7 @@ class Notification(serializers.ModelSerializer):
         return rep
 
 
-class NotificationSetting(serializers.ModelSerializer):
+class NotificationSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.NotificationSetting
         fields = "__all__"
@@ -47,3 +47,4 @@ class NotificationSetting(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["user"] = auth_serializers.AppUserSerializer(instance.user).data
+        return rep
