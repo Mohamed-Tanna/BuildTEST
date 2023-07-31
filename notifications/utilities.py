@@ -2,7 +2,6 @@ import os
 from django.utils.html import strip_tags
 from django.template.loader import get_template
 from django.core.mail import EmailMultiAlternatives
-from authentication.models import User
 from shipment.models import Load, Shipment
 from twilio.rest import Client
 from authentication.models import AppUser
@@ -13,6 +12,9 @@ from freightmonster.settings.base import (
     TWILIO_PHONE_NUMBER,
 )
 
+
+# file deepcode ignore AttributeLoadOnNone: because these fields are not nullable 
+# everytime the function is called some of the fields are supposed to be null
 
 def trigger_send_email_notification(subject, template, to, message, url):
     """Trigger sending email notification to user"""
@@ -53,7 +55,8 @@ def trigger_send_sms_notification(app_user: AppUser, sid, token, phone_number, m
         return False
 
 
-def handle_notification(app_user: AppUser, action, load=None, shipment=None, user=None):
+# main
+def handle_notification(app_user: AppUser, action, load=None, shipment=None):
     """Handle the notification to user's prefrences"""
     try:
         notification_setting = models.NotificationSetting.objects.get(user=app_user)
@@ -70,12 +73,18 @@ def handle_notification(app_user: AppUser, action, load=None, shipment=None, use
             "RC_approved": "RC_approved",
         }
 
-        if action in action_to_attr_mapping and getattr(notification_setting, action_to_attr_mapping[action]):
-            message, url = get_notification_msg_and_url(action, load, shipment, user)
+        if action in action_to_attr_mapping and getattr(
+            notification_setting, action_to_attr_mapping[action]
+        ):
+            message, url = get_notification_msg_and_url(
+                action, load, shipment, app_user
+            )
             if isinstance(message, bool):
                 return False
 
-            notification = models.Notification.objects.create(user=app_user, message=message)
+            notification = models.Notification.objects.create(
+                user=app_user, message=message
+            )
             notification.save()
             send_notification(app_user, message, url)
             return True
@@ -126,17 +135,17 @@ def get_notification_msg_and_url(
     action,
     load: Load = None,
     shipment: Shipment = None,
-    user: User = None,
+    app_user: AppUser = None,
 ):
     """Get the notification message based on the action"""
     environment = os.getenv("ENV").lower()
     if action == "add_as_contact":
         return (
-            f"You have been added as a contact by {user.username}.",
+            f"You have been added as a contact by {app_user.user.username}.",
             f"https://{environment}.freightslayer.com/contact",
         )
     elif action == "add_to_load":
-        roles = find_user_roles_in_a_load(load, user)
+        roles = find_user_roles_in_a_load(load, app_user)
         return (
             f"You have been added to the load {load.name} as a {', '.join(roles)}",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
@@ -148,12 +157,12 @@ def get_notification_msg_and_url(
         )
     elif action == "offer_updated":
         return (
-            f"{user.username} has countered your offer on the load '{load.name}'.",
+            f"{app_user.user.username} has countered your offer on the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
     elif action == "add_as_shipment_admin":
         return (
-            f"You have been added as a shipment admin by {user.username} for shipment '{shipment.name}'.",
+            f"You have been added as a shipment admin by {app_user.user.username} for shipment '{shipment.name}'.",
             f"https://{environment}.freightslayer.com/shipment-details/{shipment.id}",
         )
     elif action == "load_status_changed":
@@ -163,15 +172,13 @@ def get_notification_msg_and_url(
         )
     elif action == "RC_approved":
         return (
-            f"{user.username} has approved the rate confirmation for the load '{load.name}'.",
+            f"{app_user.user.username} has approved the rate confirmation for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
-    else:
-        return False
 
 
-def find_user_roles_in_a_load(load: Load, user: User):
-    username = user.username
+def find_user_roles_in_a_load(load: Load, app_user: AppUser):
+    username = app_user.user.username
     load_parties = {
         "customer": f"{load.customer.app_user.user.username}",
         "shipper": f"{load.shipper.app_user.user.username}",
