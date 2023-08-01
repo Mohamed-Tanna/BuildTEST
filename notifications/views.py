@@ -75,7 +75,7 @@ class NotificationView(GenericAPIView, ListModelMixin):
             return self.queryset.none()
         elif read_or_unread == "read":
             app_user = auth_models.AppUser.objects.get(user=self.request.user)
-            return self.queryset.filter(user=app_user, seen=True)
+            return self.queryset.filter(user=app_user, seen=True).order_by("-id")
         elif read_or_unread == "unread":
             app_user = auth_models.AppUser.objects.get(user=self.request.user)
-            return self.queryset.filter(user=app_user, seen=False)
+            return self.queryset.filter(user=app_user, seen=False).order_by("-id")
