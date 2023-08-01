@@ -8,6 +8,8 @@ import document.models as doc_models
 import shipment.serializers as serializers
 import authentication.permissions as permissions
 from authentication.utilities import create_address
+from notifications.utilities import handle_notification
+from shipment.utilities import send_notifications_to_load_parties
 
 # Django imports
 from django.db.models import Q
@@ -611,6 +613,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         if instance.dispatcher == editor:
             self.perform_update(serializer)
+            handle_notification(app_user=carrier.app_user, action="assign_carrier", load=instance)
 
         else:
             return Response(
@@ -1550,6 +1553,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.status = READY_FOR_PICKUP
             load.save()
             self._create_final_agreement(load=load)
+            send_notifications_to_load_parties(load=load, action="load_status_changed")
         elif load.status == AWAITING_DISPATCHER:
             if (
                 SHIPMENT_PARTY in instance.party_2.user_type
@@ -1562,6 +1566,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
+                send_notifications_to_load_parties(load=load, action="load_status_changed")
         else:
             return Response(
                 [
@@ -1599,6 +1604,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         else:
             load.status = "Canceled"
             load.save()
+            send_notifications_to_load_parties(load=load, action="load_status_changed")
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -1626,6 +1632,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
             load.status = AWAITING_DISPATCHER
             load.save()
+            handle_notification(app_user=instance.party_1.app_user, load=load, action="offer_updated")
         elif "dispatcher" in app_user.user_type and load.status == AWAITING_DISPATCHER:
             if instance.to == "customer":
                 load.status = AWAITING_CUSTOMER
@@ -1633,7 +1640,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             elif instance.to == "carrier":
                 load.status = AWAITING_CARRIER
                 load.save()
-
+            handle_notification(app_user=instance.party_2, load=load, action="offer_updated")
+            
         del request.data["action"]
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -2049,6 +2057,7 @@ class DispatcherRejectView(APIView):
             )
         load.status = "Canceled"
         load.save()
+        send_notifications_to_load_parties(load=load, action="load_status_changed")
         return Response({"detail": "load canceled."}, status=status.HTTP_200_OK)
 
 
@@ -2094,6 +2103,7 @@ class UpdateLoadStatus(APIView):
 
             load.status = IN_TRANSIT
             load.save()
+            send_notifications_to_load_parties(load=load, action="load_status_changed")
 
         elif load.status == IN_TRANSIT:
             if load.consignee != shipment_party:
@@ -2103,6 +2113,7 @@ class UpdateLoadStatus(APIView):
                 )
             load.status = "Delivered"
             load.save()
+            send_notifications_to_load_parties(load=load, action="load_status_changed")
 
         else:
             return Response(

@@ -1,21 +1,13 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import shipment.models as models
+from shipment.utilities import send_notifications_to_load_parties
 from notifications.utilities import handle_notification
 
 @receiver(post_save, sender=models.Load)
 def add_to_load_notification_handler(sender, instance: models.Load, created, **kwargs):
     if created:
-        notified_usernames = set()
-        roles = ['dispatcher', 'shipper', 'consignee', 'customer']
-
-        for role in roles:
-            app_user = getattr(instance, role).app_user
-            username = app_user.user.username
-
-            if username not in notified_usernames:
-                handle_notification(action="add_to_load", app_user=app_user, load=instance)
-                notified_usernames.add(username)
+        send_notifications_to_load_parties(load=instance, action="add_to_load")
             
 
 @receiver(post_save, sender=models.ShipmentAdmin)

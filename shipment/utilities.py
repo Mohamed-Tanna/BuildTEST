@@ -1,4 +1,5 @@
 import authentication.models as auth_models
+from notifications.utilities import handle_notification
 import shipment.models as models
 from rest_framework import status
 from rest_framework.response import Response
@@ -226,3 +227,15 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
         return True
     return False
 
+
+def send_notifications_to_load_parties(load, action):
+    notified_usernames = set()
+    roles = ['dispatcher', 'shipper', 'consignee', 'customer']
+
+    for role in roles:
+        app_user = getattr(load, role).app_user
+        username = app_user.user.username
+
+        if username not in notified_usernames:
+            handle_notification(action=action, app_user=app_user, load=load)
+            notified_usernames.add(username)

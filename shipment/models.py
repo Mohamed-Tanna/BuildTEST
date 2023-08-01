@@ -104,7 +104,7 @@ class Load(models.Model):
             ("Assigning Carrier", "Assigning Carrier"),
             ("Awaiting Carrier", "Awaiting Carrier"),
             ("Awaiting Dispatcher", "Awaiting Dispatcher"),
-            ("Ready For Pick Up", "Ready For Pick Up"),
+            ("Ready For Pickup", "Ready For Pickup"),
             ("In Transit", "In Transit"),
             ("Delivered", "Delivered"),
             ("Canceled", "Canceled"),

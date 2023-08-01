@@ -56,7 +56,7 @@ def trigger_send_sms_notification(app_user: AppUser, sid, token, phone_number, m
 
 
 # main
-def handle_notification(app_user: AppUser, action, load=None, shipment=None):
+def handle_notification(app_user: AppUser, action, load=None, shipment=None, rc_approver: AppUser = None):
     """Handle the notification to user's prefrences"""
     try:
         notification_setting = models.NotificationSetting.objects.get(user=app_user)
@@ -71,17 +71,15 @@ def handle_notification(app_user: AppUser, action, load=None, shipment=None):
             "add_as_shipment_admin": "add_as_shipment_admin",
             "load_status_changed": "load_status_changed",
             "RC_approved": "RC_approved",
+            "assign_carrier": "assign_carrier",
         }
 
         if action in action_to_attr_mapping and getattr(
             notification_setting, action_to_attr_mapping[action]
         ):
             message, url = get_notification_msg_and_url(
-                action, load, shipment, app_user
+                action, load, shipment, app_user, rc_approver
             )
-            if isinstance(message, bool):
-                return False
-
             notification = models.Notification.objects.create(
                 user=app_user, message=message
             )
@@ -136,6 +134,7 @@ def get_notification_msg_and_url(
     load: Load = None,
     shipment: Shipment = None,
     app_user: AppUser = None,
+    rc_approver: AppUser = None,
 ):
     """Get the notification message based on the action"""
     environment = os.getenv("ENV").lower()
@@ -172,7 +171,12 @@ def get_notification_msg_and_url(
         )
     elif action == "RC_approved":
         return (
-            f"{app_user.user.username} has approved the rate confirmation for the load '{load.name}'.",
+            f"{rc_approver.user.username} has approved the rate confirmation for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+        )
+    elif action == "assign_carrier":
+        return (
+            f"You have been assigned as the carrier for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
 
