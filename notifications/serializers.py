@@ -16,6 +16,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["user"] = auth_serializers.AppUserSerializer(instance.user).data
+        rep["sender"] = auth_serializers.AppUserSerializer(instance.sender).data
         return rep
 
 

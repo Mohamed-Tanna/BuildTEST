@@ -233,7 +233,8 @@ def send_notifications_to_load_parties(load, action):
     roles = ['dispatcher', 'shipper', 'consignee', 'customer']
 
     for role in roles:
-        app_user = getattr(load, role).app_user
+        actor = getattr(load, role)
+        app_user = actor.app_user
         username = app_user.user.username
 
         if username not in notified_usernames:

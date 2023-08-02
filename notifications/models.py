@@ -3,8 +3,10 @@ from authentication.models import AppUser
 
 
 class Notification(models.Model):
-    user = models.OneToOneField(to=AppUser, on_delete=models.CASCADE, null=False)
+    user = models.ForeignKey(to=AppUser, on_delete=models.CASCADE, null=False, related_name="notified")
+    sender = models.ForeignKey(to=AppUser, on_delete=models.CASCADE, null=True, related_name="notifier")
     message = models.TextField(null=False)
+    url = models.URLField(null=False)
     seen = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -13,8 +13,9 @@ from freightmonster.settings.base import (
 )
 
 
-# file deepcode ignore AttributeLoadOnNone: because these fields are not nullable 
+# file deepcode ignore AttributeLoadOnNone: because these fields are not nullable
 # everytime the function is called some of the fields are supposed to be null
+
 
 def trigger_send_email_notification(subject, template, to, message, url):
     """Trigger sending email notification to user"""
@@ -56,7 +57,13 @@ def trigger_send_sms_notification(app_user: AppUser, sid, token, phone_number, m
 
 
 # main
-def handle_notification(app_user: AppUser, action, load=None, shipment=None, rc_approver: AppUser = None):
+def handle_notification(
+    app_user: AppUser,
+    action,
+    load=None,
+    sender: AppUser = None,
+    shipment=None,
+):
     """Handle the notification to user's prefrences"""
     try:
         notification_setting = models.NotificationSetting.objects.get(user=app_user)
@@ -78,10 +85,10 @@ def handle_notification(app_user: AppUser, action, load=None, shipment=None, rc_
             notification_setting, action_to_attr_mapping[action]
         ):
             message, url = get_notification_msg_and_url(
-                action, load, shipment, app_user, rc_approver
+                action, load, shipment, app_user, sender
             )
             notification = models.Notification.objects.create(
-                user=app_user, message=message
+                user=app_user, sender=sender, message=message, url=url
             )
             notification.save()
             send_notification(app_user, message, url)
@@ -134,34 +141,34 @@ def get_notification_msg_and_url(
     load: Load = None,
     shipment: Shipment = None,
     app_user: AppUser = None,
-    rc_approver: AppUser = None,
+    sender: AppUser = None,
 ):
     """Get the notification message based on the action"""
     environment = os.getenv("ENV").lower()
     if action == "add_as_contact":
         return (
-            f"You have been added as a contact by {app_user.user.username}.",
+            f"{sender.user.username} has added as a contact by {app_user.user.username}.",
             f"https://{environment}.freightslayer.com/contact",
         )
     elif action == "add_to_load":
         roles = find_user_roles_in_a_load(load, app_user)
         return (
-            f"You have been added to the load {load.name} as a {', '.join(roles)}",
+            f"{sender.user.username} has added to the load {load.name} as a {', '.join(roles)}",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
     elif action == "got_offer":
         return (
-            f"{load.dispatcher} has sent you an offer for the load '{load.name}'.",
+            f"{sender.user.username} has sent you an offer for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
     elif action == "offer_updated":
         return (
-            f"{app_user.user.username} has countered your offer on the load '{load.name}'.",
+            f"{sender.user.username} has countered your offer on the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
     elif action == "add_as_shipment_admin":
         return (
-            f"You have been added as a shipment admin by {app_user.user.username} for shipment '{shipment.name}'.",
+            f"{sender.user.username} has added you as a shipment admin on shipment '{shipment.name}'.",
             f"https://{environment}.freightslayer.com/shipment-details/{shipment.id}",
         )
     elif action == "load_status_changed":
@@ -171,12 +178,12 @@ def get_notification_msg_and_url(
         )
     elif action == "RC_approved":
         return (
-            f"{rc_approver.user.username} has approved the rate confirmation for the load '{load.name}'.",
+            f"{sender.user.username} has approved the rate confirmation for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
     elif action == "assign_carrier":
         return (
-            f"You have been assigned as the carrier for the load '{load.name}'.",
+            f"{sender.user.username} assigned you as a carrier for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/load-details/{load.id}",
         )
 
@@ -188,7 +195,7 @@ def find_user_roles_in_a_load(load: Load, app_user: AppUser):
         "shipper": f"{load.shipper.app_user.user.username}",
         "consignee": f"{load.consignee.app_user.user.username}",
         "dispatcher": f"{load.dispatcher.app_user.user.username}",
-        "carrier": f"{load.carrier.app_user.user.username}",
+        "carrier": f"{load.carrier.app_user.user.username}" if load.carrier else None,
     }
     roles = []
     for key, value in load_parties.items():

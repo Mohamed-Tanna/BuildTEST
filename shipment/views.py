@@ -613,7 +613,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         if instance.dispatcher == editor:
             self.perform_update(serializer)
-            handle_notification(app_user=carrier.app_user, action="assign_carrier", load=instance)
+            handle_notification(app_user=carrier.app_user, action="assign_carrier", load=instance, sender=instance.dispatcher.app_user)
 
         else:
             return Response(
@@ -1632,7 +1632,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
             load.status = AWAITING_DISPATCHER
             load.save()
-            handle_notification(app_user=instance.party_1.app_user, load=load, action="offer_updated")
+            handle_notification(app_user=instance.party_1.app_user, load=load, action="offer_updated", sender=instance.party_2)
         elif "dispatcher" in app_user.user_type and load.status == AWAITING_DISPATCHER:
             if instance.to == "customer":
                 load.status = AWAITING_CUSTOMER
@@ -1640,7 +1640,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             elif instance.to == "carrier":
                 load.status = AWAITING_CARRIER
                 load.save()
-            handle_notification(app_user=instance.party_2, load=load, action="offer_updated")
+            handle_notification(app_user=instance.party_2, load=load, action="offer_updated", sender=instance.party_1.app_user)
             
         del request.data["action"]
         serializer = self.get_serializer(instance, data=request.data, partial=partial)

@@ -334,7 +334,7 @@ class ValidateFinalAgreementView(APIView):
                 data = serializers.CustomerFinalAgreementSerializer(
                     final_agreement
                 ).data
-                handle_notification(app_user=load.dispatcher.app_user, load=load, action="RC_approved", rc_approver=customer.app_user)
+                handle_notification(app_user=load.dispatcher.app_user, load=load, action="RC_approved", sender=customer.app_user)
             elif app_user.selected_role == "carrier":
                 carrier = ship_utils.get_carrier_by_username(request.user.username)
                 if carrier != load.carrier:
@@ -351,7 +351,7 @@ class ValidateFinalAgreementView(APIView):
                 final_agreement.carrier_uuid = uuid.uuid4()
                 final_agreement.save()
                 data = serializers.CarrierFinalAgreementSerializer(final_agreement).data
-                handle_notification(app_user=load.dispatcher.app_user, load=load, action="RC_approved", rc_approver=carrier.app_user)
+                handle_notification(app_user=load.dispatcher.app_user, load=load, action="RC_approved", sender=carrier.app_user)
 
             else:
                 return Response(
