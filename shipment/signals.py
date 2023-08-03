@@ -7,7 +7,7 @@ from notifications.utilities import handle_notification
 @receiver(post_save, sender=models.Load)
 def add_to_load_notification_handler(sender, instance: models.Load, created, **kwargs):
     if created:
-        send_notifications_to_load_parties(load=instance, action="add_to_load", sender=instance.created_by)
+        send_notifications_to_load_parties(load=instance, action="add_to_load", sender=instance.created_by, event="load_created")
             
 
 @receiver(post_save, sender=models.ShipmentAdmin)

@@ -228,7 +228,7 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
     return False
 
 
-def send_notifications_to_load_parties(load, action):
+def send_notifications_to_load_parties(load: models.Load, action, sender, event=None):
     notified_usernames = set()
     roles = ['dispatcher', 'shipper', 'consignee', 'customer']
 
@@ -236,7 +236,9 @@ def send_notifications_to_load_parties(load, action):
         actor = getattr(load, role)
         app_user = actor.app_user
         username = app_user.user.username
-
+        
         if username not in notified_usernames:
-            handle_notification(action=action, app_user=app_user, load=load)
+            if event == "load_created" and username == load.created_by.user.username:
+                continue
+            handle_notification(action=action, app_user=app_user, load=load, sender=sender)
             notified_usernames.add(username)
