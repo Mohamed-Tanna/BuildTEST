@@ -66,6 +66,7 @@ mypy-extensions==0.4.3
 oauthlib==3.2.2
 packaging==21.3
 pathspec==0.9.0
+phonenumbers==8.13.18
 platformdirs==2.5.2
 proto-plus==1.22.1
 protobuf==4.21.9

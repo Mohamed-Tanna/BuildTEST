@@ -755,7 +755,10 @@ class RetrieveLoadView(
         app_user = utils.get_app_user_by_username(username=request.user.username)
         authorized = False
 
-        if (
+        if instance.created_by == app_user:
+            authorized = True
+
+        elif (
             app_user.selected_role == "dispatcher"
             and instance.dispatcher
             == utils.get_dispatcher_by_username(username=request.user.username)
@@ -781,14 +784,11 @@ class RetrieveLoadView(
                 authorized = True
 
         else:
-            try:
-                models.ShipmentAdmin.objects.get(shipment=shipment, admin=app_user)
-                authorized = True
+            models.ShipmentAdmin.objects.get(shipment=shipment, admin=app_user)
+            authorized = True
+                
 
-            except models.ShipmentAdmin.DoesNotExist:
-                if instance.created_by == app_user:
-                    authorized = True
-
+        print(authorized)
         if authorized:
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -1672,6 +1672,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     self.perform_create(serializer)
                     headers = self.get_success_headers(serializer.data)
                     load.status = ASSINING_CARRIER
+                    print(load.status, "Accepted")
                     load.save()
                 else:
                     serializer = self.get_serializer(data=request.data)
