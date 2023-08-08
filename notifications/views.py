@@ -79,3 +79,24 @@ class NotificationView(GenericAPIView, ListModelMixin):
         elif read_or_unread == "unread":
             app_user = auth_models.AppUser.objects.get(user=self.request.user)
             return self.queryset.filter(user=app_user, seen=False).order_by("-id")
+        
+
+class UpdateNotificationView(GenericAPIView, UpdateModelMixin):
+    permission_classes = (IsAuthenticated, permissions.IsAppUser)
+    serializer_class = serializers.NotificationSerializer
+    queryset = models.Notification.objects.all()
+    lookup_field = "id"
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        notification = self.get_object()
+        app_user = get_object_or_404(auth_models.AppUser, user=request.user)
+        if notification.user != app_user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        notification.seen = True
+        notification.save()
+
+        return Response(status=status.HTTP_200_OK)
