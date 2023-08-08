@@ -88,7 +88,7 @@ class UpdateNotificationView(GenericAPIView, UpdateModelMixin):
     lookup_field = "id"
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        return self.partial_update(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         notification = self.get_object()
