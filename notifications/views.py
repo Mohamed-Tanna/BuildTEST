@@ -91,12 +91,17 @@ class UpdateNotificationView(GenericAPIView, UpdateModelMixin):
         return self.partial_update(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        notification = self.get_object()
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
         app_user = get_object_or_404(auth_models.AppUser, user=request.user)
-        if notification.user != app_user:
+        if instance.user != app_user:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        notification.seen = True
-        notification.save()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
 
-        return Response(status=status.HTTP_200_OK)
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
