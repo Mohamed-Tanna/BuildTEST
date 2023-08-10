@@ -169,43 +169,43 @@ def get_notification_msg_and_url(
     if action == "add_as_contact":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added you as a contact.",
-            f"https://{environment}.freightslayer.com/contact",
+            f"https://{environment}.freightslayer.com/login?redirect=/contact",
         )
     elif action == "add_to_load":
         roles = find_user_roles_in_a_load(load, app_user)
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added you to the load {load.name} as a {', '.join(roles)}",
-            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
     elif action == "got_offer":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has sent you an offer for the load '{load.name}'.",
-            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
     elif action == "offer_updated":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has countered your offer on the load '{load.name}'.",
-            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
     elif action == "add_as_shipment_admin":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added you as a shipment admin on shipment '{shipment.name}'.",
-            f"https://{environment}.freightslayer.com/shipment-details/{shipment.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/shipment-details/{shipment.id}",
         )
     elif action == "load_status_changed":
         return (
             f"Kindly be informed that there has been a recent update regarding the load '{load.name}' status,  and it is now {load.status}.",
-            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
     elif action == "RC_approved":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has approved the rate confirmation for the load '{load.name}'.",
-            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
     elif action == "assign_carrier":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned you as a carrier for the load '{load.name}'.",
-            f"https://{environment}.freightslayer.com/load-details/{load.id}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
 
 
