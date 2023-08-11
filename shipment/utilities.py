@@ -82,7 +82,7 @@ def get_app_user_by_username(username):
         return user
     except (auth_models.User.DoesNotExist, auth_models.AppUser.DoesNotExist):
         return Response(
-            {"detail": ["dispatcher does not exist."]},
+            {"detail": ["app user does not exist."]},
             status=status.HTTP_404_NOT_FOUND,
         )
     except (BaseException) as e:
@@ -228,7 +228,7 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
     return False
 
 
-def send_notifications_to_load_parties(load: models.Load, action, sender, event=None):
+def send_notifications_to_load_parties(load: models.Load, action, event=None):
     notified_usernames = set()
     roles = ['dispatcher', 'shipper', 'consignee', 'customer']
 
@@ -240,5 +240,5 @@ def send_notifications_to_load_parties(load: models.Load, action, sender, event=
         if username not in notified_usernames:
             if event == "load_created" and username == load.created_by.user.username:
                 continue
-            handle_notification(action=action, app_user=app_user, load=load, sender=sender)
+            handle_notification(action=action, app_user=app_user, load=load, sender=load.created_by)
             notified_usernames.add(username)

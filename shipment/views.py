@@ -47,7 +47,7 @@ IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
 AWAITING_DISPATCHER = "Awaiting Dispatcher"
 AWAITING_CARRIER = "Awaiting Carrier"
-READY_FOR_PICKUP = "Ready For Pick Up"
+READY_FOR_PICKUP = "Ready For Pickup"
 ASSINING_CARRIER = "Assigning Carrier"
 AWAITING_CUSTOMER = "Awaiting Customer"
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
@@ -1971,6 +1971,8 @@ class ShipmentAdminView(
 
         if "admin" in request.data:
             admin = utils.get_app_user_by_username(request.data["admin"])
+            if isinstance(admin, Response):
+                return admin
             request.data["admin"] = admin.id
         else:
             return Response(
