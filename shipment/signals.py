@@ -41,9 +41,9 @@ def add_as_contact_notification_handler(
 @receiver(post_save, sender=models.Offer)
 def offer_notification_handler(sender, instance: models.Offer, created, **kwargs):
     if created and instance.party_1.app_user != instance.party_2:
-            handle_notification(
-                action="got_offer",
-                app_user=instance.party_2,
-                load=instance.load,
-                sender=instance.party_1.app_user,
-            )
+        handle_notification(
+            action="got_offer",
+            app_user=instance.party_2,
+            load=instance.load,
+            sender=instance.party_1.app_user,
+        )
