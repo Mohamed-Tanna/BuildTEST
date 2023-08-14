@@ -1553,7 +1553,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.status = READY_FOR_PICKUP
             load.save()
             self._create_final_agreement(load=load)
-            send_notifications_to_load_parties(load=load, action="load_status_changed")
+            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
         elif load.status == AWAITING_DISPATCHER:
             if (
                 SHIPMENT_PARTY in instance.party_2.user_type
@@ -1566,7 +1566,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
-                send_notifications_to_load_parties(load=load, action="load_status_changed")
+                send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
         else:
             return Response(
                 [
@@ -1604,7 +1604,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         else:
             load.status = "Canceled"
             load.save()
-            send_notifications_to_load_parties(load=load, action="load_status_changed")
+            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -2060,7 +2060,7 @@ class DispatcherRejectView(APIView):
             )
         load.status = "Canceled"
         load.save()
-        send_notifications_to_load_parties(load=load, action="load_status_changed")
+        send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
         return Response({"detail": "load canceled."}, status=status.HTTP_200_OK)
 
 
@@ -2106,7 +2106,7 @@ class UpdateLoadStatus(APIView):
 
             load.status = IN_TRANSIT
             load.save()
-            send_notifications_to_load_parties(load=load, action="load_status_changed")
+            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
 
         elif load.status == IN_TRANSIT:
             if load.consignee != shipment_party:
@@ -2116,7 +2116,7 @@ class UpdateLoadStatus(APIView):
                 )
             load.status = "Delivered"
             load.save()
-            send_notifications_to_load_parties(load=load, action="load_status_changed")
+            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
 
         else:
             return Response(

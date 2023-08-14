@@ -240,5 +240,8 @@ def send_notifications_to_load_parties(load: models.Load, action, event=None):
         if username not in notified_usernames:
             if event == "load_created" and username == load.created_by.user.username:
                 continue
-            handle_notification(action=action, app_user=app_user, load=load, sender=load.created_by)
+            if event == "load_created":
+                handle_notification(action=action, app_user=app_user, load=load, sender=load.created_by)
+            elif event == "load_status_changed":
+                handle_notification(action=action, app_user=app_user, load=load, sender=None)
             notified_usernames.add(username)
