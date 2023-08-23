@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "notifications",
     "invitation",
+    "manager",
     "drf_spectacular",
 ]
 

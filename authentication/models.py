@@ -26,6 +26,7 @@ class AppUser(models.Model):
                 f"carrier-dispatcher-{SHIPMENT_PARTY}",
                 f"carrier-dispatcher-{SHIPMENT_PARTY}",
             ),
+            ("manager", "manager"),
         ],
         max_length=33,
         null=False,
@@ -39,7 +40,7 @@ class AppUser(models.Model):
         max_length=14,
         null=False,
     )
-
+    
     def __str__(self):
         return self.user.username
 
@@ -103,6 +104,7 @@ class Address(models.Model):
 
 class Company(models.Model):
     name = models.CharField(max_length=255, null=False, unique=True)
+    admin = models.OneToOneField(to=AppUser, null=False, on_delete=models.CASCADE)
     identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
     EIN = models.CharField(
         max_length=9,
