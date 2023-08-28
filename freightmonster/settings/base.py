@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "notifications",
     "invitation",
     "manager",
+    "support",
     "drf_spectacular",
 ]
 

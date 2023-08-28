@@ -15,4 +15,5 @@ urlpatterns = [
     path("invites/", include("invitation.urls")),
     path("notifications/", include("notifications.urls")),
     path("manager/", include("manager.urls")),
+    path("support/", include("support.urls")),
 ]

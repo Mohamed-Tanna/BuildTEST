@@ -1,20 +1,17 @@
 # Django imports
 from django.db.models import Q
-from django.http import QueryDict
 
 # DRF imports
 from rest_framework import status
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 # Module imports
 import shipment.models as ship_models
-import shipment.serializers as ship_serializers
-import shipment.views as ship_views
 import authentication.models as auth_models
+import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
 
 
@@ -90,6 +87,7 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
             data={"details": "You don't have access to view this load's information"},
             status=status.HTTP_403_FORBIDDEN,
         )
+
 
 class ListEmployeesContacsView(GenericAPIView, ListModelMixin):
     """
