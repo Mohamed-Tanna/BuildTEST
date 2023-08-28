@@ -754,9 +754,11 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
         )
 
 
-class CheckCompanyView(APIView):
+class CheckCompanyView(GenericAPIView, CreateModelMixin):
 
     permission_classes = [IsAuthenticated]
+    serializer_class = serializers.CompanyEmployeeSerializer
+    queryset = models.CompanyEmployee.objects.all()
 
     @extend_schema(
         description="Check if a company exists.",
@@ -766,8 +768,8 @@ class CheckCompanyView(APIView):
         },
         parameters=[
             OpenApiParameter(
-                name="ein",
-                description="Employer Identification Number",
+                name="id",
+                description="Company unique id",
                 required=True,
                 type=OpenApiTypes.STR,
             ),
@@ -775,9 +777,9 @@ class CheckCompanyView(APIView):
     )
     def get(self, request, *args, **kwargs):
 
-        if "ein" in request.query_params:
-            ein = request.query_params.get("ein")
-            company = get_object_or_404(models.Company, EIN=ein)
+        if "id" in request.query_params:
+            identifier = request.query_params.get("id")
+            company = get_object_or_404(models.Company, identifier=identifier)
 
             return Response(
                 status=status.HTTP_200_OK,
@@ -790,6 +792,23 @@ class CheckCompanyView(APIView):
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    @extend_schema(
+        description="Create a Company Employee.",
+        request=inline_serializer(
+            name="CompanyEmployeeCreate",
+            fields={
+                "app_user": OpenApiTypes.STR,
+                "company": OpenApiTypes.STR,
+            },
+        ),
+        responses={
+            status.HTTP_201_CREATED: serializers.CompanyEmployeeSerializer,
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """Create a Company Employee."""
+        return self.create(request, *args, **kwargs)
 
 
 class TaxInfoView(APIView):

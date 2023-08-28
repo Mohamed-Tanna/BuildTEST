@@ -63,10 +63,13 @@ def trigger_send_sms_notification(app_user: AppUser, sid, token, phone_number, m
     if app_user_phone_number is None:
         print("Invalid phone number format.")
         return False
-    
+
     try:
         response = client.messages.create(
-            to=app_user_phone_number, from_=phone_number, body=message
+            to=app_user_phone_number,
+            from_=phone_number,
+            body=message,
+            messaging_service_sid="MGfeb0e973e4fc789955bfa78fddbd7fa7",
         )
         print(response)
         return True
