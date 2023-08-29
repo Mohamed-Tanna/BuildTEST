@@ -4,6 +4,7 @@ from authentication.models import Address
 
 # Create your models here.
 
+
 class Ticket(models.Model):
     email = models.EmailField(
         max_length=100,
@@ -33,7 +34,7 @@ class Ticket(models.Model):
         blank=False,
     )
     company_domain = models.CharField(
-        max_length=25,
+        max_length=100,
         unique=True,
         null=False,
         blank=False,
@@ -51,7 +52,7 @@ class Ticket(models.Model):
         validators=[MinLengthValidator(9)],
     )
     company_fax_number = models.CharField(
-        max_length=25,
+        max_length=100,
         unique=True,
         null=True,
         blank=True,

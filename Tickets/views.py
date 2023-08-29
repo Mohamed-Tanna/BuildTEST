@@ -6,7 +6,7 @@ from .serializers import TicketSerializer
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
 
-class ListOrCreateTicketsView(GenericAPIView,ListModelMixin):
+class ListTicketsView(GenericAPIView,ListModelMixin):
     """
     View for listing the Tickets
     """
