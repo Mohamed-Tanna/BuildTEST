@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import CreateModelMixin
+from rest_framework.mixins import CreateModelMixin 
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiTypes, inline_serializer
 import authentication.permissions as permissions
@@ -11,6 +11,9 @@ import authentication.models as auth_models
 import shipment.models as ship_models
 import authentication.serializers as auth_serializers
 import authentication.utilities as auth_utils
+from .models import Ticket
+from .serializers import TicketSerializer
+from rest_framework.generics import ListCreateAPIView , RetrieveAPIView
 
 class CompanyView(GenericAPIView, CreateModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
@@ -154,3 +157,21 @@ class CompanyView(GenericAPIView, CreateModelMixin):
                 {"details": "An error occurred during company creation."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        
+class ListCreateTicketsView(ListCreateAPIView):
+    """
+    View for Listing and Creating the Tickets
+    """
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    queryset = Ticket.objects.all()
+    serializer_class = TicketSerializer
+    
+
+class RetrieveTicketsView(RetrieveAPIView):
+    """
+    View for Retrieving the Tickets
+    """
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    queryset = Ticket.objects.all()
+    serializer_class = TicketSerializer
+    lookup_field = "id"     
