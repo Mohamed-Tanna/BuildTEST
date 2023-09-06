@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinLengthValidator
 from authentication.models import Address
 
+
 class Ticket(models.Model):
     email = models.EmailField(
         max_length=100,
@@ -11,12 +12,12 @@ class Ticket(models.Model):
     first_name = models.CharField(
         max_length=100,
         null=False,
-        blank=False, 
+        blank=False,
     )
     last_name = models.CharField(
         max_length=100,
         null=False,
-        blank=False, 
+        blank=False,
     )
     personal_phone = models.CharField(
         max_length=18,
@@ -24,10 +25,11 @@ class Ticket(models.Model):
         null=False,
         blank=False,
         editable=False,
-     )
+    )
     company_name = models.CharField(
-        max_length= 100,
-        null = False,
+        max_length=100,
+        unique=True,
+        null=False,
         blank=False,
     )
     company_domain = models.CharField(
@@ -36,8 +38,9 @@ class Ticket(models.Model):
         null=False,
         blank=False,
     )
-    company_size = models.IntegerField(
-        max_length=100,
+    company_size = models.CharField(
+        choices=[("1-10", "1-10"), ("11-50", "11-50"), ("51-100", "51-100"), (">100", ">100")],
+        max_length=6,
         null=False,
         blank=False,
     )
@@ -66,13 +69,25 @@ class Ticket(models.Model):
         blank=False,
         on_delete=models.CASCADE,
     )
-    SID_Photo = models.ImageField(
-        upload_to='/',
+    sid_photo = models.CharField(
+        max_length=255,
         null=False,
         blank=False,
+        unique=True,
     )
-    personal_photo = models.ImageField(
-        upload_to='/',
+    personal_photo = models.CharField(
+        max_length=255,
         null=False,
         blank=False,
+        unique=True,
+    )
+    status = models.CharField(
+        max_length=8,
+        null=False,
+        choices=[
+            ("Pending", "Pending"),
+            ("Approved", "Approved"),
+            ("Denied", "Denied"),
+        ],
+        default="Pending",
     )
