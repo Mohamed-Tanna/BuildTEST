@@ -99,3 +99,4 @@ CHANNEL_LAYERS = {
 DEFENDER_REDIS_URL = f"redis://{MEMORYSTOREIP}:6379/0"
 
 GS_BUCKET_NAME = "dev_freight_uploaded_files"
+GS_COMPANY_MANAGER_BUCKET_NAME = "dev_freight_company_manager_files"

@@ -74,6 +74,7 @@ database_ip = client.access_secret_version(
 )
 
 GS_BUCKET_NAME = "staging_freight_uploaded_files"
+GS_COMPANY_MANAGER_BUCKET_NAME = "staging_freight_company_manager_files"
 
 storage_client = storage.Client()
 bucket = storage_client.bucket("freightslayer-staging-ssl-cert")
