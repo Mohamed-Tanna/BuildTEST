@@ -52,6 +52,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "defender.middleware.FailedLoginMiddleware",
+    "allauth.account.middleware.AccountMiddleware"
 ]
 
 PASSWORD_HASHERS = [
