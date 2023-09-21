@@ -35,9 +35,8 @@ class UploadFileSerializer(serializers.Serializer):
             name = validated_data["name"].split(".")[0] + "_" + load.name + ".pdf"
             conflict = models.UploadedFile.objects.filter(name=name).exists()
             if conflict:
-                return Response(
-                    [{"details": "File with this name already exists."}],
-                    status=status.HTTP_409_CONFLICT,
+                raise serializers.ValidationError(
+                    {"details": "File with this name already exists."}
                 )
             else:
                 uploaded_file.name = name
@@ -52,7 +51,7 @@ class UploadFileSerializer(serializers.Serializer):
                     size=validated_data["size"],
                 )
                 obj.save()
-                return Response(status=status.HTTP_201_CREATED)
+                return obj
 
 
 class RetrieveFileSerializer(serializers.ModelSerializer):

@@ -27,6 +27,7 @@ class AppUser(models.Model):
                 f"carrier-dispatcher-{SHIPMENT_PARTY}",
             ),
             ("manager", "manager"),
+            ("support", "support")
         ],
         max_length=33,
         null=False,
@@ -36,6 +37,8 @@ class AppUser(models.Model):
             ("carrier", "carrier"),
             ("dispatcher", "dispatcher"),
             (SHIPMENT_PARTY, SHIPMENT_PARTY),
+            ("manager", "manager"),
+            ("support", "support")
         ],
         max_length=14,
         null=False,

@@ -34,7 +34,7 @@ from rest_framework.mixins import (
     DestroyModelMixin,
 )
 
-# ThirdParty imports
+# Third Party imports
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiParameter,

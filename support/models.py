@@ -19,7 +19,7 @@ class Ticket(models.Model):
         null=False,
         blank=False,
     )
-    personal_phone = models.CharField(
+    personal_phone_number = models.CharField(
         max_length=18,
         unique=True,
         null=False,
@@ -90,4 +90,13 @@ class Ticket(models.Model):
             ("Denied", "Denied"),
         ],
         default="Pending",
+    )
+    rejection_reason = models.TextField(
+        default="",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    handled_at = models.DateTimeField(
+        auto_now=True,
     )

@@ -124,3 +124,10 @@ def check_mc_number(mc_number):
                 ],
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+
+def generate_password():
+    password = "".join(
+        random.choice(string.ascii_uppercase + string.digits) for _ in range(10)
+    )
+    return password
