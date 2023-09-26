@@ -1,8 +1,10 @@
 import random
 import string
+
 # Django imports
 from django.http import QueryDict
 from django.core.exceptions import ValidationError
+
 # Module imports
 from support.models import Ticket
 import shipment.models as ship_models
@@ -11,13 +13,20 @@ import authentication.models as auth_models
 import authentication.utilities as auth_utils
 import authentication.permissions as permissions
 import authentication.serializers as auth_serializers
+
 # DRF imports
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, UpdateModelMixin
+from rest_framework.mixins import (
+    ListModelMixin,
+    RetrieveModelMixin,
+    CreateModelMixin,
+    UpdateModelMixin,
+)
+
 # Third Party imports
 from drf_spectacular.utils import extend_schema, OpenApiTypes, inline_serializer
 
@@ -163,63 +172,71 @@ class CompanyView(GenericAPIView, CreateModelMixin):
             )
 
 
-class ListCreateTicketsView(GenericAPIView, ListModelMixin):
-    """
-    View for Listing and Creating the Tickets
-    """
-
-    permission_classes = [IsAuthenticated, permissions.IsSupport]
-    queryset = Ticket.objects.all()
-    serializer_class = serializers.TicketSerializer
-
-
-class RetrieveTicketsView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
+class RetrieveTicketView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
     """
     View for Retrieving the Tickets
     """
 
     permission_classes = [IsAuthenticated, permissions.IsSupport]
     queryset = Ticket.objects.all()
-    serializer_class = serializers.TicketSerializer
+    serializer_class = serializers.ListTicketsSerializer
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
 
 
-class CreateTicketsView(GenericAPIView, CreateModelMixin):
+class ListTicketsView(GenericAPIView, ListModelMixin):
+    """
+    View for Listing the Tickets
+    """
+
+    permission_classes = [IsAuthenticated, permissions.IsSupport]
+    queryset = Ticket.objects.all()
+    serializer_class = serializers.ListTicketsSerializer
+
+    @extend_schema(
+        description="List all Tickets.",
+        responses={200: serializers.ListTicketsSerializer(many=True)},
+    )
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class CreateTicketView(GenericAPIView, CreateModelMixin):
     """
     View for Creating the Tickets
     """
 
-    serializer_class = serializers.TicketSerializer
+    queryset = Ticket.objects.all()
+    serializer_class = serializers.CreateTicketSerializer
 
     @extend_schema(
         description="Create a Ticket.",
-        request=serializers.TicketSerializer,
-        responses={200: serializers.TicketSerializer},
+        request=serializers.CreateTicketSerializer,
+        responses={200: serializers.CreateTicketSerializer},
     )
     def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
+        """
+        Create a Ticket.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return serializer.create(request.data)
 
 
-class HandleTicketsView(GenericAPIView, UpdateModelMixin):
+class HandleTicketView(GenericAPIView, UpdateModelMixin):
     """
     View for Handling the Tickets
     """
 
-    # create a put function that takes an action as an input the action can be one of two thing either approve or deny
-    # if the action is approve then the ticket will be approved and leave the if empty for now
-    # if the action is deny then the ticket will be denied
-
-
     permissions_classes = [IsAuthenticated, permissions.IsSupport]
     queryset = Ticket.objects.all()
-    serializer_class = serializers.TicketSerializer
+    serializer_class = serializers.ListTicketsSerializer
     lookup_field = "id"
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        return self.partial_update(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         ticket = Ticket.objects.get(id=kwargs["id"])
@@ -229,22 +246,30 @@ class HandleTicketsView(GenericAPIView, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if request.data["action"] == "approve":
-            #create an app user and a company using the informatrion in the ticket
+            # create an app user and a company using the informatrion in the ticket
             password = auth_utils.generate_password()
-            username = ticket.email.split("@")[0] + "#" + (
-                "".join(
-                    random.choice(string.ascii_uppercase + string.digits)
-                    for _ in range(5)
-                )
-            )
-            while auth_models.User.objects.filter(username=username).exists():
-                username = ticket.email.split("@")[0] + "#" + (
+            username = (
+                ticket.email.split("@")[0]
+                + "#"
+                + (
                     "".join(
                         random.choice(string.ascii_uppercase + string.digits)
                         for _ in range(5)
                     )
                 )
-        
+            )
+            while auth_models.User.objects.filter(username=username).exists():
+                username = (
+                    ticket.email.split("@")[0]
+                    + "#"
+                    + (
+                        "".join(
+                            random.choice(string.ascii_uppercase + string.digits)
+                            for _ in range(5)
+                        )
+                    )
+                )
+
             user = auth_models.User.objects.create(
                 email=ticket.email,
                 password=password,
@@ -262,12 +287,12 @@ class HandleTicketsView(GenericAPIView, UpdateModelMixin):
             company_id = auth_utils.generate_company_identiefier()
             while auth_models.Company.objects.filter(identifier=company_id).exists():
                 company_id = auth_utils.generate_company_identiefier()
-                
+
             company = auth_models.Company.objects.create(
                 name=ticket.company_name,
                 address=ticket.company_address,
                 identifier=auth_utils.generate_company_identiefier(),
-                EIN = ticket.EIN,
+                EIN=ticket.EIN,
                 fax_number=ticket.company_fax_number,
                 phone_number=ticket.company_phone_number,
                 admin=app_user,
@@ -276,20 +301,28 @@ class HandleTicketsView(GenericAPIView, UpdateModelMixin):
             ticket.save()
             return Response(
                 {"details": "Ticket has been approved"},
-                status=status.HTTP_200_OK, data={"company": auth_serializers.CompanySerializer(company).data, "app_user": auth_serializers.AppUserSerializer(app_user).data}
+                status=status.HTTP_200_OK,
+                data={
+                    "company": auth_serializers.CompanySerializer(company).data,
+                    "app_user": auth_serializers.AppUserSerializer(app_user).data,
+                },
             )
         elif request.data["action"] == "deny":
+            if "rejection_reason" not in request.data:
+                return Response(
+                    {"details": "Reasoning is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             ticket.status = "Denied"
             ticket.rejection_reason = request.data["rejection_reason"]
             ticket.save()
             return Response(
                 {"details": "Ticket has been denied"},
                 status=status.HTTP_200_OK,
-                data={"ticket": serializers.TicketSerializer(ticket).data},
+                data={"ticket": serializers.ListTicketsSerializer(ticket).data},
             )
         else:
             return Response(
                 {"details": "Action is not valid"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            

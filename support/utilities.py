@@ -13,5 +13,5 @@ def upload_to_gcs(uploaded_file, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME):
     """Uploads a file to the bucket."""
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob("pdfs/" + uploaded_file.name)
+    blob = bucket.blob(uploaded_file.name)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
