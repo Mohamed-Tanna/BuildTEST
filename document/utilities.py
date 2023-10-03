@@ -24,6 +24,7 @@ def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600
     """Generates a signed URL for downloading an object from a bucket."""
     try:
         storage_client = get_storage_client()
+        print(bucket_name)
         bucket = storage_client.get_bucket(bucket_name)
         blob = bucket.blob("pdfs/" + object_name)
         if not blob.exists():

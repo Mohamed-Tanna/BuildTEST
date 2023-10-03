@@ -1,11 +1,21 @@
+import os
 import time
 from django.db.models import Q
 import support.models as models
 import support.utilities as utils
-from rest_framework import serializers
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import serializers
+from document import utilities as docs_utils
+from rest_framework.response import Response
 from authentication import utilities as auth_utils
+from authentication.serializers import AddressSerializer
+
+if os.getenv("ENV") == "DEV":
+    from freightmonster.settings.dev import GS_COMPANY_MANAGER_BUCKET_NAME
+elif os.getenv("ENV") == "STAGING":
+    from freightmonster.settings.staging import GS_COMPANY_MANAGER_BUCKET_NAME
+else:
+    from freightmonster.settings.local import GS_COMPANY_MANAGER_BUCKET_NAME
 
 
 class CreateTicketSerializer(serializers.Serializer):
@@ -55,10 +65,8 @@ class CreateTicketSerializer(serializers.Serializer):
             zip_code=validated_data["zip_code"],
         )
         if not address:
-            raise serializers.ValidationError(
-                {"details": "Address creation failed."}
-            )
-        
+            raise serializers.ValidationError({"details": "Address creation failed."})
+
         del (
             validated_data["address"],
             validated_data["city"],
@@ -121,3 +129,35 @@ class ListTicketsSerializer(serializers.ModelSerializer):
             "status",
         ]
         read_only_fields = ("id",)
+
+
+class RetrieveTicketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Ticket
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "personal_phone_number",
+            "company_name",
+            "company_domain",
+            "company_size",
+            "EIN",
+            "company_fax_number",
+            "company_phone_number",
+            "sid_photo",
+            "personal_photo",
+            "company_address",
+            "status",
+        ]
+        read_only_fields = ("id",)
+    
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation["sid_photo"] = docs_utils.generate_signed_url(instance.sid_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
+        representation["personal_photo"] = docs_utils.generate_signed_url(instance.personal_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
+        representation["company_address"] = AddressSerializer(instance.company_address).data
+        return representation
+    
+

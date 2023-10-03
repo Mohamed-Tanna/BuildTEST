@@ -2,8 +2,6 @@ from rest_framework import serializers
 import document.models as models
 import shipment.models as ship_models
 import authentication.models as auth_models
-from rest_framework import status
-from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import document.utilities as utils
 

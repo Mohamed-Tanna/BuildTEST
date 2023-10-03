@@ -1,13 +1,9 @@
 import random
 import string
 
-# Django imports
-from django.http import QueryDict
-from django.core.exceptions import ValidationError
-
 # Module imports
+import support.utilities as utils
 from support.models import Ticket
-import shipment.models as ship_models
 import support.serializers as serializers
 import authentication.models as auth_models
 import authentication.utilities as auth_utils
@@ -31,147 +27,6 @@ from rest_framework.mixins import (
 from drf_spectacular.utils import extend_schema, OpenApiTypes, inline_serializer
 
 
-class CompanyView(GenericAPIView, CreateModelMixin):
-    permission_classes = [IsAuthenticated, permissions.IsSupport]
-    serializer_class = auth_serializers.CompanySerializer
-    queryset = auth_models.Company.objects.all()
-
-    @extend_schema(
-        description="Create a Company.",
-        request=inline_serializer(
-            name="CompanyCreate",
-            fields={
-                "name": OpenApiTypes.STR,
-                "address": OpenApiTypes.STR,
-                "city": OpenApiTypes.STR,
-                "state": OpenApiTypes.STR,
-                "country": OpenApiTypes.STR,
-                "zip_code": OpenApiTypes.STR,
-            },
-        ),
-        responses={
-            status.HTTP_201_CREATED: auth_serializers.CompanySerializer,
-        },
-    )
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
-    # override
-    def create(self, request, *args, **kwargs):
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        address = None
-        company_employee = None
-        company = None
-        try:
-            app_user = auth_models.AppUser.objects.get(user=request.user)
-
-            address = auth_utils.create_address(
-                created_by=app_user,
-                address=request.data["address"],
-                city=request.data["city"],
-                state=request.data["state"],
-                country=request.data["country"],
-                zip_code=request.data["zip_code"],
-            )
-
-            if address == False:
-                return Response(
-                    [
-                        {
-                            "details": "Address creation failed. Please try again; if the issue persists please contact us ."
-                        },
-                    ],
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            del (
-                request.data["address"],
-                request.data["city"],
-                request.data["state"],
-                request.data["country"],
-                request.data["zip_code"],
-            )
-            request.data["address"] = str(address.id)
-            request.data["identifier"] = auth_utils.generate_company_identiefier()
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            company = self.perform_create(serializer)
-            app_user = auth_models.AppUser.objects.get(user=request.user)
-            company_employee = auth_models.CompanyEmployee.objects.create(
-                app_user=app_user, company=company
-            )
-            company_employee.save()
-            headers = self.get_success_headers(serializer.data)
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-        except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            if "first" in request.data and request.data["first"] == True:
-                return self._handle_first_error(
-                    app_user, address, company, company_employee, e
-                )
-            else:
-                return self._handle_basic_error(company, company_employee, address, e)
-
-    # override
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        return instance
-
-    def _handle_first_error(
-        self,
-        app_user: auth_models.AppUser,
-        address: ship_models.Address,
-        company: auth_models.Company,
-        company_employee: auth_models.CompanyEmployee,
-        e,
-    ):
-        if company:
-            company.delete()
-        if company_employee:
-            company_employee.delete()
-        if address:
-            address.delete()
-        app_user.delete()
-        if isinstance(e, ValidationError):
-            return Response(
-                {"details": "company with this name already exists."},
-                status=status.HTTP_409_CONFLICT,
-            )
-        else:
-            return Response(
-                {"details": "An error occurred during company creation."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    def _handle_basic_error(
-        self,
-        company: auth_models.Company,
-        company_employee: auth_models.AppUser,
-        address: auth_models.Address,
-        e,
-    ):
-        if company:
-            company.delete()
-        if company_employee:
-            company_employee.delete()
-        if address:
-            address.delete()
-        if isinstance(e, ValidationError):
-            return Response(
-                {"details": "A company with this name already exists."},
-                status=status.HTTP_409_CONFLICT,
-            )
-        else:
-            return Response(
-                {"details": "An error occurred during company creation."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
 class RetrieveTicketView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
     """
     View for Retrieving the Tickets
@@ -179,7 +34,7 @@ class RetrieveTicketView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.IsSupport]
     queryset = Ticket.objects.all()
-    serializer_class = serializers.ListTicketsSerializer
+    serializer_class = serializers.RetrieveTicketSerializer
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
@@ -299,13 +154,20 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
             )
             ticket.status = "Approved"
             ticket.save()
+            utils.send_request_result(
+                template="accepted_request.html",
+                to=ticket.email,
+                password_or_reason=password,
+                company_name=ticket.company_name,
+                subject="Congratulations! Your Company Request Has Been Approved",
+            )
             return Response(
-                {"details": "Ticket has been approved"},
-                status=status.HTTP_200_OK,
-                data={
+                {
+                    "details": "Ticket has been approved",
                     "company": auth_serializers.CompanySerializer(company).data,
                     "app_user": auth_serializers.AppUserSerializer(app_user).data,
                 },
+                status=status.HTTP_200_OK,
             )
         elif request.data["action"] == "deny":
             if "rejection_reason" not in request.data:
@@ -316,6 +178,13 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
             ticket.status = "Denied"
             ticket.rejection_reason = request.data["rejection_reason"]
             ticket.save()
+            utils.send_request_result(
+                template="denied_request.html",
+                to=ticket.email,
+                password_or_reason=ticket.rejection_reason,
+                company_name=ticket.company_name,
+                subject="Your Company Request Has Been Denied",
+            )
             return Response(
                 {"details": "Ticket has been denied"},
                 status=status.HTTP_200_OK,

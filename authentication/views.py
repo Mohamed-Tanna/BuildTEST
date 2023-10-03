@@ -641,7 +641,16 @@ class CheckCompanyView(GenericAPIView, CreateModelMixin):
     )
     def get(self, request, *args, **kwargs):
 
-        if "id" in request.query_params:
+        if "domain" in request.query_params:
+            domain = request.query_params.get("domain")
+            company = get_object_or_404(models.Company, domain=domain)
+
+            return Response(
+                status=status.HTTP_200_OK,
+                data=serializers.CompanySerializer(company).data,
+            )
+
+        elif "id" in request.query_params:
             identifier = request.query_params.get("id")
             company = get_object_or_404(models.Company, identifier=identifier)
 
@@ -649,10 +658,11 @@ class CheckCompanyView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_200_OK,
                 data=serializers.CompanySerializer(company).data,
             )
+        
         else:
             return Response(
                 [
-                    {"details": "Please provide ein in the query params"},
+                    {"details": "Kindly provide the company's domain or the company's ID."},
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
