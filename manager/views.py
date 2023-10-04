@@ -45,12 +45,12 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
             return queryset.none()
         queryset = queryset.filter(
             Q(created_by__companyemployee__company=company)
-            | Q(customer__app_user__companyemployee__company=company)
-            | Q(shipper__app_user__companyemployee__company=company)
-            | Q(consignee__app_user__companyemployee__company=company)
-            | Q(dispatcher__app_user__companyemployee__company=company)
-            | Q(carrier__app_user__companyemployee__company=company)
-            ).order_by("-id")
+            | Q(customer__appuser__companyemployee__company=company)
+            | Q(shipper__appuser__companyemployee__company=company)
+            | Q(consignee__appuser__companyemployee__company=company)
+            | Q(dispatcher__appuser__companyemployee__company=company)
+            | Q(carrier__appuser__companyemployee__company=company)
+        ).order_by("-id")
 
         return queryset
 
@@ -105,7 +105,7 @@ class ListEmployeesContacsView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-        f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         company_admin = auth_models.AppUser.objects.get(user=self.request.user)
 
@@ -113,17 +113,37 @@ class ListEmployeesContacsView(GenericAPIView, ListModelMixin):
             company = auth_models.Company.objects.get(admin=company_admin)
         except auth_models.Company.DoesNotExist:
             return queryset.none()
-        
-        company_contacts = queryset.filter(
-            Q(origin__in=company.company_employee.all())
-            
-        )
+
+        company_contacts = queryset.filter(Q(origin__in=company.company_employee.all()))
         return company_contacts
 
-  
 
-    
+class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
+    """
+    View for listing all company employees facilities
+    """
 
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = ship_serializers.FacilitySerializer
+    queryset = ship_models.Facility.objects.all()
 
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
 
+    def get_queryset(self):
+        queryset = self.queryset
+        assert queryset is not None, (
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+        )
+        company_admin = auth_models.AppUser.objects.get(user=self.request.user)
 
+        try:
+            company = auth_models.Company.objects.get(admin=company_admin)
+        except auth_models.Company.DoesNotExist:
+            return queryset.none()
+
+        facilities = ship_models.Facility.objects.filter(
+            owner__app_user__companyemployee__company=company
+        ).order_by("-id")
+
+        return facilities
