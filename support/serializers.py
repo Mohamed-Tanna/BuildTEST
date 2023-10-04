@@ -65,7 +65,7 @@ class CreateTicketSerializer(serializers.Serializer):
             zip_code=validated_data["zip_code"],
         )
         if not address:
-            raise serializers.ValidationError({"details": "Address creation failed."})
+            return Response({"details": "Address creation failed."}, status=status.HTTP_400_BAD_REQUEST)
 
         del (
             validated_data["address"],
@@ -87,7 +87,7 @@ class CreateTicketSerializer(serializers.Serializer):
         ).exists():
             return Response(
                 {"message": "The photo already exists"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_409_CONFLICT,
             )
 
         sid_photo.name = sid_photo_name

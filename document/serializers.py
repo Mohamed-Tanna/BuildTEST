@@ -4,7 +4,8 @@ import shipment.models as ship_models
 import authentication.models as auth_models
 from django.shortcuts import get_object_or_404
 import document.utilities as utils
-
+from rest_framework.response import Response
+from rest_framework import status
 
 class UploadFileSerializer(serializers.Serializer):
     uploaded_file = serializers.FileField()
@@ -33,8 +34,9 @@ class UploadFileSerializer(serializers.Serializer):
             name = validated_data["name"].split(".")[0] + "_" + load.name + ".pdf"
             conflict = models.UploadedFile.objects.filter(name=name).exists()
             if conflict:
-                raise serializers.ValidationError(
-                    {"details": "File with this name already exists."}
+                return Response(
+                    {"details": "File with this name already exists."},
+                    status=status.HTTP_409_CONFLICT,
                 )
             else:
                 uploaded_file.name = name
@@ -49,7 +51,7 @@ class UploadFileSerializer(serializers.Serializer):
                     size=validated_data["size"],
                 )
                 obj.save()
-                return obj
+                return Response(status=status.HTTP_201_CREATED)
 
 
 class RetrieveFileSerializer(serializers.ModelSerializer):
