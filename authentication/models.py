@@ -121,6 +121,7 @@ class Company(models.Model):
     )
     fax_number = models.CharField(max_length=18, default="N/A")
     phone_number = models.CharField(max_length=18, null=False, blank=False)
+    domain = models.CharField(max_length=255, null=False, blank=False, unique=True)
 
     def __str__(self):
         return self.name

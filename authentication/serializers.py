@@ -101,12 +101,13 @@ class CompanySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Company
-        fields = ["id", "name", "EIN", "identifier", "address", "phone_number", "admin"]
+        fields = ["id", "name", "EIN", "identifier", "address", "phone_number", "admin", "domain"]
         extra_kwargs = {"id": {"required": False}}
         read_only_fields = ("id",)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
+        rep["admin"] = AppUserSerializer(instance.admin).data
         rep["address"] = AddressSerializer(instance.address).data
         return rep
 
