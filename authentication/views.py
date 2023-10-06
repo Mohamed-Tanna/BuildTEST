@@ -602,21 +602,6 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
 
         return self.create(request, *args, **kwargs)
 
-    # override
-    def create(self, request, *args, **kwargs):
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        app_user = models.AppUser.objects.get(user=request.user)
-        request.data["app_user"] = str(app_user.id)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
-
 
 class CheckCompanyView(GenericAPIView, CreateModelMixin):
 
