@@ -1,5 +1,6 @@
 # Django imports
 from django.db.models import Q
+from django.contrib.auth.models import User
 
 # DRF imports
 from rest_framework import status
@@ -43,14 +44,18 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
             company = auth_models.Company.objects.get(admin=company_admin)
         except auth_models.Company.DoesNotExist:
             return queryset.none()
-        queryset = queryset.filter(
-            Q(created_by__companyemployee__company=company)
-            | Q(customer__appuser__companyemployee__company=company)
-            | Q(shipper__appuser__companyemployee__company=company)
-            | Q(consignee__appuser__companyemployee__company=company)
-            | Q(dispatcher__appuser__companyemployee__company=company)
-            | Q(carrier__appuser__companyemployee__company=company)
-        ).order_by("-id")
+        queryset = (
+            queryset.filter(
+                Q(created_by__companyemployee__company=company)
+                | Q(customer__app_user__companyemployee__company=company)
+                | Q(shipper__app_user__companyemployee__company=company)
+                | Q(consignee__app_user__companyemployee__company=company)
+                | Q(dispatcher__app_user__companyemployee__company=company)
+                | Q(carrier__app_user__companyemployee__company=company)
+            )
+            .distinct()
+            .order_by("-id")
+        )
 
         return queryset
 
@@ -73,13 +78,58 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
         company = auth_models.Company.objects.get(
             admin=auth_models.AppUser.objects.get(user=self.request.user)
         )
+        try:
+            created_by_company = auth_models.CompanyEmployee.objects.get(
+                app_user=instance.created_by
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            created_by_company = None
+
+        try:
+            customer_company = auth_models.CompanyEmployee.objects.get(
+                app_user=instance.customer.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            customer_company = None
+
+        try:
+            shipper_company = auth_models.CompanyEmployee.objects.get(
+                app_user=instance.shipper.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            shipper_company = None
+
+        try:
+            consignee_company = auth_models.CompanyEmployee.objects.get(
+                app_user=instance.consignee.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            consignee_company = None
+
+        try:
+            dispatcher_company = auth_models.CompanyEmployee.objects.get(
+                app_user=instance.dispatcher.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            dispatcher_company = None
+
+        try:
+            if instance.carrier:
+                carrier_company = auth_models.CompanyEmployee.objects.get(
+                    app_user=instance.carrier.app_user
+                ).company
+            else:
+                carrier_company = None
+        except auth_models.CompanyEmployee.DoesNotExist:
+            carrier_company = None
+
         if (
-            instance.created_by.companyemployee.company == company
-            or instance.customer.app_user.companyemployee.company == company
-            or instance.shipper.app_user.companyemployee.company == company
-            or instance.consignee.app_user.companyemployee.company == company
-            or instance.dispatcher.app_user.companyemployee.company == company
-            or instance.carrier.app_user.companyemployee.company == company
+            created_by_company == company
+            or customer_company == company
+            or shipper_company == company
+            or consignee_company == company
+            or dispatcher_company == company
+            or carrier_company == company
         ):
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -107,14 +157,26 @@ class ListEmployeesContacsView(GenericAPIView, ListModelMixin):
         assert queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
-        company_admin = auth_models.AppUser.objects.get(user=self.request.user)
+        company_manager = auth_models.AppUser.objects.get(user=self.request.user)
 
         try:
-            company = auth_models.Company.objects.get(admin=company_admin)
+            company = auth_models.Company.objects.get(manager=company_manager)
         except auth_models.Company.DoesNotExist:
             return queryset.none()
 
-        company_contacts = queryset.filter(Q(origin__in=company.company_employee.all()))
+        company_employees = auth_models.CompanyEmployee.objects.filter(
+            company=company
+        ).values_list("app_user", flat=True)
+        print(company_employees)
+        origins = auth_models.AppUser.objects.filter(
+            id__in=company_employees
+        ).values_list("user", flat=True)
+        origins = User.objects.filter(id__in=origins)
+        company_contacts = (
+            queryset.filter(Q(origin__in=origins) | Q(contact__in=company_employees))
+            .distinct()
+            .order_by("-id")
+        )
         return company_contacts
 
 
@@ -135,15 +197,24 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
         assert queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
-        company_admin = auth_models.AppUser.objects.get(user=self.request.user)
+        company_manager = auth_models.AppUser.objects.get(user=self.request.user)
 
         try:
-            company = auth_models.Company.objects.get(admin=company_admin)
+            company = auth_models.Company.objects.get(manager=company_manager)
         except auth_models.Company.DoesNotExist:
             return queryset.none()
 
-        facilities = ship_models.Facility.objects.filter(
-            owner__app_user__companyemployee__company=company
-        ).order_by("-id")
+        company_employees = auth_models.CompanyEmployee.objects.filter(
+            company=company
+        ).values_list("app_user", flat=True)
+        owners = auth_models.AppUser.objects.filter(
+            id__in=company_employees
+        ).values_list("user", flat=True)
+        owners = User.objects.filter(id__in=owners)
+        facilities = (
+            ship_models.Facility.objects.filter(owner__in=owners)
+            .distinct()
+            .order_by("-id")
+        )
 
         return facilities

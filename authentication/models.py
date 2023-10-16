@@ -107,7 +107,7 @@ class Address(models.Model):
 
 class Company(models.Model):
     name = models.CharField(max_length=255, null=False, unique=True)
-    admin = models.OneToOneField(to=AppUser, null=False, on_delete=models.CASCADE)
+    manager = models.OneToOneField(to=AppUser, null=False, on_delete=models.CASCADE)
     identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
     EIN = models.CharField(
         max_length=9,

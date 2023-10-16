@@ -4,7 +4,6 @@ import shipment.utilities as ship_utils
 import authentication.utilities as utils
 import shipment.models as ship_models
 import authentication.serializers as serializers
-import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
 
 # Django imports
@@ -36,12 +35,10 @@ SHIPMENT_PARTY = "shipment party"
 class HealthCheckView(APIView):
     @extend_schema(description="Health check endpoint.", responses={200: "OK"})
     def get(self, request, *args, **kwargs):
-
         return Response(status=status.HTTP_200_OK)
 
 
 class AppUserView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
     ]
@@ -62,7 +59,6 @@ class AppUserView(GenericAPIView, CreateModelMixin):
         },
     )
     def post(self, request, *args, **kwargs):
-
         """
         Create an AppUser from an existing user
 
@@ -87,7 +83,7 @@ class AppUserView(GenericAPIView, CreateModelMixin):
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_403_FORBIDDEN, data=e.args[0])
 
-        except (BaseException) as e:
+        except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(status=status.HTTP_400_BAD_REQUEST, data=e.args[0])
 
@@ -98,11 +94,16 @@ class AppUserView(GenericAPIView, CreateModelMixin):
         },
     )
     def get(self, request, *args, **kwargs):
+        """
+        Retrieve an AppUser from an existing user
+        """
 
         try:
             app_user = models.AppUser.objects.get(user=request.user)
-            data = serializers.AppUserSerializer(app_user).data
-            return Response(data=data, status=status.HTTP_200_OK)
+            return Response(
+                data=serializers.AppUserSerializer(app_user).data,
+                status=status.HTTP_200_OK,
+            )
 
         except ObjectDoesNotExist:
             return Response(
@@ -110,13 +111,12 @@ class AppUserView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        except (BaseException) as e:
+        except BaseException as e:
             return Response(
                 {"detail": [f"{e.args[0]}"]}, status=status.HTTP_400_BAD_REQUEST
             )
 
     def create(self, request, *args, **kwargs):
-
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -132,7 +132,6 @@ class AppUserView(GenericAPIView, CreateModelMixin):
 
 
 class BaseUserView(GenericAPIView, UpdateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
     ]
@@ -155,7 +154,6 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
         },
     )
     def put(self, request, *args, **kwargs):
-
         """
         Update username, first name and last name
 
@@ -174,7 +172,6 @@ class BaseUserView(GenericAPIView, UpdateModelMixin):
 
 
 class ShipmentPartyView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsAppUser,
@@ -208,7 +205,6 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
     # override
     def create(self, request, *args, **kwargs):
-
         app_user = models.AppUser.objects.get(user=request.user)
 
         if isinstance(request.data, QueryDict):
@@ -226,7 +222,6 @@ class ShipmentPartyView(GenericAPIView, CreateModelMixin):
 
 
 class CarrierView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsAppUser,
@@ -248,7 +243,6 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         },
     )
     def post(self, request, *args, **kwargs):
-
         return self.create(request, *args, **kwargs)
 
     # override
@@ -271,7 +265,6 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if "carrier" in app_user.user_type:
-
             res = utils.check_dot_number(dot_number=request.data["DOT_number"])
             if isinstance(res, Response):
                 app_user.delete()
@@ -296,7 +289,6 @@ class CarrierView(GenericAPIView, CreateModelMixin):
 
 
 class DispatcherView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsAppUser,
@@ -318,7 +310,6 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
         },
     )
     def post(self, request, *args, **kwargs):
-
         return self.create(request, *args, **kwargs)
 
     # override
@@ -342,7 +333,6 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if "dispatcher" in app_user.user_type:
-
             res = utils.check_mc_number(mc_number=request.data["MC_number"])
             if isinstance(res, Response):
                 app_user.delete()
@@ -367,7 +357,6 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
 
 
 class CompanyView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.CompanySerializer
     queryset = models.Company.objects.all()
@@ -389,7 +378,6 @@ class CompanyView(GenericAPIView, CreateModelMixin):
 
 
 class UserTaxView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.UserTaxSerializer
     queryset = models.UserTax.objects.all()
@@ -424,7 +412,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                     [{"details": "User tax identification number not found"}],
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 app_user = models.AppUser.objects.get(user=request.user)
                 app_user.delete()
@@ -454,7 +442,6 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
         },
     )
     def post(self, request, *args, **kwargs):
-
         return self.create(request, *args, **kwargs)
 
     # override
@@ -504,7 +491,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
-        except (BaseException) as e:
+        except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             if "first" in request.data and request.data["first"] == True:
                 return self._handle_first_error(app_user, address, e)
@@ -538,7 +525,6 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
 
 
 class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     serializer_class = serializers.CompanyEmployeeSerializer
     queryset = models.CompanyEmployee.objects.all()
@@ -599,12 +585,10 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
         },
     )
     def post(self, request, *args, **kwargs):
-
         return self.create(request, *args, **kwargs)
 
 
 class CheckCompanyView(GenericAPIView, CreateModelMixin):
-
     permission_classes = [IsAuthenticated]
     serializer_class = serializers.CompanyEmployeeSerializer
     queryset = models.CompanyEmployee.objects.all()
@@ -625,7 +609,6 @@ class CheckCompanyView(GenericAPIView, CreateModelMixin):
         ],
     )
     def get(self, request, *args, **kwargs):
-
         if "domain" in request.query_params:
             domain = request.query_params.get("domain")
             company = get_object_or_404(models.Company, domain=domain)
@@ -643,11 +626,13 @@ class CheckCompanyView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_200_OK,
                 data=serializers.CompanySerializer(company).data,
             )
-        
+
         else:
             return Response(
                 [
-                    {"details": "Kindly provide the company's domain or the company's ID."},
+                    {
+                        "details": "Kindly provide the company's domain or the company's ID."
+                    },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -671,7 +656,6 @@ class CheckCompanyView(GenericAPIView, CreateModelMixin):
 
 
 class TaxInfoView(APIView):
-
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
 
     @extend_schema(
@@ -722,7 +706,6 @@ class AddRoleView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-
         app_user = models.AppUser.objects.get(user=request.user)
         new_type = request.data.get("type", None)
 
@@ -772,7 +755,7 @@ class AddRoleView(APIView):
                 data=serializers.AppUserSerializer(app_user).data,
             )
 
-        except (BaseException) as e:
+        except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             app_user.delete()
             return Response(
