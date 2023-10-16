@@ -128,6 +128,6 @@ def check_mc_number(mc_number):
 
 def generate_password():
     password = "".join(
-        random.choice(string.ascii_uppercase + string.digits) for _ in range(10)
+        random.choice(string.digits + string.ascii_letters + string.punctuation) for _ in range(10)
     )
     return password

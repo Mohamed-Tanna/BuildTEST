@@ -417,7 +417,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 app_user = models.AppUser.objects.get(user=request.user)
                 app_user.delete()
                 return Response(
-                    {"details": "U-T"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {"details": "TIN"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
         else:
