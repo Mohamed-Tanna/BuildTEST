@@ -6,6 +6,7 @@ import shipment.models as models
 import shipment.utilities as utils
 import document.models as doc_models
 import shipment.serializers as serializers
+import authentication.models as auth_models
 import authentication.permissions as permissions
 from authentication.utilities import create_address
 from notifications.utilities import handle_notification
@@ -13,6 +14,7 @@ from shipment.utilities import send_notifications_to_load_parties
 
 # Django imports
 from django.db.models import Q
+from django.http import Http404
 from django.http import QueryDict
 from django.db import IntegrityError
 from django.db.models.query import QuerySet
@@ -428,17 +430,23 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request.data["created_by"] = str(app_user.id)
         request.data["name"] = utils.generate_load_name()
 
-        missing_fields = [
-            field
-            for field in ["dispatcher", "customer", "shipper", "consignee"]
-            if field not in request.data
-        ]
-        if missing_fields:
-            return Response(
-                {"detail": [f"{field} is required." for field in missing_fields]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        missing_fields = self._check_for_any_missing_load_parties(request)
+        if isinstance(missing_fields, Response):
+            return missing_fields
+        
+        facility_check = self._check_facility_belongs_to_shipment_parties(
+            pick_up_location_id=request.data["pick_up_location"],
+            destination_id=request.data["destination"],
+            shipper_username=request.data["shipper"],
+            consignee_username=request.data["consignee"],
+        )      
+        if isinstance(facility_check, Response):
+            return facility_check
+        
+        all_parties = ["shipper","consignee","customer","dispatcher"]
+        # for party in all_parties:
+            # self._check_mutual_contact(request.user.id, request.data[party])
+        
         parties_tax_info = utils.get_parties_tax(
             customer_username=request.data["customer"],
             dispatcher_username=request.data["dispatcher"],
@@ -450,11 +458,15 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         required_fields = ["shipper", "consignee", "customer"]
         for field in required_fields:
             party = utils.get_shipment_party_by_username(username=request.data[field])
+            if isinstance(party, Response):
+                return party
             request.data[field] = str(party.id)
-
+        
         dispatcher = utils.get_dispatcher_by_username(
             username=request.data["dispatcher"]
         )
+        if isinstance(dispatcher, Response):
+            return dispatcher
         request.data["dispatcher"] = str(dispatcher.id)
 
         serializer = self.get_serializer(data=request.data)
@@ -469,31 +481,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
             except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
-
-                if "delivery_date_check" in str(e.__cause__):
-                    return Response(
-                        {
-                            "detail": [
-                                "Invalid pick up or drop off date's, please double check the dates and try again"
-                            ]
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                elif "pick up location" in str(e.__cause__):
-                    return Response(
-                        {
-                            "detail": [
-                                "pick up location and drop off location cannot be equal, please double check the locations and try again"
-                            ]
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                return Response(
-                    {"detail": [f"{e.args[0]}"]},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                return self._handle_exception_errors(e)
 
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -588,16 +576,15 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return editor
 
         carrier = utils.get_carrier_by_username(username=request.data["carrier"])
+        if isinstance(carrier, Response):
+            return carrier
+        
         tax_info = utils.get_user_tax_or_company(carrier.app_user)
-
         if isinstance(tax_info, Response):
             return Response(
                 {"details": "Carrier does not have a tax id or company name."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        if isinstance(carrier, Response):
-            return carrier
 
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
@@ -652,6 +639,88 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return request
 
+    def _check_for_any_missing_load_parties(self, request):
+        missing_fields = [
+            field
+            for field in ["dispatcher", "customer", "shipper", "consignee"]
+            if field not in request.data
+        ]
+        if missing_fields:
+            return Response(
+                {"detail": [f"{field} is required." for field in missing_fields]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return None
+
+    def _handle_exception_errors(self, e):
+        if "delivery_date_check" in str(e.__cause__):
+            return Response(
+                {
+                    "detail": [
+                        "Invalid pick up or drop off date's, please double check the dates and try again"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        elif "pick up location" in str(e.__cause__):
+            return Response(
+                {
+                    "detail": [
+                        "pick up location and drop off location cannot be equal, please double check the locations and try again"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"detail": [f"{e.args[0]}"]},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    def _check_facility_belongs_to_shipment_parties(
+        self, pick_up_location_id, destination_id, shipper_username, consignee_username
+    ):
+        pick_up_location = get_object_or_404(models.Facility, id=pick_up_location_id)
+        
+        shipper_app_user = utils.get_app_user_by_username(username=shipper_username)
+        if isinstance(shipper_app_user, Response):
+            return shipper_app_user
+        
+        if pick_up_location.owner != shipper_app_user.user:
+            return Response(
+                {
+                    "detail": [
+                        "The pickup location you are trying to use does not belong to the shipper."
+                    ]
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        destination = get_object_or_404(models.Facility, id=destination_id)
+        consignee_app_user = utils.get_app_user_by_username(username=consignee_username)
+        if isinstance(consignee_app_user, Response):
+            return consignee_app_user
+      
+        if destination.owner != consignee_app_user.user:
+            return Response(
+                {
+                    "detail": [
+                        "The destination you are trying to use does not belong to the consignee."
+                    ]
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def _check_mutual_contact(self, origin_id, contact_username):
+        contact_app_user = utils.get_app_user_by_username(username=contact_username)
+        if isinstance(contact_app_user, Response):
+            raise Http404("One of the users that you are trying to add didn't complete their account.")        
+        get_object_or_404(models.Contact, origin=origin_id, contact=contact_app_user.id)
+        return True
+        
+        
 
 class ListLoadView(GenericAPIView, ListModelMixin):
     permission_classes = [

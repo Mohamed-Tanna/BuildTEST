@@ -158,18 +158,21 @@ def get_user_tax_or_company(app_user):
 
 def get_parties_tax(customer_username, dispatcher_username):
     customer_app_user = get_app_user_by_username(customer_username)
-    dispatcher_app_user = get_app_user_by_username(dispatcher_username)
     if isinstance(customer_app_user, Response):
         return customer_app_user
+
+    dispatcher_app_user = get_app_user_by_username(dispatcher_username)
     if isinstance(dispatcher_app_user, Response):
         return dispatcher_app_user
+
     customer_tax = get_user_tax_or_company(customer_app_user)
-    dispatcher_tax = get_user_tax_or_company(dispatcher_app_user)
     if isinstance(customer_tax, Response):
         return Response(
             {"details": "The customer does not have any tax information."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    dispatcher_tax = get_user_tax_or_company(dispatcher_app_user)
     if isinstance(dispatcher_tax, Response):
         return Response(
             {"details": "The dispatcher does not have any tax information."},
@@ -230,18 +233,22 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
 
 def send_notifications_to_load_parties(load: models.Load, action, event=None):
     notified_usernames = set()
-    roles = ['dispatcher', 'shipper', 'consignee', 'customer']
+    roles = ["dispatcher", "shipper", "consignee", "customer"]
 
     for role in roles:
         actor = getattr(load, role)
         app_user = actor.app_user
         username = app_user.user.username
-        
+
         if username not in notified_usernames:
             if event == "load_created" and username == load.created_by.user.username:
                 continue
             if event == "load_created":
-                handle_notification(action=action, app_user=app_user, load=load, sender=load.created_by)
+                handle_notification(
+                    action=action, app_user=app_user, load=load, sender=load.created_by
+                )
             elif event == "load_status_changed":
-                handle_notification(action=action, app_user=app_user, load=load, sender=None)
+                handle_notification(
+                    action=action, app_user=app_user, load=load, sender=None
+                )
             notified_usernames.add(username)
