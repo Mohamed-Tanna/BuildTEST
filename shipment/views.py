@@ -444,8 +444,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return facility_check
         
         all_parties = ["shipper","consignee","customer","dispatcher"]
-        # for party in all_parties:
-            # self._check_mutual_contact(request.user.id, request.data[party])
+        for party in all_parties:
+            self._check_mutual_contact(request.user.id, request.data[party])
         
         parties_tax_info = utils.get_parties_tax(
             customer_username=request.data["customer"],
