@@ -3,7 +3,6 @@ import shipment.models as models
 
 
 class FacilityAdmin(admin.ModelAdmin):
-
     list_display = [
         "id",
         "owner",
@@ -13,7 +12,6 @@ class FacilityAdmin(admin.ModelAdmin):
 
 
 class TrailerAdmin(admin.ModelAdmin):
-
     list_display = [
         "id",
         "model",
@@ -24,7 +22,6 @@ class TrailerAdmin(admin.ModelAdmin):
 
 
 class LoadAdmin(admin.ModelAdmin):
-
     list_display = [
         "id",
         "name",
@@ -41,7 +38,6 @@ class LoadAdmin(admin.ModelAdmin):
 
 
 class ContactAdmin(admin.ModelAdmin):
-
     list_display = [
         "id",
         "origin",
@@ -50,7 +46,6 @@ class ContactAdmin(admin.ModelAdmin):
 
 
 class OfferAdmin(admin.ModelAdmin):
-
     list_display = [
         "id",
         "party_1",
@@ -64,7 +59,6 @@ class OfferAdmin(admin.ModelAdmin):
 
 
 class ShipmentAdminSite(admin.ModelAdmin):
-
     list_display = [
         "id",
         "name",
@@ -73,7 +67,6 @@ class ShipmentAdminSite(admin.ModelAdmin):
 
 
 class ShipmentAdminAdmin(admin.ModelAdmin):
-
     list_display = [
         "id",
         "shipment",

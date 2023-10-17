@@ -57,7 +57,6 @@ ERR_SECOND_PART = "or override the `get_queryset()` method."
 class FacilityView(
     GenericAPIView, CreateModelMixin, ListModelMixin, RetrieveModelMixin
 ):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentParty,
@@ -130,7 +129,6 @@ class FacilityView(
         ],
     )
     def post(self, request, *args, **kwargs):
-
         """
         Create a Facility
 
@@ -216,7 +214,6 @@ class FacilityView(
             return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
@@ -227,7 +224,6 @@ class FacilityView(
         return queryset
 
     def create(self, request, *args, **kwargs):
-
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -270,7 +266,6 @@ class FacilityView(
 
 
 class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -304,8 +299,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 description="Pick Up Date",
                 required=False,
                 type=OpenApiTypes.STR,
-                ),
-                OpenApiParameter(
+            ),
+            OpenApiParameter(
                 name="delivery_date",
                 description="Delivery Date",
                 required=False,
@@ -472,7 +467,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 request.data["name"] = utils.generate_load_name()
                 continue
 
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
                 if "delivery_date_check" in str(e.__cause__):
@@ -569,7 +564,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _update_assigning_carrier_load(self, request, instance, kwargs):
-
         if "carrier" not in request.data:
             return Response(
                 [
@@ -613,7 +607,12 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         if instance.dispatcher == editor:
             self.perform_update(serializer)
-            handle_notification(app_user=carrier.app_user, action="assign_carrier", load=instance, sender=instance.dispatcher.app_user)
+            handle_notification(
+                app_user=carrier.app_user,
+                action="assign_carrier",
+                load=instance,
+                sender=instance.dispatcher.app_user,
+            )
 
         else:
             return Response(
@@ -655,7 +654,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
 
 class ListLoadView(GenericAPIView, ListModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.HasRole,
@@ -695,21 +693,21 @@ class ListLoadView(GenericAPIView, ListModelMixin):
                     | Q(consignee=shipment_party.id)
                     | Q(customer=shipment_party.id)
                 )
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
         elif app_user.selected_role == "dispatcher":
             try:
                 dispatcher = models.Dispatcher.objects.get(app_user=app_user.id)
                 filter_query |= Q(dispatcher=dispatcher.id)
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
         elif app_user.selected_role == "carrier":
             try:
                 carrier = models.Carrier.objects.get(app_user=app_user.id)
                 filter_query |= Q(carrier=carrier.id)
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
 
         queryset = (
@@ -725,7 +723,6 @@ class RetrieveLoadView(
     GenericAPIView,
     RetrieveModelMixin,
 ):
-
     permission_classes = [
         IsAuthenticated,
         permissions.HasRole,
@@ -746,7 +743,6 @@ class RetrieveLoadView(
         ],
     )
     def get(self, request, *args, **kwargs):
-
         return self.retrieve(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
@@ -786,7 +782,6 @@ class RetrieveLoadView(
         else:
             models.ShipmentAdmin.objects.get(shipment=shipment, admin=app_user)
             authorized = True
-                
 
         print(authorized)
         if authorized:
@@ -800,7 +795,6 @@ class RetrieveLoadView(
 
 
 class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.HasRole,
@@ -823,7 +817,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 required=True,
                 type=OpenApiTypes.STR,
             ),
-        ]
+        ],
     )
     def post(self, request, *args, **kwargs):
         """
@@ -837,7 +831,6 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     # override
     def create(self, request, *args, **kwargs):
-
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -909,7 +902,6 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     # override
     def get_queryset(self):
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
@@ -932,7 +924,6 @@ class ShipmentView(
     RetrieveModelMixin,
     UpdateModelMixin,
 ):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -1037,7 +1028,6 @@ class ShipmentView(
 
     # override
     def create(self, request, *args, **kwargs):
-
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -1059,7 +1049,7 @@ class ShipmentView(
             except IntegrityError:
                 request.data["name"] = utils.generate_shipment_name()
                 continue
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(
                     {"detail": [f"{e.args[0]}"]},
@@ -1075,7 +1065,6 @@ class ShipmentView(
 
 
 class ShipmentFilterView(GenericAPIView, ListModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -1105,7 +1094,6 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
@@ -1133,7 +1121,6 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
 
 class FacilityFilterView(GenericAPIView, ListModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -1178,7 +1165,6 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
 
     # override
     def get_queryset(self):
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
@@ -1214,7 +1200,6 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
 
 
 class ContactFilterView(GenericAPIView, ListModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -1261,7 +1246,6 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
 
     # override
     def get_queryset(self):
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
@@ -1316,7 +1300,6 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
 
 
 class LoadFilterView(GenericAPIView, ListModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -1376,7 +1359,6 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
 
 
 class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsAppUser,
@@ -1432,7 +1414,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         responses={200: serializers.OfferSerializer},
     )
     def put(self, request, *args, **kwargs):
-
         return self.partial_update(request, *args, **kwargs)
 
     # override
@@ -1553,7 +1534,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load.status = READY_FOR_PICKUP
             load.save()
             self._create_final_agreement(load=load)
-            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
+            send_notifications_to_load_parties(
+                load=load, action="load_status_changed", event="load_status_changed"
+            )
         elif load.status == AWAITING_DISPATCHER:
             if (
                 SHIPMENT_PARTY in instance.party_2.user_type
@@ -1566,7 +1549,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
-                send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
+                send_notifications_to_load_parties(
+                    load=load, action="load_status_changed", event="load_status_changed"
+                )
         else:
             return Response(
                 [
@@ -1604,7 +1589,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         else:
             load.status = "Canceled"
             load.save()
-            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
+            send_notifications_to_load_parties(
+                load=load, action="load_status_changed", event="load_status_changed"
+            )
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -1632,7 +1619,12 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
             load.status = AWAITING_DISPATCHER
             load.save()
-            handle_notification(app_user=instance.party_1.app_user, load=load, action="offer_updated", sender=instance.party_2)
+            handle_notification(
+                app_user=instance.party_1.app_user,
+                load=load,
+                action="offer_updated",
+                sender=instance.party_2,
+            )
         elif "dispatcher" in app_user.user_type and load.status == AWAITING_DISPATCHER:
             if instance.to == "customer":
                 load.status = AWAITING_CUSTOMER
@@ -1640,8 +1632,13 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             elif instance.to == "carrier":
                 load.status = AWAITING_CARRIER
                 load.save()
-            handle_notification(app_user=instance.party_2, load=load, action="offer_updated", sender=instance.party_1.app_user)
-            
+            handle_notification(
+                app_user=instance.party_2,
+                load=load,
+                action="offer_updated",
+                sender=instance.party_1.app_user,
+            )
+
         del request.data["action"]
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -1870,7 +1867,6 @@ class ShipmentAdminView(
     UpdateModelMixin,
     DestroyModelMixin,
 ):
-
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -1996,7 +1992,6 @@ class ShipmentAdminView(
 
     # override
     def get_queryset(self):
-
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
@@ -2011,7 +2006,6 @@ class ShipmentAdminView(
 
     # override
     def update(self, request, *args, **kwargs):
-
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -2034,7 +2028,6 @@ class ShipmentAdminView(
 
 
 class DispatcherRejectView(APIView):
-
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
     @extend_schema(
@@ -2060,7 +2053,9 @@ class DispatcherRejectView(APIView):
             )
         load.status = "Canceled"
         load.save()
-        send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
+        send_notifications_to_load_parties(
+            load=load, action="load_status_changed", event="load_status_changed"
+        )
         return Response({"detail": "load canceled."}, status=status.HTTP_200_OK)
 
 
@@ -2106,7 +2101,9 @@ class UpdateLoadStatus(APIView):
 
             load.status = IN_TRANSIT
             load.save()
-            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
+            send_notifications_to_load_parties(
+                load=load, action="load_status_changed", event="load_status_changed"
+            )
 
         elif load.status == IN_TRANSIT:
             if load.consignee != shipment_party:
@@ -2116,7 +2113,9 @@ class UpdateLoadStatus(APIView):
                 )
             load.status = "Delivered"
             load.save()
-            send_notifications_to_load_parties(load=load, action="load_status_changed", event="load_status_changed")
+            send_notifications_to_load_parties(
+                load=load, action="load_status_changed", event="load_status_changed"
+            )
 
         else:
             return Response(
@@ -2347,7 +2346,8 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         else:
             search = self.request.data["search"]
             queryset = models.Contact.objects.filter(
-                Q(origin=self.request.user.id) & Q(contact__user__username__icontains=search)
+                Q(origin=self.request.user.id)
+                & Q(contact__user__username__icontains=search)
             ).order_by("contact__user__username")
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()

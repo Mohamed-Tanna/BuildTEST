@@ -11,7 +11,6 @@ from authentication.models import (
 
 
 class Facility(models.Model):
-
     owner = models.ForeignKey(
         to=User, null=False, blank=False, on_delete=models.CASCADE
     )
@@ -26,7 +25,6 @@ class Facility(models.Model):
 
 
 class Trailer(models.Model):
-
     model = models.CharField(max_length=50)
     description = models.CharField(max_length=50)
     max_height = models.FloatField()
@@ -90,7 +88,7 @@ class Load(models.Model):
     equipment = models.CharField(max_length=255, null=False, blank=False)
     goods_info = models.CharField(
         choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
-    )
+    ) #Hazardous materials
     load_type = models.CharField(
         choices=[("LTL", "LTL"), ("FTL", "FTL")],
         max_length=3,
@@ -132,7 +130,6 @@ class Load(models.Model):
 
 
 class Contact(models.Model):
-
     origin = models.ForeignKey(
         to=User, null=True, on_delete=models.CASCADE, related_name="main"
     )
