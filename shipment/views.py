@@ -510,6 +510,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _update_created_load(self, request, instance, kwargs):
+        all_parties = ["shipper","consignee","customer","dispatcher"]
+        for party in all_parties:
+            self._check_mutual_contact(request.user.id, request.data[party])
         party_types = ["customer", "shipper", "consignee"]
         new_request = self._handle_shipment_parties(request, party_types)
         if isinstance(new_request, Response):
@@ -569,6 +572,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        self._check_mutual_contact(request.user.id, request.data["carrier"])
 
         editor = utils.get_dispatcher_by_username(username=request.user.username)
 
@@ -716,9 +721,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     def _check_mutual_contact(self, origin_id, contact_username):
         contact_app_user = utils.get_app_user_by_username(username=contact_username)
         if isinstance(contact_app_user, Response):
-            raise Http404("One of the users that you are trying to add didn't complete their account.")        
+            raise Http404("One of the users that you are trying to add didn't complete their account.")       
+        if contact_app_user.user.id == origin_id:
+            return True 
         get_object_or_404(models.Contact, origin=origin_id, contact=contact_app_user.id)
-        return True
         
         
 
