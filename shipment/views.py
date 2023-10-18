@@ -573,6 +573,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        self._check_mutual_contact(request.user.id, request.data["carrier"])
+
         editor = utils.get_dispatcher_by_username(username=request.user.username)
 
         if isinstance(editor, Response):
