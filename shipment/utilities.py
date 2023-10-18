@@ -1,9 +1,10 @@
-import authentication.models as auth_models
-from notifications.utilities import handle_notification
+import string, random
 import shipment.models as models
 from rest_framework import status
+import authentication.models as auth_models
 from rest_framework.response import Response
-import string, random
+import rest_framework.exceptions as exceptions
+from notifications.utilities import handle_notification
 
 
 def get_shipment_party_by_username(username):
@@ -17,16 +18,10 @@ def get_shipment_party_by_username(username):
         auth_models.AppUser.DoesNotExist,
         auth_models.ShipmentParty.DoesNotExist,
     ):
-        return Response(
-            {"detail": ["shipper does not exist."]},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail="shipment party does not exist.")
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
-        return Response(
-            {"detail": [f"{e.args[0]}"]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 
 def get_carrier_by_username(username):
@@ -40,17 +35,10 @@ def get_carrier_by_username(username):
         auth_models.AppUser.DoesNotExist,
         auth_models.Carrier.DoesNotExist,
     ):
-        return Response(
-            {"detail": ["carrier does not exist."]},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail="carrier does not exist.")
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
-        return Response(
-            {"detail": [f"{e.args[0]}"]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 def get_dispatcher_by_username(username):
     try:
@@ -63,16 +51,10 @@ def get_dispatcher_by_username(username):
         auth_models.AppUser.DoesNotExist,
         auth_models.Dispatcher.DoesNotExist,
     ):
-        return Response(
-            {"detail": ["dispatcher does not exist."]},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail="dispatcher does not exist.")
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
-        return Response(
-            {"detail": [f"{e.args[0]}"]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 
 def get_app_user_by_username(username):
@@ -81,17 +63,10 @@ def get_app_user_by_username(username):
         user = auth_models.AppUser.objects.get(user=user.id)
         return user
     except (auth_models.User.DoesNotExist, auth_models.AppUser.DoesNotExist):
-        return Response(
-            {"detail": ["app user does not exist."]},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail="app user does not exist.")
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
-        return Response(
-            {"detail": [f"{e.args[0]}"]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 def generate_load_name() -> string:
     name = "L-" + (
@@ -107,48 +82,32 @@ def generate_shipment_name() -> string:
     return name
 
 
-def get_company_by_role(app_user):
+def get_company_by_role(app_user, user_type="user"):
     try:
         company_employee = auth_models.CompanyEmployee.objects.get(app_user=app_user)
         company = auth_models.Company.objects.get(id=company_employee.company.id)
         return company
     except auth_models.CompanyEmployee.DoesNotExist:
-        return Response(
-            {"detail": ["user has no tax information"]},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail=f"{user_type} has no company")
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
-        return Response(
-            {"detail": [f"{e.args[0]}"]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 
-def get_user_tax_by_role(app_user):
+def get_user_tax_by_role(app_user, user_type="user"):
     try:
         user_tax = auth_models.UserTax.objects.get(app_user=app_user)
         return user_tax
     except auth_models.UserTax.DoesNotExist:
-        return Response(
-            {"detail": ["user has no tax information"]},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail=f"{user_type} has no tax information")
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
-        return Response(
-            {"detail": [f"{e.args[0]}"]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
-
-def get_user_tax_or_company(app_user):
+def get_user_tax_or_company(app_user, user_type="user"):
     """Returns the company or user tax of the user"""
-    company = get_company_by_role(app_user)
-    user_tax = get_user_tax_by_role(app_user)
-
-    if isinstance(company, Response) and isinstance(user_tax, Response):
-        return Response({"details": "no tax info"}, status=status.HTTP_404_NOT_FOUND)
+    company = get_company_by_role(app_user, user_type=user_type)
+    user_tax = get_user_tax_by_role(app_user, user_type=user_type)
 
     if isinstance(company, auth_models.Company):
         return company
@@ -156,25 +115,11 @@ def get_user_tax_or_company(app_user):
     return user_tax
 
 
-def get_parties_tax(customer_username, dispatcher_username):
+def check_parties_tax_info(customer_username, dispatcher_username):
     customer_app_user = get_app_user_by_username(customer_username)
     dispatcher_app_user = get_app_user_by_username(dispatcher_username)
-    if isinstance(customer_app_user, Response):
-        return customer_app_user
-    if isinstance(dispatcher_app_user, Response):
-        return dispatcher_app_user
-    customer_tax = get_user_tax_or_company(customer_app_user)
-    dispatcher_tax = get_user_tax_or_company(dispatcher_app_user)
-    if isinstance(customer_tax, Response):
-        return Response(
-            {"details": "The customer does not have any tax information."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    if isinstance(dispatcher_tax, Response):
-        return Response(
-            {"details": "The dispatcher does not have any tax information."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    get_user_tax_or_company(customer_app_user, user_type="customer")
+    get_user_tax_or_company(dispatcher_app_user, user_type="dispatcher")
 
     return True
 

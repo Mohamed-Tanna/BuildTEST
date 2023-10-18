@@ -439,13 +439,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        parties_tax_info = utils.get_parties_tax(
+        utils.check_parties_tax_info(
             customer_username=request.data["customer"],
             dispatcher_username=request.data["dispatcher"],
         )
-
-        if isinstance(parties_tax_info, Response):
-            return parties_tax_info
 
         required_fields = ["shipper", "consignee", "customer"]
         for field in required_fields:
@@ -523,19 +520,13 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     def _update_created_load(self, request, instance, kwargs):
         party_types = ["customer", "shipper", "consignee"]
-        new_request = self._handle_shipment_parties(request, party_types)
-        if isinstance(new_request, Response):
-            return new_request
-        request = new_request
+        request = self._handle_shipment_parties(request, party_types)
 
         if "dispatcher" in request.data:
             dispatcher = utils.get_dispatcher_by_username(
                 username=request.data["dispatcher"]
             )
-            if isinstance(dispatcher, Response):
-                return dispatcher
-            else:
-                request.data["dispatcher"] = str(dispatcher.id)
+            request.data["dispatcher"] = str(dispatcher.id)
 
         partial = kwargs.pop("partial", False)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -584,20 +575,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         editor = utils.get_dispatcher_by_username(username=request.user.username)
 
-        if isinstance(editor, Response):
-            return editor
-
         carrier = utils.get_carrier_by_username(username=request.data["carrier"])
-        tax_info = utils.get_user_tax_or_company(carrier.app_user)
+        utils.get_user_tax_or_company(carrier.app_user)
 
-        if isinstance(tax_info, Response):
-            return Response(
-                {"details": "Carrier does not have a tax id or company name."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if isinstance(carrier, Response):
-            return carrier
 
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
@@ -636,16 +616,12 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 party = utils.get_shipment_party_by_username(
                     username=request.data[party_type]
                 )
-                if isinstance(party, Response):
-                    return party
 
                 if party_type == "customer":
                     app_user = utils.get_app_user_by_username(
                         username=request.data[party_type]
                     )
-                    party_tax = utils.get_user_tax_or_company(app_user=app_user)
-                    if isinstance(party_tax, Response):
-                        return party_tax
+                    utils.get_user_tax_or_company(app_user=app_user)
                     request.data[party_type] = str(party.id)
 
                 request.data[party_type] = str(party.id)
@@ -783,7 +759,6 @@ class RetrieveLoadView(
             models.ShipmentAdmin.objects.get(shipment=shipment, admin=app_user)
             authorized = True
 
-        print(authorized)
         if authorized:
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -1375,24 +1350,17 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if self.kwargs:
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
             party = utils.get_app_user_by_username(username=request.user.username)
-            if isinstance(party, models.AppUser):
-                if party.selected_role == "dispatcher":
-                    party = utils.get_dispatcher_by_username(
-                        username=request.user.username
-                    )
-                    if isinstance(party, models.Dispatcher):
-                        queryset = queryset.filter(party_1=party.id)
-                    else:
-                        return party
-                else:
-                    queryset = queryset.filter(party_2=party.id)
-
-                queryset = queryset.exclude(status="Rejected").order_by("id")
-                serializer = self.get_serializer(queryset, many=True)
-                return Response(status=status.HTTP_200_OK, data=serializer.data)
-
+            if party.selected_role == "dispatcher":
+                party = utils.get_dispatcher_by_username(
+                    username=request.user.username
+                )
+                queryset = queryset.filter(party_1=party.id)
             else:
-                return party
+                queryset = queryset.filter(party_2=party.id)
+
+            queryset = queryset.exclude(status="Rejected").order_by("id")
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -1422,18 +1390,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             request.data._mutable = True
 
         dispatcher = utils.get_dispatcher_by_username(username=request.user.username)
-
-        if isinstance(dispatcher, Response):
-            return Response(
-                [
-                    {
-                        "details": "you cannot create an offer since your are not a dispatcher"
-                    },
-                ],
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         request.data["party_1"] = dispatcher.id
+
         load = models.Load.objects.get(id=request.data["load"])
 
         if load.dispatcher is None:
@@ -1652,107 +1610,82 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _create_offer_for_customer(self, request, load):
-        shipper_user = models.User.objects.get(username=request.data["party_2"])
-        shipper = utils.get_shipment_party_by_username(request.data["party_2"])
-
-        if isinstance(shipper, models.ShipmentParty):
-            if load.customer is not None and load.customer == shipper:
-                request.data["current"] = request.data["initial"]
-                shipper = utils.get_app_user_by_username(request.data["party_2"])
-                request.data["party_2"] = shipper.id
-                request.data["to"] = "customer"
-                # self offer is always accepted
-                if request.user == shipper_user:
-                    request.data["status"] = "Accepted"
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    load.status = ASSINING_CARRIER
-                    print(load.status, "Accepted")
-                    load.save()
-                else:
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    load.status = AWAITING_CUSTOMER
-                    load.save()
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED,
-                    headers=headers,
-                )
-
+        customer_user = models.User.objects.get(username=request.data["party_2"])
+        customer = utils.get_shipment_party_by_username(request.data["party_2"])
+        if load.customer is not None and load.customer == customer:
+            request.data["current"] = request.data["initial"]
+            customer = utils.get_app_user_by_username(request.data["party_2"])
+            request.data["party_2"] = customer.id
+            request.data["to"] = "customer"
+            # self offer is always accepted
+            if request.user == customer_user:
+                request.data["status"] = "Accepted"
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                load.status = ASSINING_CARRIER
+                load.save()
             else:
-                return Response(
-                    [
-                        {"details": "This user is not the customer for this load."},
-                    ],
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                load.status = AWAITING_CUSTOMER
+                load.save()
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED,
+                headers=headers,
+            )
 
         else:
             return Response(
                 [
-                    {
-                        "details": "The first bid has to have the 'customer' as the second party"
-                    },
+                    {"details": "This user is not the customer for this load."},
                 ],
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_403_FORBIDDEN,
             )
 
     def _create_offer_for_carrier(self, request, load):
         self_accepting = False
         carrier_user = models.User.objects.get(username=request.data["party_2"])
         carrier = utils.get_carrier_by_username(request.data["party_2"])
-
-        if isinstance(carrier, models.Carrier):
-            if load.carrier is not None and load.carrier == carrier:
-                request.data["current"] = request.data["initial"]
-                carrier = utils.get_app_user_by_username(request.data["party_2"])
-                request.data["party_2"] = str(carrier.id)
-                request.data["to"] = "carrier"
-                # self offer is always accepted
-                if request.user == carrier_user:
-                    request.data["status"] = "Accepted"
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    load.status = READY_FOR_PICKUP
-                    load.save()
-                    self_accepting = True
-                else:
-                    serializer = self.get_serializer(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    self.perform_create(serializer)
-                    headers = self.get_success_headers(serializer.data)
-                    load.status = AWAITING_CARRIER
-                    load.save()
-                if self_accepting:
-                    self._create_final_agreement(load=load)
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED,
-                    headers=headers,
-                )
-
+        if load.carrier is not None and load.carrier == carrier:
+            request.data["current"] = request.data["initial"]
+            carrier = utils.get_app_user_by_username(request.data["party_2"])
+            request.data["party_2"] = str(carrier.id)
+            request.data["to"] = "carrier"
+            # self offer is always accepted
+            if request.user == carrier_user:
+                request.data["status"] = "Accepted"
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                load.status = READY_FOR_PICKUP
+                load.save()
+                self_accepting = True
             else:
-                return Response(
-                    [
-                        {
-                            "details": "This load does not have a carrier yet or this carrier is not the carrier assigned to this load"
-                        },
-                    ],
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                load.status = AWAITING_CARRIER
+                load.save()
+            if self_accepting:
+                self._create_final_agreement(load=load)
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED,
+                headers=headers,
+            )
 
         else:
             return Response(
                 [
                     {
-                        "details": "The second bid has to have the 'carrier' as the second party"
+                        "details": "This load does not have a carrier yet or this carrier is not the carrier assigned to this load"
                     },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
@@ -1767,18 +1700,12 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         pickup_facility = load.pick_up_location
         drop_off_facility = load.destination
         dispatcher_billing = utils.get_user_tax_or_company(app_user=dispatcher.app_user)
-        if isinstance(dispatcher_billing, Response):
-            return dispatcher_billing
         dispatcher_billing = utils.extract_billing_info(dispatcher_billing, dispatcher)
 
         carrier_billing = utils.get_user_tax_or_company(app_user=carrier.app_user)
-        if isinstance(carrier_billing, Response):
-            return carrier_billing
         carrier_billing = utils.extract_billing_info(carrier_billing, carrier)
 
         customer_billing = utils.get_user_tax_or_company(app_user=customer.app_user)
-        if isinstance(customer_billing, Response):
-            return customer_billing
         customer_billing = utils.extract_billing_info(customer_billing, customer)
 
         customer_offer = get_object_or_404(
@@ -1967,8 +1894,6 @@ class ShipmentAdminView(
 
         if "admin" in request.data:
             admin = utils.get_app_user_by_username(request.data["admin"])
-            if isinstance(admin, Response):
-                return admin
             request.data["admin"] = admin.id
         else:
             return Response(
@@ -2077,9 +2002,6 @@ class UpdateLoadStatus(APIView):
         shipment_party = utils.get_shipment_party_by_username(
             username=request.user.username
         )
-
-        if isinstance(shipment_party, Response):
-            return shipment_party
 
         if load.status == READY_FOR_PICKUP:
             if load.shipper != shipment_party:
