@@ -13,6 +13,7 @@ from shipment.utilities import send_notifications_to_load_parties
 
 # Django imports
 from django.db.models import Q
+from django.http import Http404
 from django.http import QueryDict
 from django.db import IntegrityError
 from django.db.models.query import QuerySet
@@ -22,6 +23,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+import rest_framework.exceptions as exceptions
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers as drf_serializers
@@ -48,7 +50,7 @@ SHIPMENT_PARTY = "shipment party"
 AWAITING_DISPATCHER = "Awaiting Dispatcher"
 AWAITING_CARRIER = "Awaiting Carrier"
 READY_FOR_PICKUP = "Ready For Pickup"
-ASSINING_CARRIER = "Assigning Carrier"
+ASSIGNING_CARRIER = "Assigning Carrier"
 AWAITING_CUSTOMER = "Awaiting Customer"
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
 ERR_SECOND_PART = "or override the `get_queryset()` method."
@@ -428,16 +430,17 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request.data["created_by"] = str(app_user.id)
         request.data["name"] = utils.generate_load_name()
 
-        missing_fields = [
-            field
-            for field in ["dispatcher", "customer", "shipper", "consignee"]
-            if field not in request.data
-        ]
-        if missing_fields:
-            return Response(
-                {"detail": [f"{field} is required." for field in missing_fields]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        self._check_for_any_missing_load_parties(request)
+        self._check_facility_belongs_to_shipment_parties(
+            pick_up_location_id=request.data["pick_up_location"],
+            destination_id=request.data["destination"],
+            shipper_username=request.data["shipper"],
+            consignee_username=request.data["consignee"],
+        )
+
+        all_parties = ["shipper", "consignee", "customer", "dispatcher"]
+        for party in all_parties:
+            self._check_mutual_contact(request.user.id, request.data[party])
 
         utils.check_parties_tax_info(
             customer_username=request.data["customer"],
@@ -460,37 +463,13 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             try:
                 self.perform_create(serializer)
                 break
-            except IntegrityError:
+            except IntegrityError as e:
                 request.data["name"] = utils.generate_load_name()
-                continue
-
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-
-                if "delivery_date_check" in str(e.__cause__):
-                    return Response(
-                        {
-                            "detail": [
-                                "Invalid pick up or drop off date's, please double check the dates and try again"
-                            ]
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                elif "pick up location" in str(e.__cause__):
-                    return Response(
-                        {
-                            "detail": [
-                                "pick up location and drop off location cannot be equal, please double check the locations and try again"
-                            ]
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                return Response(
-                    {"detail": [f"{e.args[0]}"]},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                if "name" in str(e.__cause__):
+                    continue
+                else:
+                    print(f"Unexpected {e=}, {type(e)=}")
+                    return self._handle_exception_errors(e)
 
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -507,7 +486,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if instance.status == "Created":
             return self._update_created_load(request, instance, kwargs)
 
-        elif instance.status == ASSINING_CARRIER:
+        elif instance.status == ASSIGNING_CARRIER:
             return self._update_assigning_carrier_load(request, instance, kwargs)
 
         else:
@@ -519,6 +498,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _update_created_load(self, request, instance, kwargs):
+        all_parties = ["shipper", "consignee", "customer", "dispatcher"]
+        for party in all_parties:
+            self._check_mutual_contact(request.user.id, request.data[party])
         party_types = ["customer", "shipper", "consignee"]
         request = self._handle_shipment_parties(request, party_types)
 
@@ -573,11 +555,12 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        self._check_mutual_contact(request.user.id, request.data["carrier"])
+
         editor = utils.get_dispatcher_by_username(username=request.user.username)
 
         carrier = utils.get_carrier_by_username(username=request.data["carrier"])
         utils.get_user_tax_or_company(carrier.app_user)
-
 
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
@@ -628,6 +611,81 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return request
 
+    def _check_for_any_missing_load_parties(self, request):
+        missing_fields = [
+            field
+            for field in ["dispatcher", "customer", "shipper", "consignee"]
+            if field not in request.data
+        ]
+        if missing_fields:
+            raise exceptions.ParseError(
+                detail=[f"{field} is required." for field in missing_fields]
+            )
+        return None
+
+    def _handle_exception_errors(self, e):
+        if "delivery_date_check" in str(e.__cause__):
+            return Response(
+                {
+                    "detail": [
+                        "Invalid pick up or drop off date's, please double check the dates and try again"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        elif "pick up location" in str(e.__cause__):
+            return Response(
+                {
+                    "detail": [
+                        "pick up location and drop off location cannot be equal, please double check the locations and try again"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"detail": [f"{e.args[0]}"]},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    def _check_facility_belongs_to_shipment_parties(
+        self, pick_up_location_id, destination_id, shipper_username, consignee_username
+    ):
+        pick_up_location = get_object_or_404(models.Facility, id=pick_up_location_id)
+
+        shipper_app_user = utils.get_app_user_by_username(username=shipper_username)
+
+        if pick_up_location.owner != shipper_app_user.user:
+            raise exceptions.PermissionDenied(
+                detail="The pickup location you are trying to use does not belong to the shipper."
+            )
+
+        destination = get_object_or_404(models.Facility, id=destination_id)
+        consignee_app_user = utils.get_app_user_by_username(username=consignee_username)
+
+        if destination.owner != consignee_app_user.user:
+            raise exceptions.PermissionDenied(
+                detail="The destination you are trying to use does not belong to the consignee."
+            )
+
+        return None
+
+    def _check_mutual_contact(self, origin_id, contact_username):
+        contact_app_user = utils.get_app_user_by_username(username=contact_username)
+        # if you are adding yourself then we would not need to check for mutual contact
+        if contact_app_user.user.id == origin_id:
+            return None
+        try:
+            get_object_or_404(
+                models.Contact, origin=origin_id, contact=contact_app_user.id
+            )
+        except Http404:
+            raise exceptions.NotFound(
+                "You do not share mutual contact(s) with one or more of the users you are attempting to add to this load."
+            )
+        return True
+
 
 class ListLoadView(GenericAPIView, ListModelMixin):
     permission_classes = [
@@ -661,30 +719,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         filter_query = Q(created_by=app_user.id)
 
-        if app_user.selected_role == SHIPMENT_PARTY:
-            try:
-                shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)
-                filter_query |= (
-                    Q(shipper=shipment_party.id)
-                    | Q(consignee=shipment_party.id)
-                    | Q(customer=shipment_party.id)
-                )
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-
-        elif app_user.selected_role == "dispatcher":
-            try:
-                dispatcher = models.Dispatcher.objects.get(app_user=app_user.id)
-                filter_query |= Q(dispatcher=dispatcher.id)
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-
-        elif app_user.selected_role == "carrier":
-            try:
-                carrier = models.Carrier.objects.get(app_user=app_user.id)
-                filter_query |= Q(carrier=carrier.id)
-            except BaseException as e:
-                print(f"Unexpected {e=}, {type(e)=}")
+        filter_query = utils.handle_filters_for_listing_loads(filter_query, app_user)
 
         queryset = (
             queryset.filter(filter_query)
@@ -1089,7 +1124,7 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
         queryset = models.Shipment.objects.filter(
             created_by=app_user.id, name__icontains=keyword
-        ) | models.Shipment.objects.filter(id__in=shipments)
+        ) | models.Shipment.objects.filter(id__in=shipments, name__icontains=keyword)
         if isinstance(queryset, QuerySet):
             queryset = queryset.all()
         return queryset
@@ -1143,35 +1178,27 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
         assert self.queryset is not None, (
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
+        username = None
         keyword = ""
         if "keyword" in self.request.data:
             keyword = self.request.data["keyword"]
         if "shipper" in self.request.data:
             username = self.request.data["shipper"]
-            try:
-                shipper = models.User.objects.get(username=username)
-                queryset = models.Facility.objects.filter(
-                    owner=shipper.id, building_name__icontains=keyword
-                ).order_by("building_name")
-            except models.User.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                queryset = []
         elif "consignee" in self.request.data:
             username = self.request.data["consignee"]
-            try:
-                consignee = models.User.objects.get(username=username)
-                queryset = models.Facility.objects.filter(
-                    owner=consignee.id, building_name__icontains=keyword
-                ).order_by("building_name")
-            except models.User.DoesNotExist as e:
-                print(f"Unexpected {e=}, {type(e)=}")
-                queryset = []
-        else:
-            queryset = []
 
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
-        return queryset
+        try:
+            owner = models.User.objects.get(username=username)
+            self.queryset = models.Facility.objects.filter(
+                owner=owner.id, building_name__icontains=keyword
+            ).order_by("-id")
+        except models.User.DoesNotExist as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            self.queryset = self.queryset.none()
+
+        if isinstance(self.queryset, QuerySet):
+            self.queryset = self.queryset.all()
+        return self.queryset
 
 
 class ContactFilterView(GenericAPIView, ListModelMixin):
@@ -1242,11 +1269,11 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
                 tax_app_users = models.AppUser.objects.filter(tax_query).values_list(
                     "id", flat=True
                 )
-                queryset = models.Contact.objects.filter(
+                self.queryset = models.Contact.objects.filter(
                     contact__in=tax_app_users,
                 )
             else:
-                queryset = models.Contact.objects.filter(
+                self.queryset = models.Contact.objects.filter(
                     origin=self.request.user.id,
                     contact__user_type__contains=user_type,
                     contact__user__username__icontains=keyword,
@@ -1258,7 +1285,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
             if "keyword" in self.request.data:
                 keyword = self.request.data["keyword"]
 
-            queryset = models.Contact.objects.filter(
+            self.queryset = models.Contact.objects.filter(
                 origin=self.request.user.id,
                 contact__user_type__contains=SHIPMENT_PARTY,
                 contact__user__username__icontains=keyword,
@@ -1268,10 +1295,10 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
                 contact__user__username__icontains=keyword,
             )
         else:
-            queryset = []
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
-        return queryset
+            self.queryset = self.queryset.none()
+        if isinstance(self.queryset, QuerySet):
+            self.queryset = self.queryset.all()
+        return self.queryset
 
 
 class LoadFilterView(GenericAPIView, ListModelMixin):
@@ -1318,17 +1345,32 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         shipment_id = self.request.data.get("shipment")
         keyword = self.request.data.get("keyword")
-
-        queryset = models.Load.objects.filter(created_by=app_user.id)
         filters = Q()
 
         if shipment_id is not None:
-            filters &= Q(shipment=shipment_id)
+            try:
+                shipment = models.Shipment.objects.get(id=shipment_id)
+                shipment_admins = models.ShipmentAdmin.objects.filter(
+                    shipment=shipment_id
+                ).values_list("admin", flat=True)
+                if (
+                    app_user.id not in shipment_admins
+                    and shipment.created_by != app_user
+                ):
+                    return self.queryset.none()
+
+                queryset = models.Load.objects.filter(shipment=shipment_id).order_by(
+                    "-id"
+                )
+            except models.Shipment.DoesNotExist:
+                return self.queryset.none()
 
         if keyword is not None:
+            filters = Q(created_by=app_user.id)
+            filters = utils.handle_filters_for_listing_loads(filters, app_user)
             filters &= Q(name__icontains=keyword)
 
-        queryset = queryset.filter(filters)
+        queryset = queryset.filter(filters).order_by("-id")
 
         return queryset
 
@@ -1351,9 +1393,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
             party = utils.get_app_user_by_username(username=request.user.username)
             if party.selected_role == "dispatcher":
-                party = utils.get_dispatcher_by_username(
-                    username=request.user.username
-                )
+                party = utils.get_dispatcher_by_username(username=request.user.username)
                 queryset = queryset.filter(party_1=party.id)
             else:
                 queryset = queryset.filter(party_2=party.id)
@@ -1362,7 +1402,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             serializer = self.get_serializer(queryset, many=True)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
         else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                data={"details": "You must provide a load id"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     @extend_schema(
         request=serializers.OfferSerializer,
@@ -1408,7 +1451,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             return Response(
                 [
                     {
-                        "details": "you cannot create an offer since you're not the dispatcher assigned to this load"
+                        "details": "You cannot create an offer since you're not the dispatcher assigned to this load"
                     },
                 ],
                 status=status.HTTP_403_FORBIDDEN,
@@ -1417,7 +1460,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if load.status == "Created":
             return self._create_offer_for_customer(request, load)
 
-        elif load.status == ASSINING_CARRIER:
+        elif load.status == ASSIGNING_CARRIER:
             return self._create_offer_for_carrier(request, load)
 
         else:
@@ -1458,7 +1501,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
         if not is_dispatcher and not is_customer and not is_carrier:
             return Response(
-                [{"details": "You are not authorized to perform this action"}],
+                [{"details": "You are not authorized to perform this action."}],
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -1486,7 +1529,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         self, request, load: models.Load, instance: models.Offer, partial
     ):
         if load.status == AWAITING_CUSTOMER:
-            load.status = ASSINING_CARRIER
+            load.status = ASSIGNING_CARRIER
             load.save()
         elif load.status == AWAITING_CARRIER:
             load.status = READY_FOR_PICKUP
@@ -1496,14 +1539,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load=load, action="load_status_changed", event="load_status_changed"
             )
         elif load.status == AWAITING_DISPATCHER:
-            if (
-                SHIPMENT_PARTY in instance.party_2.user_type
-                and instance.to == "customer"
-            ):
-                load.status = ASSINING_CARRIER
+            if instance.to == "customer":
+                load.status = ASSIGNING_CARRIER
                 load.save()
 
-            elif "carrier" in instance.party_2.user_type and instance.to == "carrier":
+            elif instance.to == "carrier":
                 load.status = READY_FOR_PICKUP
                 load.save()
                 self._create_final_agreement(load=load)
@@ -1541,7 +1581,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     ):
         user = utils.get_app_user_by_username(username=request.user.username)
         if "carrier" in user.user_type and instance.to == "carrier":
-            load.status = ASSINING_CARRIER
+            load.status = ASSIGNING_CARRIER
             load.carrier = None
             load.save()
         else:
@@ -1570,8 +1610,13 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     def _proccess_counter_action(
         self, request, load: models.Load, instance: models.Offer, partial
     ):
-        app_user = utils.get_app_user_by_username(request.user.username)
+        if "current" not in request.data:
+            return Response(
+                [{"details": "current is required"}],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        app_user = utils.get_app_user_by_username(request.user.username)
         if (
             SHIPMENT_PARTY in app_user.user_type or "carrier" in app_user.user_type
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
@@ -1614,7 +1659,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer = utils.get_shipment_party_by_username(request.data["party_2"])
         if load.customer is not None and load.customer == customer:
             request.data["current"] = request.data["initial"]
-            customer = utils.get_app_user_by_username(request.data["party_2"])
+            customer = customer.app_user
             request.data["party_2"] = customer.id
             request.data["to"] = "customer"
             # self offer is always accepted
@@ -1624,7 +1669,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
                 headers = self.get_success_headers(serializer.data)
-                load.status = ASSINING_CARRIER
+                load.status = ASSIGNING_CARRIER
                 load.save()
             else:
                 serializer = self.get_serializer(data=request.data)
@@ -1634,16 +1679,14 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.status = AWAITING_CUSTOMER
                 load.save()
             return Response(
-                serializer.data,
+                data=serializer.data,
                 status=status.HTTP_201_CREATED,
                 headers=headers,
             )
 
         else:
             return Response(
-                [
-                    {"details": "This user is not the customer for this load."},
-                ],
+                data={"details": "This user is not the customer for this load."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -1847,23 +1890,6 @@ class ShipmentAdminView(
         ),
         responses={200: serializers.ShipmentAdminSerializer()},
     )
-    def put(self, request, *args, **kwargs):
-        """
-        Update a shipment admin
-            **(CANCELED FEATURE)**
-        """
-        return self.partial_update(request, *args, **kwargs)
-
-    @extend_schema(
-        request=inline_serializer(
-            name="ShipmentAdmin",
-            fields={
-                "shipment": OpenApiTypes.STR,
-                "admin": OpenApiTypes.STR,
-            },
-        ),
-        responses={200: serializers.ShipmentAdminSerializer()},
-    )
     def delete(self, request, *args, **kwargs):
         """
         Delete a shipment admin
@@ -1929,27 +1955,17 @@ class ShipmentAdminView(
 
         return queryset
 
-    # override
-    def update(self, request, *args, **kwargs):
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        if "admin" in request.data:
-            admin = utils.get_app_user_by_username(request.data["admin"])
-            request.data["admin"] = admin.id
-
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        if getattr(instance, "_prefetched_objects_cache", None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
-            instance._prefetched_objects_cache = {}
-
-        return Response(serializer.data)
+    def destroy(self, request, *args, **kwargs):
+        instance = models.Shipment.objects.get(id=kwargs["id"])
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        if instance.created_by.id == app_user.id:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(
+                {"detail": ["This user is not the owner of this shipment."]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
 
 class DispatcherRejectView(APIView):
@@ -2095,26 +2111,9 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
-        if app_user.selected_role == SHIPMENT_PARTY:
-            shipment_party = utils.get_shipment_party_by_username(
-                username=request.user.username
-            )
-            filter_query |= (
-                Q(shipper=shipment_party)
-                | Q(consignee=shipment_party)
-                | Q(customer=shipment_party)
-            )
-
-        elif app_user.selected_role == "dispatcher":
-            dispatcher = utils.get_dispatcher_by_username(
-                username=request.user.username
-            )
-            filter_query |= Q(dispatcher=dispatcher)
-
-        elif app_user.selected_role == "carrier":
-            carrier = utils.get_carrier_by_username(username=request.user.username)
-            filter_query |= Q(carrier=carrier)
-
+        filter_query = utils.handle_filters_for_listing_loads(
+            filter_query=filter_query, app_user=app_user
+        )
         loads = models.Load.objects.filter(filter_query)
         if loads.exists() is False:
             return Response(
@@ -2128,7 +2127,7 @@ class DashboardView(APIView):
             status__in=[
                 "Created",
                 AWAITING_CUSTOMER,
-                ASSINING_CARRIER,
+                ASSIGNING_CARRIER,
                 AWAITING_CARRIER,
                 AWAITING_DISPATCHER,
             ]
@@ -2166,7 +2165,7 @@ class DashboardView(APIView):
                 status__in=[
                     "Created",
                     AWAITING_CUSTOMER,
-                    ASSINING_CARRIER,
+                    ASSIGNING_CARRIER,
                     AWAITING_CARRIER,
                     AWAITING_DISPATCHER,
                 ]
@@ -2201,26 +2200,9 @@ class LoadSearchView(APIView):
     def post(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
-        if app_user.selected_role == SHIPMENT_PARTY:
-            shipment_party = utils.get_shipment_party_by_username(
-                username=request.user.username
-            )
-            filter_query |= (
-                Q(shipper=shipment_party)
-                | Q(consignee=shipment_party)
-                | Q(customer=shipment_party)
-            )
-
-        elif app_user.selected_role == "dispatcher":
-            dispatcher = utils.get_dispatcher_by_username(
-                username=request.user.username
-            )
-            filter_query |= Q(dispatcher=dispatcher)
-
-        elif app_user.selected_role == "carrier":
-            carrier = utils.get_carrier_by_username(username=request.user.username)
-            filter_query |= Q(carrier=carrier)
-
+        filter_query = utils.handle_filters_for_listing_loads(
+            filter_query=filter_query, app_user=app_user
+        )
         loads = models.Load.objects.filter(filter_query)
         if loads.exists() is False:
             return Response(

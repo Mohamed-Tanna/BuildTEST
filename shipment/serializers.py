@@ -135,11 +135,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
         rep["consignee"] = instance.consignee.app_user.user.username
-        try:
-            rep["dispatcher"] = instance.dispatcher.app_user.user.username
-        except (BaseException) as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            rep["dispatcher"] = None
+        rep["dispatcher"] = instance.dispatcher.app_user.user.username
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
         except (BaseException) as e:

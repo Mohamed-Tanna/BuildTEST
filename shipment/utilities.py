@@ -1,8 +1,7 @@
 import string, random
+from django.db.models import Q
 import shipment.models as models
-from rest_framework import status
 import authentication.models as auth_models
-from rest_framework.response import Response
 import rest_framework.exceptions as exceptions
 from notifications.utilities import handle_notification
 
@@ -19,7 +18,7 @@ def get_shipment_party_by_username(username):
         auth_models.ShipmentParty.DoesNotExist,
     ):
         raise exceptions.NotFound(detail="shipment party does not exist.")
-    except (BaseException) as e:
+    except BaseException as e:
         print(f"Unexpected {e=}, {type(e)=}")
         raise exceptions.ParseError(detail=f"{e.args[0]}")
 
@@ -36,9 +35,10 @@ def get_carrier_by_username(username):
         auth_models.Carrier.DoesNotExist,
     ):
         raise exceptions.NotFound(detail="carrier does not exist.")
-    except (BaseException) as e:
+    except BaseException as e:
         print(f"Unexpected {e=}, {type(e)=}")
         raise exceptions.ParseError(detail=f"{e.args[0]}")
+
 
 def get_dispatcher_by_username(username):
     try:
@@ -52,7 +52,7 @@ def get_dispatcher_by_username(username):
         auth_models.Dispatcher.DoesNotExist,
     ):
         raise exceptions.NotFound(detail="dispatcher does not exist.")
-    except (BaseException) as e:
+    except BaseException as e:
         print(f"Unexpected {e=}, {type(e)=}")
         raise exceptions.ParseError(detail=f"{e.args[0]}")
 
@@ -64,9 +64,10 @@ def get_app_user_by_username(username):
         return user
     except (auth_models.User.DoesNotExist, auth_models.AppUser.DoesNotExist):
         raise exceptions.NotFound(detail="app user does not exist.")
-    except (BaseException) as e:
+    except BaseException as e:
         print(f"Unexpected {e=}, {type(e)=}")
         raise exceptions.ParseError(detail=f"{e.args[0]}")
+
 
 def generate_load_name() -> string:
     name = "L-" + (
@@ -89,30 +90,36 @@ def get_company_by_role(app_user, user_type="user"):
         return company
     except auth_models.CompanyEmployee.DoesNotExist:
         raise exceptions.NotFound(detail=f"{user_type} has no company")
-    except (BaseException) as e:
+    except BaseException as e:
         print(f"Unexpected {e=}, {type(e)=}")
         raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 
 def get_user_tax_by_role(app_user, user_type="user"):
     try:
-        user_tax = auth_models.UserTax.objects.get(app_user=app_user)
-        return user_tax
+        return auth_models.UserTax.objects.get(app_user=app_user)
     except auth_models.UserTax.DoesNotExist:
         raise exceptions.NotFound(detail=f"{user_type} has no tax information")
-    except (BaseException) as e:
+    except BaseException as e:
         print(f"Unexpected {e=}, {type(e)=}")
         raise exceptions.ParseError(detail=f"{e.args[0]}")
 
+
 def get_user_tax_or_company(app_user, user_type="user"):
     """Returns the company or user tax of the user"""
-    company = get_company_by_role(app_user, user_type=user_type)
-    user_tax = get_user_tax_by_role(app_user, user_type=user_type)
+    try:
+        return get_company_by_role(app_user, user_type=user_type)
+    except (exceptions.NotFound, exceptions.ParseError):
+        pass
 
-    if isinstance(company, auth_models.Company):
-        return company
+    try:
+        return get_user_tax_by_role(app_user, user_type=user_type)
+    except (exceptions.NotFound, exceptions.ParseError):
+        pass
 
-    return user_tax
+    raise exceptions.NotFound(
+        detail=f"{user_type} has no tax information or a company."
+    )
 
 
 def check_parties_tax_info(customer_username, dispatcher_username):
@@ -175,18 +182,51 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
 
 def send_notifications_to_load_parties(load: models.Load, action, event=None):
     notified_usernames = set()
-    roles = ['dispatcher', 'shipper', 'consignee', 'customer']
+    roles = ["dispatcher", "shipper", "consignee", "customer"]
 
     for role in roles:
         actor = getattr(load, role)
         app_user = actor.app_user
         username = app_user.user.username
-        
+
         if username not in notified_usernames:
             if event == "load_created" and username == load.created_by.user.username:
                 continue
             if event == "load_created":
-                handle_notification(action=action, app_user=app_user, load=load, sender=load.created_by)
+                handle_notification(
+                    action=action, app_user=app_user, load=load, sender=load.created_by
+                )
             elif event == "load_status_changed":
-                handle_notification(action=action, app_user=app_user, load=load, sender=None)
+                handle_notification(
+                    action=action, app_user=app_user, load=load, sender=None
+                )
             notified_usernames.add(username)
+
+
+def handle_filters_for_listing_loads(filter_query, app_user: auth_models.AppUser):
+    if app_user.selected_role == "shipment party":
+        try:
+            shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)
+            filter_query |= (
+                Q(shipper=shipment_party.id)
+                | Q(consignee=shipment_party.id)
+                | Q(customer=shipment_party.id)
+            )
+        except models.ShipmentParty.DoesNotExist:
+            pass
+
+    elif app_user.selected_role == "dispatcher":
+        try:
+            dispatcher = models.Dispatcher.objects.get(app_user=app_user.id)
+            filter_query |= Q(dispatcher=dispatcher.id)
+        except models.Dispatcher.DoesNotExist:
+            pass
+        
+    elif app_user.selected_role == "carrier":
+        try:
+            carrier = models.Carrier.objects.get(app_user=app_user.id)
+            filter_query |= Q(carrier=carrier.id)
+        except models.Carrier.DoesNotExist:
+            pass
+
+    return filter_query
