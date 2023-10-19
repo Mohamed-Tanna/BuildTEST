@@ -764,13 +764,13 @@ class AddRoleView(APIView):
             )
 
     def _create_carrier(self, request, app_user: models.AppUser):
+        if "dot_number" not in request.data:
+            raise exceptions.ParseError("dot number is required")
         ship_utils.get_user_tax_or_company(app_user=app_user)
         sort_roles = app_user.user_type.split("-")
         sort_roles.append("carrier")
         sort_roles.sort()
         composed_type = "-".join(sort_roles)
-        if "dot_number" not in request.data:
-            raise exceptions.ParseError("dot number is required")
 
         utils.check_dot_number(dot_number=request.data["dot_number"])
 
@@ -783,13 +783,13 @@ class AddRoleView(APIView):
         return composed_type
 
     def _create_dispatcher(self, request, app_user: models.AppUser):
+        if "mc_number" not in request.data:
+            raise exceptions.ParseError("mc number is required")
         ship_utils.get_user_tax_or_company(app_user=app_user)
         sort_roles = app_user.user_type.split("-")
         sort_roles.append("dispatcher")
         sort_roles.sort()
         composed_type = "-".join(sort_roles)
-        if "mc_number" not in request.data:
-            raise exceptions.ParseError("mc number is required")
 
         utils.check_mc_number(mc_number=request.data["mc_number"])
 
@@ -818,12 +818,12 @@ class SelectRoleView(APIView):
         },
     )
     def put(self, request, *args, **kwargs):
-        app_user = models.AppUser.objects.get(user=request.user)
         if "type" not in request.data:
             return Response(
                 [{"details": "type field is required"}],
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        app_user = models.AppUser.objects.get(user=request.user)
 
         new_type = request.data.get("type")
         if new_type is None or new_type not in app_user.user_type:
