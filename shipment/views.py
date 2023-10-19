@@ -719,7 +719,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         filter_query = Q(created_by=app_user.id)
 
-        filter_query = utils.handle_filters_for_listing_loads(filter_query, app_user)
+        filter_query = utils.apply_load_access_filters_for_user(filter_query, app_user)
 
         queryset = (
             queryset.filter(filter_query)
@@ -1367,7 +1367,7 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
 
         if keyword is not None:
             filters = Q(created_by=app_user.id)
-            filters = utils.handle_filters_for_listing_loads(filters, app_user)
+            filters = utils.apply_load_access_filters_for_user(filters, app_user)
             filters &= Q(name__icontains=keyword)
 
         queryset = queryset.filter(filters).order_by("-id")
@@ -2111,7 +2111,7 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
-        filter_query = utils.handle_filters_for_listing_loads(
+        filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
         )
         loads = models.Load.objects.filter(filter_query)
@@ -2200,7 +2200,7 @@ class LoadSearchView(APIView):
     def post(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(username=request.user.username)
         filter_query = Q(created_by=app_user.id)
-        filter_query = utils.handle_filters_for_listing_loads(
+        filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
         )
         loads = models.Load.objects.filter(filter_query)

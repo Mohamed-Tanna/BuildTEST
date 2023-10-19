@@ -203,7 +203,7 @@ def send_notifications_to_load_parties(load: models.Load, action, event=None):
             notified_usernames.add(username)
 
 
-def handle_filters_for_listing_loads(filter_query, app_user: auth_models.AppUser):
+def apply_load_access_filters_for_user(filter_query, app_user: auth_models.AppUser):
     if app_user.selected_role == "shipment party":
         try:
             shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)

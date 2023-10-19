@@ -10,6 +10,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 
 # Django import
+from django.db.models import Q
 from django.utils import timezone
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
@@ -58,10 +59,27 @@ class FileUploadView(GenericAPIView, ListModelMixin):
         """Get all files related to a load."""
         load_id = request.query_params.get("load")
         if load_id:
+            load = get_object_or_404(ship_models.Load, id=load_id)
+            app_user = ship_utils.get_app_user_by_username(request.user.username)
+
+            shipment = get_object_or_404(ship_models.Shipment, id=load.shipment)
+            shipment_admins = ship_models.ShipmentParty.objects.filter(shipment=shipment.id).values_list("admin", flat=True)
+
+            filters = Q(created_by=app_user.id)
+            filters = ship_utils.apply_load_access_filters_for_user(filters, app_user)
+            filters &= Q(load_id=load_id)
+            queryset = queryset.filter(filters)
+
+            if app_user.id not in shipment_admins and not self.queryset.exists():
+                return Response(
+                    {"details": "You do not have permission to view this load."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+                
             return self.list(request, *args, **kwargs)
         else:
             return Response(
-                [{"details": LOAD_REQUIRED_MSG}], status=status.HTTP_400_BAD_REQUEST
+                {"details": LOAD_REQUIRED_MSG}, status=status.HTTP_400_BAD_REQUEST
             )
 
     @extend_schema(
@@ -94,15 +112,15 @@ class FileUploadView(GenericAPIView, ListModelMixin):
         if load_id:
             try:
                 load = ship_models.Load.objects.get(id=load_id)
-                queryset = models.UploadedFile.objects.filter(load=load)
+                self.queryset = models.UploadedFile.objects.filter(load=load)
             except ship_models.Load.DoesNotExist:
-                queryset = models.UploadedFile.objects.none()
+                self.queryset = models.UploadedFile.objects.none()
         else:
-            queryset = []
-        if isinstance(queryset, QuerySet):
+            self.queryset = self.queryset.none()
+        if isinstance(self.queryset, QuerySet):
             # Ensure queryset is re-evaluated on each request.
-            queryset = queryset.all()
-        return queryset
+            self.queryset = self.queryset.all()
+        return self.queryset
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -154,7 +172,7 @@ class BillingDocumentsView(APIView):
                     [{"details": "Final agreement does not exist."}],
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            except (BaseException) as e:
+            except BaseException as e:
                 print(f"Unexpected {e=}, {type(e)=}")
                 return Response(
                     [{"details": "FinAg"}], status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -200,8 +218,10 @@ class BillingDocumentsView(APIView):
                 data=serializers.CustomerFinalAgreementSerializer(final_agreement).data,
             )
 
-        return Response(status=status.HTTP_200_OK,
-                data=serializers.BOLSerializer(final_agreement).data)
+        return Response(
+            status=status.HTTP_200_OK,
+            data=serializers.BOLSerializer(final_agreement).data,
+        )
 
 
 class ValidateFinalAgreementView(APIView):
@@ -335,7 +355,12 @@ class ValidateFinalAgreementView(APIView):
                     final_agreement
                 ).data
                 if load.dispatcher.app_user != customer.app_user:
-                    handle_notification(app_user=load.dispatcher.app_user, load=load, action="RC_approved", sender=customer.app_user)
+                    handle_notification(
+                        app_user=load.dispatcher.app_user,
+                        load=load,
+                        action="RC_approved",
+                        sender=customer.app_user,
+                    )
             elif app_user.selected_role == "carrier":
                 carrier = ship_utils.get_carrier_by_username(request.user.username)
                 if carrier != load.carrier:
@@ -353,7 +378,12 @@ class ValidateFinalAgreementView(APIView):
                 final_agreement.save()
                 data = serializers.CarrierFinalAgreementSerializer(final_agreement).data
                 if load.dispatcher.app_user != carrier.app_user:
-                    handle_notification(app_user=load.dispatcher.app_user, load=load, action="RC_approved", sender=carrier.app_user)
+                    handle_notification(
+                        app_user=load.dispatcher.app_user,
+                        load=load,
+                        action="RC_approved",
+                        sender=carrier.app_user,
+                    )
 
             else:
                 return Response(
@@ -367,7 +397,7 @@ class ValidateFinalAgreementView(APIView):
 
             return Response(status=status.HTTP_200_OK, data=data)
 
-        except (BaseException) as e:
+        except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             return Response(
                 [{"details": "FinAg-Val"}], status=status.HTTP_500_INTERNAL_SERVER_ERROR
