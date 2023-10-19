@@ -255,9 +255,7 @@ class CarrierView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
 
-        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
-        if isinstance(tax_info, Response):
-            return tax_info
+        ship_utils.get_user_tax_or_company(app_user=app_user)
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -265,21 +263,22 @@ class CarrierView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if "carrier" in app_user.user_type:
-            res = utils.check_dot_number(dot_number=request.data["DOT_number"])
-            if isinstance(res, Response):
-                app_user.delete()
-                return res
 
-            elif res == True:
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                headers = self.get_success_headers(serializer.data)
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED,
-                    headers=headers,
-                )
+            try:
+                utils.check_dot_number(dot_number=request.data["DOT_number"])
+            except (exceptions.ParseError, exceptions.NotFound, exceptions.PermissionDenied) as e:
+                app_user.delete()
+                raise e
+
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED,
+                headers=headers,
+            )
 
         else:
             return Response(
@@ -322,10 +321,10 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user.id)
 
-        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
-        if isinstance(tax_info, Response):
+        try:
+            ship_utils.get_user_tax_or_company(app_user=app_user)
+        except exceptions.NotFound:
             app_user.delete()
-            return tax_info
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -333,21 +332,21 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
         request.data["app_user"] = str(app_user.id)
 
         if "dispatcher" in app_user.user_type:
-            res = utils.check_mc_number(mc_number=request.data["MC_number"])
-            if isinstance(res, Response):
+            try:
+                utils.check_mc_number(mc_number=request.data["MC_number"])
+            except (exceptions.ParseError, exceptions.NotFound, exceptions.PermissionDenied) as e:
                 app_user.delete()
-                return res
+                raise e
 
-            elif res == True:
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                headers = self.get_success_headers(serializer.data)
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED,
-                    headers=headers,
-                )
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED,
+                headers=headers,
+            )
 
         else:
             return Response(
@@ -369,11 +368,14 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     )
     def get(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
-        company_employee = get_object_or_404(models.CompanyEmployee, app_user=app_user)
-        company = get_object_or_404(models.Company, id=company_employee.company.id)
+        company_employee = get_object_or_404(
+            models.CompanyEmployee, app_user=app_user)
+        company = get_object_or_404(
+            models.Company, id=company_employee.company.id)
 
         return Response(
-            status=status.HTTP_200_OK, data=serializers.CompanySerializer(company).data
+            status=status.HTTP_200_OK, data=serializers.CompanySerializer(
+                company).data
         )
 
 
@@ -555,7 +557,8 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
             company_employee = get_object_or_404(
                 models.CompanyEmployee, app_user=app_user_id
             )
-            company = get_object_or_404(models.Company, id=company_employee.company.id)
+            company = get_object_or_404(
+                models.Company, id=company_employee.company.id)
 
             return Response(
                 status=status.HTTP_200_OK,
@@ -666,10 +669,9 @@ class TaxInfoView(APIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        app_user = ship_utils.get_app_user_by_username(username=request.user.username)
+        app_user = ship_utils.get_app_user_by_username(
+            username=request.user.username)
         res = ship_utils.get_user_tax_or_company(app_user=app_user)
-        if isinstance(res, Response):
-            return res
 
         if isinstance(res, models.Company):
             return Response(
@@ -721,9 +723,8 @@ class AddRoleView(APIView):
 
         try:
             if new_type == "carrier" and "carrier" not in app_user.user_type:
-                composed_type = self._create_carrier(app_user=app_user, request=request)
-                if isinstance(composed_type, Response):
-                    return composed_type
+                composed_type = self._create_carrier(
+                    app_user=app_user, request=request)
 
             elif (
                 new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type
@@ -732,15 +733,14 @@ class AddRoleView(APIView):
                 sort_roles.append("shipment party")
                 sort_roles.sort()
                 composed_type = "-".join(sort_roles)
-                shipment_party = models.ShipmentParty.objects.create(app_user=app_user)
+                shipment_party = models.ShipmentParty.objects.create(
+                    app_user=app_user)
                 shipment_party.save()
 
             elif new_type == "dispatcher" and "dispatcher" not in app_user.user_type:
                 composed_type = self._create_dispatcher(
                     app_user=app_user, request=request
                 )
-                if isinstance(composed_type, Response):
-                    return composed_type
 
             else:
                 return Response(
@@ -764,58 +764,42 @@ class AddRoleView(APIView):
             )
 
     def _create_carrier(self, request, app_user: models.AppUser):
-        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
-        if isinstance(tax_info, Response):
-            return tax_info
+        ship_utils.get_user_tax_or_company(app_user=app_user)
         sort_roles = app_user.user_type.split("-")
         sort_roles.append("carrier")
         sort_roles.sort()
         composed_type = "-".join(sort_roles)
         if "dot_number" not in request.data:
-            return Response(
-                [{"details": "dot number is required"}],
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise exceptions.ParseError("dot number is required")
 
-        res = utils.check_dot_number(dot_number=request.data["dot_number"])
-        if isinstance(res, Response):
-            return res
+        utils.check_dot_number(dot_number=request.data["dot_number"])
 
-        if res:
-            carrier = models.Carrier.objects.create(
-                app_user=app_user,
-                DOT_number=request.data["dot_number"],
-                allowed_to_operate=True,
-            )
-            carrier.save()
-            return composed_type
+        carrier = models.Carrier.objects.create(
+            app_user=app_user,
+            DOT_number=request.data["dot_number"],
+            allowed_to_operate=True,
+        )
+        carrier.save()
+        return composed_type
 
     def _create_dispatcher(self, request, app_user: models.AppUser):
-        tax_info = ship_utils.get_user_tax_or_company(app_user=app_user)
-        if isinstance(tax_info, Response):
-            return tax_info
+        ship_utils.get_user_tax_or_company(app_user=app_user)
         sort_roles = app_user.user_type.split("-")
         sort_roles.append("dispatcher")
         sort_roles.sort()
         composed_type = "-".join(sort_roles)
         if "mc_number" not in request.data:
-            return Response(
-                [{"details": "mc number is required"}],
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise exceptions.ParseError("mc number is required")
 
-        res = utils.check_mc_number(mc_number=request.data["mc_number"])
-        if isinstance(res, Response):
-            return res
+        utils.check_mc_number(mc_number=request.data["mc_number"])
 
-        if res:
-            dispatcher = models.Dispatcher.objects.create(
-                app_user=app_user,
-                MC_number=request.data["mc_number"],
-                allowed_to_operate=True,
-            )
-            dispatcher.save()
-            return composed_type
+        dispatcher = models.Dispatcher.objects.create(
+            app_user=app_user,
+            MC_number=request.data["mc_number"],
+            allowed_to_operate=True,
+        )
+        dispatcher.save()
+        return composed_type
 
 
 class SelectRoleView(APIView):
@@ -851,7 +835,8 @@ class SelectRoleView(APIView):
         app_user.selected_role = new_type
         app_user.save()
         return Response(
-            status=status.HTTP_200_OK, data=serializers.AppUserSerializer(app_user).data
+            status=status.HTTP_200_OK, data=serializers.AppUserSerializer(
+                app_user).data
         )
 
 
