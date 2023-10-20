@@ -10,7 +10,7 @@ from rest_framework.response import Response
 import rest_framework.exceptions as exceptions
 
 
-def create_address(address, city, state, country, zip_code, created_by=None):
+def create_address(address, city, state, country, zip_code, created_by):
     try:
         address = models.Address.objects.create(
             created_by=created_by,

@@ -1,8 +1,8 @@
 # Module imports
-import authentication.permissions as permissions
-import notifications.serializers as serializers
 import notifications.models as models
 import authentication.models as auth_models
+import notifications.serializers as serializers
+import authentication.permissions as permissions
 
 # Django imports
 from django.shortcuts import get_object_or_404
@@ -31,7 +31,7 @@ class NotificationSettingView(GenericAPIView, UpdateModelMixin, RetrieveModelMix
         app_user = get_object_or_404(auth_models.AppUser, user=request.user)
         try:
             instance = models.NotificationSetting.objects.get(user=app_user)
-        except (BaseException):
+        except BaseException:
             return Response(
                 {"details": "NotificationSetting not found for this user."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -79,7 +79,7 @@ class NotificationView(GenericAPIView, ListModelMixin):
         elif read_or_unread == "unread":
             app_user = auth_models.AppUser.objects.get(user=self.request.user)
             return self.queryset.filter(user=app_user, seen=False).order_by("-id")
-        
+
 
 class UpdateNotificationView(GenericAPIView, UpdateModelMixin):
     permission_classes = (IsAuthenticated, permissions.IsAppUser)
@@ -91,7 +91,7 @@ class UpdateNotificationView(GenericAPIView, UpdateModelMixin):
         return self.partial_update(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         instance = self.get_object()
         app_user = get_object_or_404(auth_models.AppUser, user=request.user)
         if instance.user != app_user:
@@ -101,7 +101,7 @@ class UpdateNotificationView(GenericAPIView, UpdateModelMixin):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        if getattr(instance, '_prefetched_objects_cache', None):
+        if getattr(instance, "_prefetched_objects_cache", None):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)

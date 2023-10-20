@@ -3,6 +3,7 @@ import uuid
 
 # DRF imports
 from rest_framework import status
+from rest_framework import exceptions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.mixins import ListModelMixin
@@ -339,51 +340,10 @@ class ValidateFinalAgreementView(APIView):
 
         try:
             if app_user.selected_role == SHIPMENT_PARTY:
-                customer = ship_utils.get_shipment_party_by_username(
-                    request.user.username
-                )
-                if customer != load.customer:
-                    return Response(
-                        [{"details": NOT_AUTH_MSG}],
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+                data = self._handle_customer_acceptance(request, load, final_agreement)
 
-                final_agreement.did_customer_agree = True
-                final_agreement.customer_uuid = uuid.uuid4()
-                final_agreement.save()
-                data = serializers.CustomerFinalAgreementSerializer(
-                    final_agreement
-                ).data
-                if load.dispatcher.app_user != customer.app_user:
-                    handle_notification(
-                        app_user=load.dispatcher.app_user,
-                        load=load,
-                        action="RC_approved",
-                        sender=customer.app_user,
-                    )
             elif app_user.selected_role == "carrier":
-                carrier = ship_utils.get_carrier_by_username(request.user.username)
-                if carrier != load.carrier:
-                    return Response(
-                        [
-                            {
-                                "details": "You are not authorized to validate this document."
-                            }
-                        ],
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
-                final_agreement.did_carrier_agree = True
-                final_agreement.carrier_uuid = uuid.uuid4()
-                final_agreement.save()
-                data = serializers.CarrierFinalAgreementSerializer(final_agreement).data
-                if load.dispatcher.app_user != carrier.app_user:
-                    handle_notification(
-                        app_user=load.dispatcher.app_user,
-                        load=load,
-                        action="RC_approved",
-                        sender=carrier.app_user,
-                    )
+                data = self._handle_carrier_acceptance(request, load, final_agreement)
 
             else:
                 return Response(
@@ -399,6 +359,60 @@ class ValidateFinalAgreementView(APIView):
 
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
-            return Response(
-                [{"details": "FinAg-Val"}], status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            raise e
+
+
+    def _handle_customer_acceptance(self, request, load: ship_models.Load, final_agreement: models.FinalAgreement):
+        customer = ship_utils.get_shipment_party_by_username(
+                    request.user.username
+        )
+        if customer != load.customer:
+            raise exceptions.PermissionDenied(
+                NOT_AUTH_MSG
             )
+        if final_agreement.did_customer_agree:
+            raise exceptions.ParseError(
+                "You have already validated this document."
+            )
+    
+        final_agreement.did_customer_agree = True
+        final_agreement.customer_uuid = uuid.uuid4()
+        final_agreement.save()
+        data = serializers.CustomerFinalAgreementSerializer(
+            final_agreement
+        ).data
+        if load.dispatcher.app_user != customer.app_user:
+            handle_notification(
+                app_user=load.dispatcher.app_user,
+                load=load,
+                action="RC_approved",
+                sender=customer.app_user,
+            )
+
+        return data    
+
+    def _handle_carrier_acceptance(self, request, load: ship_models.Load, final_agreement: models.FinalAgreement):
+        carrier = ship_utils.get_carrier_by_username(request.user.username)
+        if carrier != load.carrier:
+            raise exceptions.PermissionDenied(
+                NOT_AUTH_MSG
+            )
+
+        if final_agreement.did_carrier_agree:
+            raise exceptions.ParseError(
+                "You have already validated this document."
+            )
+        
+        final_agreement.did_carrier_agree = True
+        final_agreement.carrier_uuid = uuid.uuid4()
+        final_agreement.save()
+        data = serializers.CarrierFinalAgreementSerializer(final_agreement).data
+        if load.dispatcher.app_user != carrier.app_user:
+            handle_notification(
+                app_user=load.dispatcher.app_user,
+                load=load,
+                action="RC_approved",
+                sender=carrier.app_user,
+            )
+        
+        return data

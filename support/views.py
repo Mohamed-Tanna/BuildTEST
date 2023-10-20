@@ -2,6 +2,7 @@ import random
 import string
 
 # Module imports
+import manager.models as manager_models
 import support.utilities as utils
 from support.models import Ticket
 import support.serializers as serializers
@@ -24,7 +25,8 @@ from rest_framework.mixins import (
 )
 
 # Third Party imports
-from drf_spectacular.utils import extend_schema, OpenApiTypes, inline_serializer
+from drf_spectacular.utils import extend_schema
+from allauth.account.models import EmailAddress
 
 
 class RetrieveTicketView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
@@ -102,7 +104,105 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
             )
         if request.data["action"] == "approve":
             # create an app user and a company using the informatrion in the ticket
-            password = auth_utils.generate_password()
+
+            app_user, password = self._create_app_user_from_ticket(ticket)
+
+            address = auth_utils.create_address(
+                address=ticket.address,
+                city=ticket.city,
+                state=ticket.state,
+                country=ticket.country,
+                zip_code=ticket.zip_code,
+                created_by=app_user,
+            )
+
+            company_id = auth_utils.generate_company_identiefier()
+            while auth_models.Company.objects.filter(identifier=company_id).exists():
+                company_id = auth_utils.generate_company_identiefier()
+
+            company = auth_models.Company.objects.create(
+                name=ticket.company_name,
+                address=address,
+                identifier=company_id,
+                EIN=ticket.EIN,
+                fax_number=ticket.company_fax_number,
+                phone_number=ticket.company_phone_number,
+                manager=app_user,
+            )
+
+            manager_models.Insurance.objects.create(
+                company=company,
+                provider=ticket.insurance_provider,
+                policy_number=ticket.insurance_policy_number,
+                type=ticket.insurance_type,
+                expiration_date=ticket.insurance_expiration_date,
+                premium_amount=ticket.insurance_premium_amount,
+            )
+
+            ticket.status = "Approved"
+            ticket.save()
+
+            utils.send_request_result(
+                template="accepted_request.html",
+                to=ticket.email,
+                password_or_reason=password,
+                company_name=ticket.company_name,
+                subject="Congratulations! Your Company Request Has Been Approved",
+            )
+
+            return Response(
+                {
+                    "details": "Ticket has been approved",
+                    "company": auth_serializers.CompanySerializer(company).data,
+                    "app_user": auth_serializers.AppUserSerializer(app_user).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        elif request.data["action"] == "deny":
+            if "rejection_reason" not in request.data:
+                return Response(
+                    {"details": "Reasoning is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            ticket.status = "Denied"
+            ticket.rejection_reason = request.data["rejection_reason"]
+            ticket.save()
+
+            utils.send_request_result(
+                template="denied_request.html",
+                to=ticket.email,
+                password_or_reason=ticket.rejection_reason,
+                company_name=ticket.company_name,
+                subject="Your Company Request Has Been Denied",
+            )
+
+            return Response(
+                {"details": "Ticket has been denied"},
+                status=status.HTTP_200_OK,
+                data={"ticket": serializers.ListTicketsSerializer(ticket).data},
+            )
+
+        else:
+            return Response(
+                {"details": "Action is not valid"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def _create_app_user_from_ticket(self, ticket):
+        password = auth_utils.generate_password()
+        username = (
+            ticket.email.split("@")[0]
+            + "#"
+            + (
+                "".join(
+                    random.choice(string.ascii_uppercase + string.digits)
+                    for _ in range(5)
+                )
+            )
+        )
+        while auth_models.User.objects.filter(username=username).exists():
             username = (
                 ticket.email.split("@")[0]
                 + "#"
@@ -113,85 +213,28 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
                     )
                 )
             )
-            while auth_models.User.objects.filter(username=username).exists():
-                username = (
-                    ticket.email.split("@")[0]
-                    + "#"
-                    + (
-                        "".join(
-                            random.choice(string.ascii_uppercase + string.digits)
-                            for _ in range(5)
-                        )
-                    )
-                )
 
-            user = auth_models.User.objects.create(
-                email=ticket.email,
-                password=password,
-                username=username,
-                first_name=ticket.first_name,
-                last_name=ticket.last_name,
-                is_active=True,
-            )
-            app_user = auth_models.AppUser.objects.create(
-                user=user,
-                phone_number=ticket.personal_phone_number,
-                user_type="manager",
-                selected_role="manager",
-            )
-            company_id = auth_utils.generate_company_identiefier()
-            while auth_models.Company.objects.filter(identifier=company_id).exists():
-                company_id = auth_utils.generate_company_identiefier()
+        user = auth_models.User.objects.create(
+            email=ticket.email,
+            password=password,
+            username=username,
+            first_name=ticket.first_name,
+            last_name=ticket.last_name,
+            is_active=True,
+        )
 
-            company = auth_models.Company.objects.create(
-                name=ticket.company_name,
-                address=ticket.company_address,
-                identifier=auth_utils.generate_company_identiefier(),
-                EIN=ticket.EIN,
-                fax_number=ticket.company_fax_number,
-                phone_number=ticket.company_phone_number,
-                admin=app_user,
-            )
-            ticket.status = "Approved"
-            ticket.save()
-            utils.send_request_result(
-                template="accepted_request.html",
-                to=ticket.email,
-                password_or_reason=password,
-                company_name=ticket.company_name,
-                subject="Congratulations! Your Company Request Has Been Approved",
-            )
-            return Response(
-                {
-                    "details": "Ticket has been approved",
-                    "company": auth_serializers.CompanySerializer(company).data,
-                    "app_user": auth_serializers.AppUserSerializer(app_user).data,
-                },
-                status=status.HTTP_200_OK,
-            )
-        elif request.data["action"] == "deny":
-            if "rejection_reason" not in request.data:
-                return Response(
-                    {"details": "Reasoning is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            ticket.status = "Denied"
-            ticket.rejection_reason = request.data["rejection_reason"]
-            ticket.save()
-            utils.send_request_result(
-                template="denied_request.html",
-                to=ticket.email,
-                password_or_reason=ticket.rejection_reason,
-                company_name=ticket.company_name,
-                subject="Your Company Request Has Been Denied",
-            )
-            return Response(
-                {"details": "Ticket has been denied"},
-                status=status.HTTP_200_OK,
-                data={"ticket": serializers.ListTicketsSerializer(ticket).data},
-            )
-        else:
-            return Response(
-                {"details": "Action is not valid"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        EmailAddress.objects.create(
+            user=user,
+            email=ticket.email,
+            verified=True,
+            primary=True,
+        )
+
+        app_user = auth_models.AppUser.objects.create(
+            user=user,
+            phone_number=ticket.personal_phone_number,
+            user_type="manager",
+            selected_role="manager",
+        )
+
+        return app_user, password

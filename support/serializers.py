@@ -47,6 +47,11 @@ class CreateTicketSerializer(serializers.Serializer):
             "state",
             "country",
             "zip_code",
+            "insurance_provider",
+            "insurance_policy_number",
+            "insurance_type",
+            "insurance_expiration_date",
+            "insurance_premium_amount",
         ]
         extra_kwargs = {
             "company_fax_number": {"required": False},
@@ -57,24 +62,6 @@ class CreateTicketSerializer(serializers.Serializer):
         """
         Create a new ticket.
         """
-        address = auth_utils.create_address(
-            address=validated_data["address"],
-            city=validated_data["city"],
-            state=validated_data["state"],
-            country=validated_data["country"],
-            zip_code=validated_data["zip_code"],
-        )
-        if not address:
-            return Response({"details": "Address creation failed."}, status=status.HTTP_400_BAD_REQUEST)
-
-        del (
-            validated_data["address"],
-            validated_data["city"],
-            validated_data["state"],
-            validated_data["country"],
-            validated_data["zip_code"],
-        )
-        validated_data["company_address"] = str(address.id)
         sid_photo = validated_data["sid_photo"]
         personal_photo = validated_data["personal_photo"]
         timestamp = int(time.time())
@@ -109,7 +96,16 @@ class CreateTicketSerializer(serializers.Serializer):
             company_phone_number=validated_data["company_phone_number"],
             sid_photo=validated_data["sid_photo"],
             personal_photo=validated_data["personal_photo"],
-            company_address=address,
+            address=validated_data["address"],
+            city=validated_data["city"],
+            state=validated_data["state"],
+            country=validated_data["country"],
+            zip_code=validated_data["zip_code"],
+            insurance_provider=validated_data["insurance_provider"],
+            insurance_policy_number=validated_data["insurance_policy_number"],
+            insurance_type=validated_data["insurance_type"],
+            insurance_expiration_date=validated_data["insurance_expiration_date"],
+            insurance_premium_amount=validated_data["insurance_premium_amount"],
         )
         obj.save()
         return Response(
@@ -154,10 +150,10 @@ class RetrieveTicketSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
     
     def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation["sid_photo"] = docs_utils.generate_signed_url(instance.sid_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
-        representation["personal_photo"] = docs_utils.generate_signed_url(instance.personal_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
-        representation["company_address"] = AddressSerializer(instance.company_address).data
-        return representation
+        rep = super().to_representation(instance)
+        rep["sid_photo"] = docs_utils.generate_signed_url(instance.sid_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
+        rep["personal_photo"] = docs_utils.generate_signed_url(instance.personal_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
+        rep["company_address"] = AddressSerializer(instance.company_address).data
+        return rep
     
 
