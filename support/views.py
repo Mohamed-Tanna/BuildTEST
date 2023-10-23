@@ -122,12 +122,13 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
 
             company = auth_models.Company.objects.create(
                 name=ticket.company_name,
+                manager=app_user,
                 address=address,
+                domain=ticket.company_domain,
                 identifier=company_id,
                 EIN=ticket.EIN,
                 fax_number=ticket.company_fax_number,
                 phone_number=ticket.company_phone_number,
-                manager=app_user,
             )
 
             manager_models.Insurance.objects.create(
@@ -135,7 +136,6 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
                 provider=ticket.insurance_provider,
                 policy_number=ticket.insurance_policy_number,
                 type=ticket.insurance_type,
-                expiration_date=ticket.insurance_expiration_date,
                 premium_amount=ticket.insurance_premium_amount,
             )
 

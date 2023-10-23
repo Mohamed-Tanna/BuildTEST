@@ -1,14 +1,21 @@
+# Python imports
 import os
+import re
 import time
+
+# Django imports
 from django.db.models import Q
-import support.models as models
-import support.utilities as utils
+from django.db import IntegrityError
+
+# Third party imports
 from rest_framework import status
 from rest_framework import serializers
-from document import utilities as docs_utils
 from rest_framework.response import Response
-from authentication import utilities as auth_utils
-from authentication.serializers import AddressSerializer
+
+# Module imports
+import support.models as models
+import support.utilities as utils
+from document import utilities as docs_utils
 
 if os.getenv("ENV") == "DEV":
     from freightmonster.settings.dev import GS_COMPANY_MANAGER_BUCKET_NAME
@@ -16,6 +23,35 @@ elif os.getenv("ENV") == "STAGING":
     from freightmonster.settings.staging import GS_COMPANY_MANAGER_BUCKET_NAME
 else:
     from freightmonster.settings.local import GS_COMPANY_MANAGER_BUCKET_NAME
+
+
+ticket_fields = [
+    "id",
+    "email",
+    "first_name",
+    "last_name",
+    "personal_phone_number",
+    "company_name",
+    "company_domain",
+    "company_size",
+    "EIN",
+    "company_fax_number",
+    "company_phone_number",
+    "sid_photo",
+    "personal_photo",
+    "address",
+    "city",
+    "state",
+    "country",
+    "zip_code",
+    "status",
+    "insurance_provider",
+    "insurance_policy_number",
+    "insurance_type",
+    "insurance_premium_amount",
+    "created_at",
+    "handled_at",
+]
 
 
 class CreateTicketSerializer(serializers.Serializer):
@@ -29,34 +65,16 @@ class CreateTicketSerializer(serializers.Serializer):
 
     class Meta:
         model = models.Ticket
-        fields = [
-            "email",
-            "first_name",
-            "last_name",
-            "personal_phone_number",
-            "company_name",
-            "company_domain",
-            "company_size",
-            "EIN",
-            "company_fax_number",
-            "company_phone_number",
-            "sid_photo",
-            "personal_photo",
-            "address",
-            "city",
-            "state",
-            "country",
-            "zip_code",
-            "insurance_provider",
-            "insurance_policy_number",
-            "insurance_type",
-            "insurance_expiration_date",
-            "insurance_premium_amount",
-        ]
+        fields = ticket_fields
         extra_kwargs = {
             "company_fax_number": {"required": False},
         }
-        read_only_fields = ("id",)
+        read_only_fields = (
+            "id",
+            "status",
+            "created_at",
+            "handled_at",
+        )
 
     def create(self, validated_data):
         """
@@ -104,12 +122,25 @@ class CreateTicketSerializer(serializers.Serializer):
             insurance_provider=validated_data["insurance_provider"],
             insurance_policy_number=validated_data["insurance_policy_number"],
             insurance_type=validated_data["insurance_type"],
-            insurance_expiration_date=validated_data["insurance_expiration_date"],
             insurance_premium_amount=validated_data["insurance_premium_amount"],
         )
-        obj.save()
+        try:
+            obj.save()
+        except IntegrityError as e:
+            error_message = str(e)
+            match = re.search(r'Key \((.*?)\)=\((.*?)\) already exists', error_message)
+            if match:
+                return Response(
+                    {"details": f"This {match.group(1)} already exists."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+        except Exception as e:
+            return Response(
+                {"details": f"{str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return Response(
-            {"message": "Ticket created successfully"},
+            {"details": "Ticket created successfully"},
             status=status.HTTP_201_CREATED,
         )
 
@@ -144,16 +175,26 @@ class RetrieveTicketSerializer(serializers.ModelSerializer):
             "company_phone_number",
             "sid_photo",
             "personal_photo",
-            "company_address",
+            "address",
+            "city",
+            "state",
+            "country",
+            "zip_code",
             "status",
+            "insurance_provider",
+            "insurance_policy_number",
+            "insurance_type",
+            "insurance_expiration_date",
+            "insurance_premium_amount",
         ]
         read_only_fields = ("id",)
-    
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep["sid_photo"] = docs_utils.generate_signed_url(instance.sid_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
-        rep["personal_photo"] = docs_utils.generate_signed_url(instance.personal_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME)
-        rep["company_address"] = AddressSerializer(instance.company_address).data
+        rep["sid_photo"] = docs_utils.generate_signed_url(
+            instance.sid_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME
+        )
+        rep["personal_photo"] = docs_utils.generate_signed_url(
+            instance.personal_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME
+        )
         return rep
-    
-

@@ -107,7 +107,7 @@ class CompanySerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep["admin"] = AppUserSerializer(instance.admin).data
+        rep["manager"] = AppUserSerializer(instance.admin).data
         rep["address"] = AddressSerializer(instance.address).data
         return rep
 

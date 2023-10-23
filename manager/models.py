@@ -3,7 +3,7 @@ from authentication.models import Company
 from django.core.validators import MinLengthValidator
 
 class Insurance(models.Model):
-    company = models.ForeignKey(
+    company = models.OneToOneField(
         to=Company,
         null=False,
         blank=False,

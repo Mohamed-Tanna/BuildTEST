@@ -50,7 +50,6 @@ class Ticket(models.Model):
         max_length=20, null=False, blank=False, validators=[MinLengthValidator(8)]
     )
     insurance_type = models.CharField(max_length=100, null=False, blank=False)
-    insurance_expiration_date = models.DateField(null=False, blank=False)
     insurance_premium_amount = models.FloatField(null=False, blank=False)
     sid_photo = models.CharField(max_length=255, null=False, blank=False, unique=True)
     personal_photo = models.CharField(

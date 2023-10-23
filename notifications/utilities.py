@@ -9,9 +9,15 @@ import notifications.models as models
 from phonenumbers import parse, format_number, PhoneNumberFormat, NumberParseException
 from freightmonster.settings.base import (
     TWILIO_ACCOUNT_SID,
-    TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER,
 )
+
+if os.getenv("ENV") == "DEV":
+    from freightmonster.settings.dev import TWILIO_AUTH_TOKEN
+elif os.getenv("ENV") == "STAGING":
+    from freightmonster.settings.staging import TWILIO_AUTH_TOKEN
+else:
+    from freightmonster.settings.local import TWILIO_AUTH_TOKEN
 
 
 # file deepcode ignore AttributeLoadOnNone: because these fields are not nullable
@@ -37,21 +43,23 @@ def trigger_send_email_notification(subject, template, to, message, url):
         to=[to],
         reply_to=["notifications@freightslayer.com"],
     )
-    message.attach_alternative(html_content, "text/html")
+    message.attach_alternative(text_content, "text/plain")
     message.content_subtype = "html"
     message.mixed_subtype = "related"
     res = message.send()
     print(res)
 
 
-def convert_phone_number_to_e164(phone_number):
+def convert_phone_number_to_e164(phone_number: str):
     """Convert phone number to e164 format"""
     try:
         region = "US"
-        if phone_number[:3] == "+52":
+        if phone_number.startswith("+52"):
             region = "MX"
         phone_number = parse(phone_number, region=region)
+
         return format_number(phone_number, PhoneNumberFormat.E164)
+
     except NumberParseException:
         return None
 

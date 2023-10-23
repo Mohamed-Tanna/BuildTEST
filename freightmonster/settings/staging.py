@@ -119,3 +119,9 @@ CHANNEL_LAYERS = {
 }
 
 DEFENDER_REDIS_URL = f"redis://{MEMORYSTOREIP}:6379/0"
+
+TWILIO_AUTH_TOKEN = client.access_secret_version(
+    request={
+        "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('TWILIO_AUTH_TOKEN')}/versions/latest"
+    }
+).payload.data.decode("UTF-8")
