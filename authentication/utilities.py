@@ -25,7 +25,7 @@ def create_address(address, city, state, country, zip_code, created_by):
 
     except (BaseException) as e:
         print((f"Unexpected {e=}, {type(e)=}"))
-        raise exceptions.NotAcceptable(detail=f"{e.args[0]}")
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 
 def generate_company_identiefier():

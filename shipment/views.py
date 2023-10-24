@@ -1013,7 +1013,7 @@ class ShipmentView(
             return Response(
                 {
                     "detail": [
-                        "You are not the creator nor and admin of this Load",
+                        "You are not the creator or an admin of this shipment.",
                     ]
                 },
                 status=status.HTTP_403_FORBIDDEN,

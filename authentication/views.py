@@ -464,17 +464,6 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 country=request.data["country"],
                 zip_code=request.data["zip_code"],
             )
-
-            if address == False:
-                return Response(
-                    [
-                        {
-                            "details": "Address creation failed. Please try again; if the issue persists please contact us."
-                        },
-                    ],
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             del (
                 request.data["address"],
                 request.data["city"],
@@ -493,18 +482,19 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
+        except exceptions.ParseError as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            return self._handle_basic_error(address)
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             if "first" in request.data and request.data["first"] == True:
-                return self._handle_first_error(app_user, address, e)
+                return self._handle_first_error(app_user, e)
             else:
-                return self._handle_basic_error(address, e)
+                return self._handle_basic_error(address)
 
     def _handle_first_error(
-        self, app_user: models.AppUser, address: ship_models.Address, e
+        self, app_user: models.AppUser, e
     ):
-        if address:
-            address.delete()
         app_user.delete()
         if isinstance(e, ValidationError):
             return Response(
@@ -517,12 +507,12 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _handle_basic_error(self, address: ship_models.Address, e):
+    def _handle_basic_error(self, address: ship_models.Address):
         if address:
             address.delete()
         return Response(
-            {"details": "An error occurred during user tax creation."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            {"details": "An error occurred during creating the billing address."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -757,7 +747,6 @@ class AddRoleView(APIView):
 
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
-            app_user.delete()
             return Response(
                 {"details": "something went wrong - ADRL."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

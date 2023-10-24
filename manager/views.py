@@ -1,6 +1,7 @@
 # Django imports
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 
 # DRF imports
 from rest_framework import status
@@ -14,6 +15,7 @@ import shipment.models as ship_models
 import authentication.models as auth_models
 import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
+import manager.serializers as serializers
 
 
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
@@ -39,9 +41,9 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
-        company_admin = auth_models.AppUser.objects.get(user=self.request.user)
+        manager = auth_models.AppUser.objects.get(user=self.request.user)
         try:
-            company = auth_models.Company.objects.get(admin=company_admin)
+            company = auth_models.Company.objects.get(manager=manager)
         except auth_models.Company.DoesNotExist:
             return queryset.none()
         queryset = (
@@ -76,7 +78,7 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         company = auth_models.Company.objects.get(
-            admin=auth_models.AppUser.objects.get(user=self.request.user)
+            manager=auth_models.AppUser.objects.get(user=self.request.user)
         )
         try:
             created_by_company = auth_models.CompanyEmployee.objects.get(
@@ -123,6 +125,17 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
         except auth_models.CompanyEmployee.DoesNotExist:
             carrier_company = None
 
+        shipment_creator = instance.shipment.created_by
+        try:
+            shipment_creator_company = auth_models.CompanyEmployee.objects.get(
+                app_user=shipment_creator
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            shipment_creator_company = None
+        
+        shipment_admins = ship_models.ShipmentAdmin.objects.filter(shipment=instance.shipment).values_list("admin", flat=True)
+        shipment_admins_companies = auth_models.CompanyEmployee.objects.filter(app_user__in=shipment_admins).values_list("company", flat=True)
+
         if (
             created_by_company == company
             or customer_company == company
@@ -130,6 +143,8 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
             or consignee_company == company
             or dispatcher_company == company
             or carrier_company == company
+            or shipment_creator_company == company
+            or company.id in shipment_admins_companies
         ):
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -139,13 +154,13 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
         )
 
 
-class ListEmployeesContacsView(GenericAPIView, ListModelMixin):
+class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
     """
     View for listing admin's company contacts
     """
 
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
-    serializer_class = ship_serializers.ContactListSerializer
+    serializer_class = serializers.ManagerContactListSerializer
     queryset = ship_models.Contact.objects.all()
     lookup_field = "id"
 
@@ -167,16 +182,20 @@ class ListEmployeesContacsView(GenericAPIView, ListModelMixin):
         company_employees = auth_models.CompanyEmployee.objects.filter(
             company=company
         ).values_list("app_user", flat=True)
-        print(company_employees)
         origins = auth_models.AppUser.objects.filter(
             id__in=company_employees
         ).values_list("user", flat=True)
         origins = User.objects.filter(id__in=origins)
         company_contacts = (
-            queryset.filter(Q(origin__in=origins) | Q(contact__in=company_employees))
-            .distinct()
-            .order_by("-id")
+            queryset.filter(Q(origin__in=origins)).distinct().order_by("-id")
         )
+
+        distinct = set()
+        for contact in company_contacts:
+            distinct.add(contact.contact.id)
+
+        company_contacts = auth_models.AppUser.objects.filter(id__in=distinct)
+
         return company_contacts
 
 
@@ -207,6 +226,7 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
         company_employees = auth_models.CompanyEmployee.objects.filter(
             company=company
         ).values_list("app_user", flat=True)
+
         owners = auth_models.AppUser.objects.filter(
             id__in=company_employees
         ).values_list("user", flat=True)
@@ -218,3 +238,85 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
         )
 
         return facilities
+
+
+class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = ship_serializers.ShipmentSerializer
+    queryset = ship_models.Shipment.objects.all()
+    lookup_field = "id"
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+    
+    
+
+    def get_queryset(self):
+        queryset = self.queryset
+        assert queryset is not None, (
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+        )
+        company_manager = auth_models.AppUser.objects.get(user=self.request.user)
+
+        try:
+            company = auth_models.Company.objects.get(manager=company_manager)
+        except auth_models.Company.DoesNotExist:
+            return queryset.none()
+
+        company_employees = auth_models.CompanyEmployee.objects.filter(
+            company=company
+        ).values_list("app_user", flat=True)
+
+        shipments_from_admins = ship_models.ShipmentAdmin.objects.filter(
+            app_user__in=company_employees
+        ).values_list("shipment", flat=True)
+
+        queryset = (
+            ship_models.Shipment.objects.filter(
+                Q(id__in=shipments_from_admins) | Q(created_by__in=company_employees)
+            )
+            .distinct()
+            .order_by("-id")
+        )
+
+        return queryset
+
+
+class RetrieveEmployeeShipmentView(GenericAPIView, RetrieveModelMixin):
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = ship_serializers.LoadListSerializer
+    queryset = ship_models.Load.objects.all()
+    lookup_field = "id"
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+    
+    def retrieve(self, request, *args, **kwargs):
+        instance = get_object_or_404(ship_models.Shipment, id=self.kwargs["id"])
+        try:
+            company = auth_models.Company.objects.get(
+                manager=auth_models.AppUser.objects.get(user=self.request.user)
+            )
+        except auth_models.Company.DoesNotExist:
+            return Response(
+                data={"details": "You don't have access to view this shipment's information"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            owner_company = auth_models.CompanyEmployee.objects.get(app_user=instance.owner).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            owner_company = None
+        
+        shipment_admins = ship_models.ShipmentAdmin.objects.filter(shipment=instance).values_list("app_user", flat=True)
+        shipment_admins_companies = auth_models.CompanyEmployee.objects.filter(app_user__in=shipment_admins).values_list("company", flat=True)
+
+        if owner_company == company or company.id in shipment_admins_companies:
+            queryset = ship_models.Load.objects.filter(shipment=instance)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        
+        return Response(
+            data={"details": "You don't have access to view this shipment's information"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
