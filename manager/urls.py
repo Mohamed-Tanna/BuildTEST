@@ -5,4 +5,6 @@ urlpatterns = [
     path("load/<id>/", views.RetrieveEmployeeLoadView.as_view()),
     path("contacts/", views.ListEmployeesContactsView.as_view()),
     path("facilities/", views.ListEmployeesFacilitiesView.as_view()),
+    path("shipment/<id>/", views.RetrieveEmployeeShipmentView.as_view()),
+    path("shipment/", views.ListEmployeesShipmentsView.as_view()),
 ]
