@@ -580,29 +580,6 @@ class CompanyEmployeeView(GenericAPIView, CreateModelMixin):
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
-    # override
-    def create(self, request, *args, **kwargs):
-        if isinstance(request.data, QueryDict):
-            request.data._mutable = True
-
-        try:
-            app_user = models.AppUser.objects.get(user=request.user)
-            request.data["app_user"] = str(app_user.id)
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-        except BaseException as e:
-            print(f"Unexpected {e=}, {type(e)=}")
-            return Response(
-                {"details": "An error occurred during creating the company employee."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
 
 class CheckCompanyView(GenericAPIView, CreateModelMixin):
     permission_classes = [IsAuthenticated]
