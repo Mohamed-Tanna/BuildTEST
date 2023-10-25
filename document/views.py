@@ -63,15 +63,15 @@ class FileUploadView(GenericAPIView, ListModelMixin):
             load = get_object_or_404(ship_models.Load, id=load_id)
             app_user = ship_utils.get_app_user_by_username(request.user.username)
 
-            shipment = get_object_or_404(ship_models.Shipment, id=load.shipment)
-            shipment_admins = ship_models.ShipmentParty.objects.filter(shipment=shipment.id).values_list("admin", flat=True)
+            shipment = get_object_or_404(ship_models.Shipment, id=load.shipment.id)
+            shipment_admins = ship_models.ShipmentAdmin.objects.filter(shipment=shipment.id).values_list("admin", flat=True)
 
             filters = Q(created_by=app_user.id)
             filters = ship_utils.apply_load_access_filters_for_user(filters, app_user)
-            filters &= Q(load_id=load_id)
-            queryset = queryset.filter(filters)
+            filters &= Q(id=load_id)
+            queryset = ship_models.Load.objects.filter(filters)
 
-            if app_user.id not in shipment_admins and not self.queryset.exists():
+            if app_user.id not in shipment_admins and not queryset.exists():
                 return Response(
                     {"details": "You do not have permission to view this load."},
                     status=status.HTTP_403_FORBIDDEN,

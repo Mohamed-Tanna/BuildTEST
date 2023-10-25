@@ -747,10 +747,7 @@ class AddRoleView(APIView):
 
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
-            return Response(
-                {"details": "something went wrong - ADRL."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise e
 
     def _create_carrier(self, request, app_user: models.AppUser):
         if "dot_number" not in request.data:
@@ -780,15 +777,20 @@ class AddRoleView(APIView):
         sort_roles.sort()
         composed_type = "-".join(sort_roles)
 
-        utils.check_mc_number(mc_number=request.data["mc_number"])
+        try:
+            utils.check_mc_number(mc_number=request.data["mc_number"])
 
-        dispatcher = models.Dispatcher.objects.create(
-            app_user=app_user,
-            MC_number=request.data["mc_number"],
-            allowed_to_operate=True,
-        )
-        dispatcher.save()
-        return composed_type
+            dispatcher = models.Dispatcher.objects.create(
+                app_user=app_user,
+                MC_number=request.data["mc_number"],
+                allowed_to_operate=True,
+            )
+            dispatcher.save()
+            return composed_type
+
+        except BaseException as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            raise e
 
 
 class SelectRoleView(APIView):
