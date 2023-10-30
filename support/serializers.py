@@ -126,9 +126,13 @@ class CreateTicketSerializer(serializers.Serializer):
         )
         try:
             obj.save()
+            return Response(
+                {"details": "Ticket created successfully"},
+                status=status.HTTP_201_CREATED,
+            )
         except IntegrityError as e:
             error_message = str(e)
-            match = re.search(r'Key \((.*?)\)=\((.*?)\) already exists', error_message)
+            match = re.search(r"Key \((.*?)\)=\((.*?)\) already exists", error_message)
             if match:
                 return Response(
                     {"details": f"This {match.group(1)} already exists."},
@@ -139,10 +143,6 @@ class CreateTicketSerializer(serializers.Serializer):
                 {"details": f"{str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        return Response(
-            {"details": "Ticket created successfully"},
-            status=status.HTTP_201_CREATED,
-        )
 
 
 class ListTicketsSerializer(serializers.ModelSerializer):
