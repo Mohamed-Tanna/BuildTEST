@@ -97,8 +97,8 @@ class CreateTicketSerializer(serializers.Serializer):
 
         sid_photo.name = sid_photo_name
         personal_photo.name = personal_photo_name
-        # utils.upload_to_gcs(sid_photo)
-        # utils.upload_to_gcs(personal_photo)
+        utils.upload_to_gcs(sid_photo)
+        utils.upload_to_gcs(personal_photo)
         validated_data["sid_photo"] = sid_photo_name
         validated_data["personal_photo"] = personal_photo_name
         company_fax_number = ""
