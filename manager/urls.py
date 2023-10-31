@@ -9,4 +9,5 @@ urlpatterns = [
     path("shipment/", views.ListEmployeesShipmentsView.as_view()),
     path("file/", views.EmployeeFileUploadedView.as_view()),
     path("billing/", views.EmployeeBillingDocumentsView.as_view()),
+    path("dashboard/", views.DashboardView.as_view()),
 ]

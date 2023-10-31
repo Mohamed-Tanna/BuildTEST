@@ -1,15 +1,20 @@
+# Python imports
+from datetime import datetime
+
 # Django imports
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.db.models import Avg,Sum, Count
 from django.shortcuts import get_object_or_404
 
 # DRF imports
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+import rest_framework.exceptions as exceptions
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
-import rest_framework.exceptions as exceptions
+from rest_framework import serializers as drf_serializers
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 # Module imports
@@ -28,6 +33,8 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiParameter,
     extend_schema,
+    inline_serializer,
+
 )
 
 
@@ -35,7 +42,13 @@ NOT_AUTH_MSG = "You are not authorized to view this document."
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
 ERR_SECOND_PART = "or override the `get_queryset()` method."
 NOT_AUTH_SHIPMENT = "You don't have access to view this shipment's information"
-
+IN_TRANSIT = "In Transit"
+SHIPMENT_PARTY = "shipment party"
+AWAITING_DISPATCHER = "Awaiting Dispatcher"
+AWAITING_CARRIER = "Awaiting Carrier"
+READY_FOR_PICKUP = "Ready For Pickup"
+ASSIGNING_CARRIER = "Assigning Carrier"
+AWAITING_CUSTOMER = "Awaiting Customer"
 
 class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
     """
@@ -56,22 +69,8 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
             f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
-        manager = auth_models.AppUser.objects.get(user=self.request.user)
-        try:
-            company = auth_models.Company.objects.get(manager=manager)
-        except auth_models.Company.DoesNotExist:
-            return queryset.none()
-        queryset = (
-            queryset.filter(
-                Q(created_by__companyemployee__company=company)
-                | Q(customer__app_user__companyemployee__company=company)
-                | Q(shipper__app_user__companyemployee__company=company)
-                | Q(consignee__app_user__companyemployee__company=company)
-                | Q(dispatcher__app_user__companyemployee__company=company)
-                | Q(carrier__app_user__companyemployee__company=company)
-            )
-            .distinct()
-            .order_by("-id")
+        queryset = utils.check_manager_can_view_load_queryset(
+            queryset=queryset, user=self.request.user
         )
 
         return queryset
@@ -426,3 +425,156 @@ class EmployeeFileUploadedView(GenericAPIView, ListModelMixin):
         utils.check_manager_can_view_load(load_id, self.request.user)
         queryset = queryset.filter(load=load_id)
         return queryset
+
+
+class DashboardView(APIView):
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name="Dashboard",
+                fields={
+                    "cards": inline_serializer(
+                        name="Cards",
+                        fields={
+                            "total": drf_serializers.IntegerField(),
+                            "pending": drf_serializers.IntegerField(),
+                            "ready_for_pick_up": drf_serializers.IntegerField(),
+                            "in_transit": drf_serializers.IntegerField(),
+                            "delivered": drf_serializers.IntegerField(),
+                            "canceled": drf_serializers.IntegerField(),
+                            "loads": ship_serializers.LoadListSerializer(),
+                        },
+                    ),
+                    "chart": inline_serializer(
+                        name="Chart",
+                        fields={
+                            "0": inline_serializer(
+                                name="Month",
+                                fields={
+                                    "name": drf_serializers.CharField(),
+                                    "total": drf_serializers.IntegerField(),
+                                    "pending": drf_serializers.IntegerField(),
+                                    "ready_for_pick_up": drf_serializers.IntegerField(),
+                                    "in_transit": drf_serializers.IntegerField(),
+                                    "delivered": drf_serializers.IntegerField(),
+                                    "canceled": drf_serializers.IntegerField(),
+                                },
+                            ),
+                        },
+                    ),
+                },
+            )
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """Get dashboard data for company manager."""
+        filter_query = ship_models.Load.objects.all()
+        filter_query = utils.check_manager_can_view_load_queryset(
+            queryset=filter_query, user=self.request.user
+        )
+        if filter_query.exists() is False:
+            raise exceptions.NotFound(detail="No loads found.")
+          
+        result = {}
+        cards = {}
+        cards["total"] = filter_query.count()
+        cards["pending"] = filter_query.filter(
+            status__in=[
+                "Created",
+                AWAITING_CUSTOMER,
+                ASSIGNING_CARRIER,
+                AWAITING_CARRIER,
+                AWAITING_DISPATCHER,
+            ]
+        ).count()
+
+        cards["ready_for_pick_up"] = filter_query.filter(status=READY_FOR_PICKUP).count()
+        cards["in_transit"] = filter_query.filter(status=IN_TRANSIT).count()
+        cards["delivered"] = filter_query.filter(status="Delivered").count()
+        cards["canceled"] = filter_query.filter(status="Canceled").count()
+
+        loads = filter_query.order_by("-id")[:3]
+
+        loads = ship_serializers.LoadListSerializer(loads, many=True).data
+        cards["loads"] = loads
+        result["cards"] = cards
+        result["chart"] = []
+
+        year = datetime.now().year
+        for i in range(1, 13):
+            monthly_loads = filter_query.filter(created_at__month=i, created_at__year=year)
+            obj = {}
+            obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+            if monthly_loads.exists() is False:
+                obj["total"] = 0
+                obj["pending"] = 0
+                obj["ready_for_pick_up"] = 0
+                obj["in_transit"] = 0
+                obj["delivered"] = 0
+                obj["canceled"] = 0
+                result["chart"].append(obj)
+                continue
+            obj["total"] = monthly_loads.count()
+            obj["pending"] = monthly_loads.filter(
+                status__in=[
+                    "Created",
+                    AWAITING_CUSTOMER,
+                    ASSIGNING_CARRIER,
+                    AWAITING_CARRIER,
+                    AWAITING_DISPATCHER,
+                ]
+            ).count()
+
+            obj["ready_for_pick_up"] = monthly_loads.filter(
+                status=READY_FOR_PICKUP
+            ).count()
+            obj["in_transit"] = monthly_loads.filter(status=IN_TRANSIT).count()
+            obj["delivered"] = monthly_loads.filter(status="Delivered").count()
+            obj["canceled"] = monthly_loads.filter(status="Canceled").count()
+            result["chart"].append(obj)
+
+
+        # getting number of FTL,LTL, heavy haul loads
+        ftl = filter_query.filter(load_type="FTL").count()
+        ltl = filter_query.filter(load_type="LTL").count()
+        heavy_haul = filter_query.filter(load_type="HHL").count() # TODO: To be added to the model
+
+        result["load_types"] = {
+            "ftl": ftl,
+            "ltl": ltl,
+            "HHL": heavy_haul,
+        }
+
+        # Get bar charts for cost of shipping to each carrier
+        carrier_offers = ship_models.Offer.objects.filter(
+            load__in=filter_query, status="Accepted", party_2__user_type__contains="carrier"
+        )
+
+        carriers = carrier_offers.values_list("party_2", flat=True).distinct()
+        result["carrier_offers"] = {}
+
+        for carrier in carriers:
+            aggregates = carrier_offers.filter(party_2=carrier).aggregate(avg=Avg("current"), sum=Sum("current"))
+            carrier = auth_models.AppUser.objects.get(id=carrier).user
+            """  TODO: just to check if needed more stats
+            carrier_obj = {}
+            carrier_obj["name"] = carrier
+            carrier_obj["number_of_loads"] = carrier_offers.filter(party_2=carrier).count()
+            carrier_obj["average_cost"] = aggregates["avg"]
+            carrier_obj["total_cost"] = aggregates["sum"]
+            result["carrier_offers"].append(carrier_obj)
+            result["carrier_offers"].append(carrier_obj)    
+            """
+            result["carrier_offers"][carrier.username] = aggregates["avg"]
+        
+        # Get top 5-10 equipments used with number of uses
+        equipments = filter_query.values("equipment").annotate(equipment_count=Count("equipment")).order_by("-equipment_count")[:10]
+        result["equipments"] = {}
+        for equipment in equipments:
+            result["equipments"][equipment["equipment"]] = equipment["equipment_count"]
+        
+
+        return Response(data=result, status=status.HTTP_200_OK)
+    
