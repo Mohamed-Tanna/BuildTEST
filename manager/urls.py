@@ -7,4 +7,6 @@ urlpatterns = [
     path("facilities/", views.ListEmployeesFacilitiesView.as_view()),
     path("shipment/<id>/", views.RetrieveEmployeeShipmentView.as_view()),
     path("shipment/", views.ListEmployeesShipmentsView.as_view()),
+    path("file/", views.EmployeeFileUploadedView.as_view()),
+    path("billing/", views.EmployeeBillingDocumentsView.as_view()),
 ]
