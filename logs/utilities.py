@@ -18,6 +18,7 @@ def get_original_instance_and_original_request(request, instance):
     original_instance = {}
     original_request = {}
     for field in request.data:
-        original_instance[field] = getattr(instance, field)
-        original_request[field] = request.data[field]
+        if str(getattr(instance, field)) != request.data[field]:
+            original_instance[field] = str(getattr(instance, field))
+            original_request[field] = request.data[field]
     return original_instance, original_request

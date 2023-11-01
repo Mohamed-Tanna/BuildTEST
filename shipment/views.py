@@ -724,7 +724,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             updated_fields.append(field)
         details = {}
         for field in updated_fields:
-            details[field] = str(original_instance[field]) + \
+            details[field] = original_instance[field] + \
                 "->" + request_data[field]
         log_utils.handle_log(
             user=self.request.user,

@@ -4,7 +4,7 @@ from datetime import datetime
 # Django imports
 from django.db.models import Q
 from django.contrib.auth.models import User
-from django.db.models import Avg,Sum, Count
+from django.db.models import Avg, Sum, Count
 from django.shortcuts import get_object_or_404
 
 # DRF imports
@@ -15,6 +15,7 @@ import rest_framework.exceptions as exceptions
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers as drf_serializers
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 # Module imports
@@ -27,6 +28,7 @@ import authentication.models as auth_models
 import document.serializers as doc_serializers
 import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
+import authentication.serializers as auth_serializers
 
 # ThirdParty imports
 from drf_spectacular.types import OpenApiTypes
@@ -50,6 +52,7 @@ READY_FOR_PICKUP = "Ready For Pickup"
 ASSIGNING_CARRIER = "Assigning Carrier"
 AWAITING_CUSTOMER = "Awaiting Customer"
 
+
 class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
     """
     View for retrieving employees loads
@@ -59,9 +62,24 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
     serializer_class = ship_serializers.LoadListSerializer
     queryset = ship_models.Load.objects.all()
     lookup_field = "id"
+    pagination_class = PageNumberPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        loads = self.get_queryset()
+        if "search" in request.data:
+            search = request.data["search"]
+            loads = loads.filter(name__icontains=search)
+
+        paginator = self.pagination_class()
+        paginated_loads = paginator.paginate_queryset(
+            loads.order_by("-id"), request)
+        loads = ship_serializers.LoadListSerializer(
+            paginated_loads, many=True).data
+
+        return paginator.get_paginated_response(loads)
 
     def get_queryset(self):
         queryset = self.queryset
@@ -176,9 +194,24 @@ class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
     serializer_class = serializers.ManagerContactListSerializer
     queryset = ship_models.Contact.objects.all()
     lookup_field = "id"
+    pagination_class = PageNumberPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        contacts = self.get_queryset()
+        if "search" in request.data:
+            search = request.data["search"]
+            contacts = contacts.filter(user__username__icontains=search)
+
+        paginator = self.pagination_class()
+        paginated_contacts = paginator.paginate_queryset(
+            contacts.order_by("-id"), request)
+        contacts = auth_serializers.AppUserSerializer(
+            paginated_contacts, many=True).data
+
+        return paginator.get_paginated_response(contacts)
 
     def get_queryset(self):
         queryset = self.queryset
@@ -221,9 +254,29 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = ship_serializers.FacilitySerializer
     queryset = ship_models.Facility.objects.all()
+    pagination_class = PageNumberPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        facilities = self.get_queryset()
+        if "search" in request.data:
+            search = request.data["search"]
+            facilities = facilities.filter(
+                Q(address__address__icontains=search)
+                | Q(address__city__icontains=search)
+                | Q(address__state__icontains=search)
+                | Q(address__zip_code__icontains=search)
+            )
+
+        paginator = self.pagination_class()
+        paginated_facilities = paginator.paginate_queryset(
+            facilities.order_by("-id"), request)
+        facilities = ship_serializers.FacilitySerializer(
+            paginated_facilities, many=True).data
+
+        return paginator.get_paginated_response(facilities)
 
     def get_queryset(self):
         queryset = self.queryset
@@ -260,9 +313,24 @@ class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
     serializer_class = ship_serializers.ShipmentSerializer
     queryset = ship_models.Shipment.objects.all()
     lookup_field = "id"
+    pagination_class = PageNumberPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        shipments = self.get_queryset()
+        if "search" in request.data:
+            search = request.data["search"]
+            shipments = shipments.filter(name__icontains=search)
+
+        paginator = self.pagination_class()
+        paginated_shipments = paginator.paginate_queryset(
+            shipments.order_by("-id"), request)
+        shipments = ship_serializers.ShipmentSerializer(
+            paginated_shipments, many=True).data
+
+        return paginator.get_paginated_response(shipments)
 
     def get_queryset(self):
         queryset = self.queryset
@@ -282,7 +350,7 @@ class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
         ).values_list("app_user", flat=True)
 
         shipments_from_admins = ship_models.ShipmentAdmin.objects.filter(
-            app_user__in=company_employees
+            admin__in=company_employees
         ).values_list("shipment", flat=True)
 
         queryset = (
@@ -364,9 +432,9 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-                    or (load.customer.app_user.id in company_employees
-                        and load.carrier.app_user.id in company_employees)
-                ):
+                or (load.customer.app_user.id in company_employees
+                    and load.carrier.app_user.id in company_employees)
+            ):
             return Response(
                 status=status.HTTP_200_OK,
                 data=doc_serializers.DispatcherFinalAgreementSerializer(
@@ -476,7 +544,7 @@ class DashboardView(APIView):
         )
         if filter_query.exists() is False:
             raise exceptions.NotFound(detail="No loads found.")
-          
+
         result = {}
         cards = {}
         cards["total"] = filter_query.count()
@@ -490,7 +558,8 @@ class DashboardView(APIView):
             ]
         ).count()
 
-        cards["ready_for_pick_up"] = filter_query.filter(status=READY_FOR_PICKUP).count()
+        cards["ready_for_pick_up"] = filter_query.filter(
+            status=READY_FOR_PICKUP).count()
         cards["in_transit"] = filter_query.filter(status=IN_TRANSIT).count()
         cards["delivered"] = filter_query.filter(status="Delivered").count()
         cards["canceled"] = filter_query.filter(status="Canceled").count()
@@ -504,7 +573,8 @@ class DashboardView(APIView):
 
         year = datetime.now().year
         for i in range(1, 13):
-            monthly_loads = filter_query.filter(created_at__month=i, created_at__year=year)
+            monthly_loads = filter_query.filter(
+                created_at__month=i, created_at__year=year)
             obj = {}
             obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
             if monthly_loads.exists() is False:
@@ -535,11 +605,11 @@ class DashboardView(APIView):
             obj["canceled"] = monthly_loads.filter(status="Canceled").count()
             result["chart"].append(obj)
 
-
         # getting number of FTL,LTL, heavy haul loads
         ftl = filter_query.filter(load_type="FTL").count()
         ltl = filter_query.filter(load_type="LTL").count()
-        heavy_haul = filter_query.filter(load_type="HHL").count() # TODO: To be added to the model
+        # TODO: To be added to the model
+        heavy_haul = filter_query.filter(load_type="HHL").count()
 
         result["load_types"] = {
             "ftl": ftl,
@@ -556,7 +626,8 @@ class DashboardView(APIView):
         result["carrier_offers"] = {}
 
         for carrier in carriers:
-            aggregates = carrier_offers.filter(party_2=carrier).aggregate(avg=Avg("current"), sum=Sum("current"))
+            aggregates = carrier_offers.filter(party_2=carrier).aggregate(
+                avg=Avg("current"), sum=Sum("current"))
             carrier = auth_models.AppUser.objects.get(id=carrier).user
             """  TODO: just to check if needed more stats
             carrier_obj = {}
@@ -568,13 +639,13 @@ class DashboardView(APIView):
             result["carrier_offers"].append(carrier_obj)    
             """
             result["carrier_offers"][carrier.username] = aggregates["avg"]
-        
+
         # Get top 5-10 equipments used with number of uses
-        equipments = filter_query.values("equipment").annotate(equipment_count=Count("equipment")).order_by("-equipment_count")[:10]
+        equipments = filter_query.values("equipment").annotate(
+            equipment_count=Count("equipment")).order_by("-equipment_count")[:10]
         result["equipments"] = {}
         for equipment in equipments:
-            result["equipments"][equipment["equipment"]] = equipment["equipment_count"]
-        
+            result["equipments"][equipment["equipment"]
+                                 ] = equipment["equipment_count"]
 
         return Response(data=result, status=status.HTTP_200_OK)
-    
