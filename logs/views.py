@@ -2,12 +2,7 @@
 from django.shortcuts import get_object_or_404
 
 # DRF imports
-from rest_framework import status
-from rest_framework import exceptions
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
@@ -33,4 +28,4 @@ class ListLogsView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
         manager = get_object_or_404(
             auth_models.AppUser, user=self.request.user)
         company = manager_models.Company.objects.get(manager=manager)
-        return models.Log.objects.filter(app_user__company=company)
+        return models.Log.objects.filter(app_user__companyemployee__company=company)

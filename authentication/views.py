@@ -683,7 +683,7 @@ class TaxInfoView(APIView):
 
 
 class AddRoleView(APIView):
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    permission_classes = [IsAuthenticated, permissions.IsAppUser, permissions.IsNotCompanyManager]
 
     @extend_schema(
         description="Add a role to an existing App User.",
@@ -794,7 +794,7 @@ class AddRoleView(APIView):
 
 
 class SelectRoleView(APIView):
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    permission_classes = [IsAuthenticated, permissions.IsAppUser, permissions.IsNotCompanyManager]
 
     @extend_schema(
         description="Select a role for an existing App User.",

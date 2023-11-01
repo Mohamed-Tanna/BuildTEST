@@ -43,7 +43,7 @@ def trigger_send_email_notification(subject, template, to, message, url):
         to=[to],
         reply_to=["notifications@freightslayer.com"],
     )
-    message.attach_alternative(text_content, "text/plain")
+    message.attach_alternative(html_content, "text/html")
     message.content_subtype = "html"
     message.mixed_subtype = "related"
     res = message.send()

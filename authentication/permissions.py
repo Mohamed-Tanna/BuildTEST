@@ -105,6 +105,15 @@ class IsCompanyManager(permissions.BasePermission):
         except models.AppUser.DoesNotExist:
             return False
         
+class IsNotCompanyManager(permissions.BasePermission):
+    message = "This user is a company manager, if you believe this is an error, please contact support."
+    
+    def has_permission(self, request, view):
+        try:
+            app_user = models.AppUser.objects.get(user=request.user)
+            return app_user.user_type != "manager"
+        except models.AppUser.DoesNotExist:
+            return False
 
 class IsSupport(permissions.BasePermission):
     message = "This user is not a support agent."

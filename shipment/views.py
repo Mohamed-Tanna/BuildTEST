@@ -475,8 +475,13 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         headers = self.get_success_headers(serializer.data)
 
-        log_utils.handle_log(user=self.request.user, action="Create",
-                             model="Load", details=serializer.data, log_fields=["id", "name"])
+        log_utils.handle_log(
+            user=self.request.user,
+            action="Create",
+            model="Load",
+            details=serializer.data,
+            log_fields=["id", "name"]
+        )
 
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -573,6 +578,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             username=request.data["carrier"])
         utils.get_user_tax_or_company(carrier.app_user)
 
+        old_instance = instance
+
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
         partial = kwargs.pop("partial", False)
@@ -603,7 +610,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
-        self._handle_update_log(request)
+        self._handle_update_log(request=request, old_instance=old_instance)
         return Response(serializer.data)
 
     def _handle_shipment_parties(self, request, party_types):
@@ -703,19 +710,23 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
         return True
 
-    def _handle_update_log(self, request):
+    def _handle_update_log(self, request, old_instance):
         updated_fields = []
         for field in request.data:
             if field == "action":
                 continue
             updated_fields.append(field)
+        details = {}
+        for field in updated_fields:
+            details[field] = old_instance[field] + "->" + request.data[field]
         log_utils.handle_log(
             user=self.request.user,
             action="Update",
             model="Load",
-            details=request.data,
+            details=details,
             log_fields=updated_fields,
         )
+
 
 class ListLoadView(GenericAPIView, ListModelMixin):
     permission_classes = [

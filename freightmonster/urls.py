@@ -16,4 +16,5 @@ urlpatterns = [
     path("notifications/", include("notifications.urls")),
     path("manager/", include("manager.urls")),
     path("support/", include("support.urls")),
+    path("logs/", include("logs.urls")),
 ]

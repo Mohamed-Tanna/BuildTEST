@@ -179,9 +179,9 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
             )
 
             return Response(
-                {"details": "Ticket has been denied"},
+                data={"details": "Ticket has been denied",
+                      "ticket": serializers.ListTicketsSerializer(ticket).data},
                 status=status.HTTP_200_OK,
-                data={"ticket": serializers.ListTicketsSerializer(ticket).data},
             )
 
         else:

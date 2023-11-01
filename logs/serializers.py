@@ -1,6 +1,7 @@
 import logs.models as models
 from rest_framework import serializers
 
+
 class LogSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Log

@@ -104,30 +104,31 @@ class CreateTicketSerializer(serializers.Serializer):
         company_fax_number = ""
         if  "company_fax_number" in validated_data:
             company_fax_number = validated_data["company_fax_number"]
+        
+        obj = models.Ticket(
+            email=validated_data["email"],
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
+            personal_phone_number=validated_data["personal_phone_number"],
+            company_name=validated_data["company_name"],
+            company_domain=validated_data["company_domain"],
+            company_size=validated_data["company_size"],
+            EIN=validated_data["EIN"],
+            company_fax_number=company_fax_number,
+            company_phone_number=validated_data["company_phone_number"],
+            sid_photo=validated_data["sid_photo"],
+            personal_photo=validated_data["personal_photo"],
+            address=validated_data["address"],
+            city=validated_data["city"],
+            state=validated_data["state"],
+            country=validated_data["country"],
+            zip_code=validated_data["zip_code"],
+            insurance_provider=validated_data["insurance_provider"],
+            insurance_policy_number=validated_data["insurance_policy_number"],
+            insurance_type=validated_data["insurance_type"],
+            insurance_premium_amount=validated_data["insurance_premium_amount"],
+        )
         try:
-            obj = models.Ticket(
-                email=validated_data["email"],
-                first_name=validated_data["first_name"],
-                last_name=validated_data["last_name"],
-                personal_phone_number=validated_data["personal_phone_number"],
-                company_name=validated_data["company_name"],
-                company_domain=validated_data["company_domain"],
-                company_size=validated_data["company_size"],
-                EIN=validated_data["EIN"],
-                company_fax_number=company_fax_number,
-                company_phone_number=validated_data["company_phone_number"],
-                sid_photo=validated_data["sid_photo"],
-                personal_photo=validated_data["personal_photo"],
-                address=validated_data["address"],
-                city=validated_data["city"],
-                state=validated_data["state"],
-                country=validated_data["country"],
-                zip_code=validated_data["zip_code"],
-                insurance_provider=validated_data["insurance_provider"],
-                insurance_policy_number=validated_data["insurance_policy_number"],
-                insurance_type=validated_data["insurance_type"],
-                insurance_premium_amount=validated_data["insurance_premium_amount"],
-            )
             obj.save()
             return Response(
                 {"details": "Ticket created successfully"},
