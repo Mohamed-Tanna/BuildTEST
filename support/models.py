@@ -35,7 +35,7 @@ class Ticket(models.Model):
         validators=[MinLengthValidator(9)],
     )
     company_fax_number = models.CharField(
-        max_length=100, unique=True, null=True, blank=True
+        max_length=100, default=""
     )
     company_phone_number = models.CharField(
         max_length=18, unique=True, null=False, blank=False
