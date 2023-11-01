@@ -49,7 +49,7 @@ class ListTicketsView(GenericAPIView, ListModelMixin):
     """
 
     permission_classes = [IsAuthenticated, permissions.IsSupport]
-    queryset = Ticket.objects.all()
+    queryset = Ticket.objects.all().order_by("-id")
     serializer_class = serializers.ListTicketsSerializer
 
     @extend_schema(
