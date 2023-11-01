@@ -12,3 +12,12 @@ def handle_log(user, action, model, details, log_fields=[]):
     log = models.Log(app_user=app_user, action=action,
                      model=model, details=log_json)
     log.save()
+
+
+def get_original_instance_and_original_request(request, instance):
+    original_instance = {}
+    original_request = {}
+    for field in request.data:
+        original_instance[field] = getattr(instance, field)
+        original_request[field] = request.data[field]
+    return original_instance, original_request

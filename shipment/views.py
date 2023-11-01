@@ -509,6 +509,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _update_created_load(self, request, instance, kwargs):
+        original_instance, original_request = log_utils.get_original_instance_and_original_request(
+            request, instance)
+
         all_parties = ["shipper", "consignee", "customer", "dispatcher"]
         for party in all_parties:
             self._check_mutual_contact(request.user.id, request.data[party])
@@ -547,10 +550,14 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
-        self._handle_update_log(request)
+        self._handle_update_log(request_data=original_request,
+                                original_instance=original_instance)
         return Response(serializer.data)
 
     def _update_assigning_carrier_load(self, request, instance, kwargs):
+        original_instance, original_request = log_utils.get_original_instance_and_original_request(
+            request, instance)
+
         if "carrier" not in request.data:
             return Response(
                 [
@@ -577,8 +584,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         carrier = utils.get_carrier_by_username(
             username=request.data["carrier"])
         utils.get_user_tax_or_company(carrier.app_user)
-
-        old_instance = instance
 
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
@@ -610,7 +615,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
-        self._handle_update_log(request=request, old_instance=old_instance)
+        self._handle_update_log(request_data=original_request,
+                                original_instance=original_instance)
         return Response(serializer.data)
 
     def _handle_shipment_parties(self, request, party_types):
@@ -710,15 +716,16 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
         return True
 
-    def _handle_update_log(self, request, old_instance):
+    def _handle_update_log(self, request_data, original_instance):
         updated_fields = []
-        for field in request.data:
+        for field in request_data:
             if field == "action":
                 continue
             updated_fields.append(field)
         details = {}
         for field in updated_fields:
-            details[field] = old_instance[field] + "->" + request.data[field]
+            details[field] = str(original_instance[field]) + \
+                "->" + request_data[field]
         log_utils.handle_log(
             user=self.request.user,
             action="Update",
