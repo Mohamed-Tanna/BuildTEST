@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "invitation",
     "manager",
     "support",
+    'logs',
     "drf_spectacular",
 ]
 

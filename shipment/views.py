@@ -7,6 +7,7 @@ import shipment.utilities as utils
 import document.models as doc_models
 import shipment.serializers as serializers
 import authentication.permissions as permissions
+import logs.utilities as log_utils
 from authentication.utilities import create_address
 from notifications.utilities import handle_notification
 from shipment.utilities import send_notifications_to_load_parties
@@ -449,7 +450,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         required_fields = ["shipper", "consignee", "customer"]
         for field in required_fields:
-            party = utils.get_shipment_party_by_username(username=request.data[field])
+            party = utils.get_shipment_party_by_username(
+                username=request.data[field])
             request.data[field] = str(party.id)
 
         dispatcher = utils.get_dispatcher_by_username(
@@ -472,6 +474,10 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                     return self._handle_exception_errors(e)
 
         headers = self.get_success_headers(serializer.data)
+
+        log_utils.handle_log(user=self.request.user, action="Create",
+                             model="Load", details=serializer.data, log_fields=["id", "name"])
+
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
@@ -511,7 +517,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             request.data["dispatcher"] = str(dispatcher.id)
 
         partial = kwargs.pop("partial", False)
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
         # check that the user requesting to update the load is the one who created it
@@ -534,6 +541,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
+
+        self._handle_update_log(request)
         return Response(serializer.data)
 
     def _update_assigning_carrier_load(self, request, instance, kwargs):
@@ -557,15 +566,18 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         self._check_mutual_contact(request.user.id, request.data["carrier"])
 
-        editor = utils.get_dispatcher_by_username(username=request.user.username)
+        editor = utils.get_dispatcher_by_username(
+            username=request.user.username)
 
-        carrier = utils.get_carrier_by_username(username=request.data["carrier"])
+        carrier = utils.get_carrier_by_username(
+            username=request.data["carrier"])
         utils.get_user_tax_or_company(carrier.app_user)
 
         del request.data["action"]
         request.data["carrier"] = str(carrier.id)
         partial = kwargs.pop("partial", False)
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
         if instance.dispatcher == editor:
@@ -591,6 +603,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
+        self._handle_update_log(request)
         return Response(serializer.data)
 
     def _handle_shipment_parties(self, request, party_types):
@@ -652,9 +665,11 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     def _check_facility_belongs_to_shipment_parties(
         self, pick_up_location_id, destination_id, shipper_username, consignee_username
     ):
-        pick_up_location = get_object_or_404(models.Facility, id=pick_up_location_id)
+        pick_up_location = get_object_or_404(
+            models.Facility, id=pick_up_location_id)
 
-        shipper_app_user = utils.get_app_user_by_username(username=shipper_username)
+        shipper_app_user = utils.get_app_user_by_username(
+            username=shipper_username)
 
         if pick_up_location.owner != shipper_app_user.user:
             raise exceptions.PermissionDenied(
@@ -662,7 +677,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
         destination = get_object_or_404(models.Facility, id=destination_id)
-        consignee_app_user = utils.get_app_user_by_username(username=consignee_username)
+        consignee_app_user = utils.get_app_user_by_username(
+            username=consignee_username)
 
         if destination.owner != consignee_app_user.user:
             raise exceptions.PermissionDenied(
@@ -672,7 +688,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return None
 
     def _check_mutual_contact(self, origin_id, contact_username):
-        contact_app_user = utils.get_app_user_by_username(username=contact_username)
+        contact_app_user = utils.get_app_user_by_username(
+            username=contact_username)
         # if you are adding yourself then we would not need to check for mutual contact
         if contact_app_user.user.id == origin_id:
             return None
@@ -686,6 +703,19 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
         return True
 
+    def _handle_update_log(self, request):
+        updated_fields = []
+        for field in request.data:
+            if field == "action":
+                continue
+            updated_fields.append(field)
+        log_utils.handle_log(
+            user=self.request.user,
+            action="Update",
+            model="Load",
+            details=request.data,
+            log_fields=updated_fields,
+        )
 
 class ListLoadView(GenericAPIView, ListModelMixin):
     permission_classes = [
@@ -719,7 +749,8 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         filter_query = Q(created_by=app_user.id)
 
-        filter_query = utils.apply_load_access_filters_for_user(filter_query, app_user)
+        filter_query = utils.apply_load_access_filters_for_user(
+            filter_query, app_user)
 
         queryset = (
             queryset.filter(filter_query)
@@ -759,7 +790,8 @@ class RetrieveLoadView(
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         shipment = get_object_or_404(models.Shipment, id=instance.shipment.id)
-        app_user = utils.get_app_user_by_username(username=request.user.username)
+        app_user = utils.get_app_user_by_username(
+            username=request.user.username)
         authorized = False
 
         if instance.created_by == app_user:
@@ -908,7 +940,8 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
         app_user = models.AppUser.objects.get(id=conatct.contact.id)
         origin_user = models.User.objects.get(id=app_user.user.id)
         contact_app_user = models.AppUser.objects.get(user=conatct.origin.id)
-        models.Contact.objects.create(origin=origin_user, contact=contact_app_user)
+        models.Contact.objects.create(
+            origin=origin_user, contact=contact_app_user)
 
     # override
     def get_queryset(self):
@@ -1367,7 +1400,8 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
 
         if keyword is not None:
             filters = Q(created_by=app_user.id)
-            filters = utils.apply_load_access_filters_for_user(filters, app_user)
+            filters = utils.apply_load_access_filters_for_user(
+                filters, app_user)
             filters &= Q(name__icontains=keyword)
 
         queryset = queryset.filter(filters).order_by("-id")
@@ -1391,9 +1425,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     def get(self, request, *args, **kwargs):
         if self.kwargs:
             queryset = models.Offer.objects.filter(load=self.kwargs["id"])
-            party = utils.get_app_user_by_username(username=request.user.username)
+            party = utils.get_app_user_by_username(
+                username=request.user.username)
             if party.selected_role == "dispatcher":
-                party = utils.get_dispatcher_by_username(username=request.user.username)
+                party = utils.get_dispatcher_by_username(
+                    username=request.user.username)
                 queryset = queryset.filter(party_1=party.id)
             else:
                 queryset = queryset.filter(party_2=party.id)
@@ -1432,7 +1468,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
-        dispatcher = utils.get_dispatcher_by_username(username=request.user.username)
+        dispatcher = utils.get_dispatcher_by_username(
+            username=request.user.username)
         request.data["party_1"] = dispatcher.id
 
         load = models.Load.objects.get(id=request.data["load"])
@@ -1476,7 +1513,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         load = models.Load.objects.get(id=instance.load.id)
-        app_user = utils.get_app_user_by_username(username=request.user.username)
+        app_user = utils.get_app_user_by_username(
+            username=request.user.username)
 
         if instance.status != "Pending":
             return Response(
@@ -1496,9 +1534,11 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         is_dispatcher = utils.is_app_user_dispatcher_of_load(
             app_user=app_user, load=load
         )
-        is_customer = utils.is_app_user_customer_of_load(app_user=app_user, load=load)
+        is_customer = utils.is_app_user_customer_of_load(
+            app_user=app_user, load=load)
         if load.carrier is not None:
-            is_carrier = utils.is_app_user_carrier_of_load(app_user=app_user, load=load)
+            is_carrier = utils.is_app_user_carrier_of_load(
+                app_user=app_user, load=load)
         if not is_dispatcher and not is_customer and not is_carrier:
             return Response(
                 [{"details": "You are not authorized to perform this action."}],
@@ -1565,7 +1605,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         del request.data["action"]
         request.data["status"] = "Accepted"
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -1596,7 +1637,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         del request.data["action"]
         request.data["status"] = "Rejected"
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -1643,7 +1685,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
         del request.data["action"]
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -1655,8 +1698,10 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _create_offer_for_customer(self, request, load):
-        customer_user = models.User.objects.get(username=request.data["party_2"])
-        customer = utils.get_shipment_party_by_username(request.data["party_2"])
+        customer_user = models.User.objects.get(
+            username=request.data["party_2"])
+        customer = utils.get_shipment_party_by_username(
+            request.data["party_2"])
         if load.customer is not None and load.customer == customer:
             request.data["current"] = request.data["initial"]
             customer = customer.app_user
@@ -1692,7 +1737,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
     def _create_offer_for_carrier(self, request, load):
         self_accepting = False
-        carrier_user = models.User.objects.get(username=request.data["party_2"])
+        carrier_user = models.User.objects.get(
+            username=request.data["party_2"])
         carrier = utils.get_carrier_by_username(request.data["party_2"])
         if load.carrier is not None and load.carrier == carrier:
             request.data["current"] = request.data["initial"]
@@ -1742,14 +1788,19 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         customer = load.customer
         pickup_facility = load.pick_up_location
         drop_off_facility = load.destination
-        dispatcher_billing = utils.get_user_tax_or_company(app_user=dispatcher.app_user)
-        dispatcher_billing = utils.extract_billing_info(dispatcher_billing, dispatcher)
+        dispatcher_billing = utils.get_user_tax_or_company(
+            app_user=dispatcher.app_user)
+        dispatcher_billing = utils.extract_billing_info(
+            dispatcher_billing, dispatcher)
 
-        carrier_billing = utils.get_user_tax_or_company(app_user=carrier.app_user)
+        carrier_billing = utils.get_user_tax_or_company(
+            app_user=carrier.app_user)
         carrier_billing = utils.extract_billing_info(carrier_billing, carrier)
 
-        customer_billing = utils.get_user_tax_or_company(app_user=customer.app_user)
-        customer_billing = utils.extract_billing_info(customer_billing, customer)
+        customer_billing = utils.get_user_tax_or_company(
+            app_user=customer.app_user)
+        customer_billing = utils.extract_billing_info(
+            customer_billing, customer)
 
         customer_offer = get_object_or_404(
             models.Offer, load=load, party_2=customer.app_user, to="customer"
@@ -1949,7 +2000,8 @@ class ShipmentAdminView(
 
         if self.request.GET.get("id"):
             shipment_id = self.request.GET.get("id")
-            queryset = models.ShipmentAdmin.objects.filter(shipment=shipment_id)
+            queryset = models.ShipmentAdmin.objects.filter(
+                shipment=shipment_id)
         else:
             queryset = []
 
@@ -2109,7 +2161,8 @@ class DashboardView(APIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        app_user = utils.get_app_user_by_username(username=request.user.username)
+        app_user = utils.get_app_user_by_username(
+            username=request.user.username)
         filter_query = Q(created_by=app_user.id)
         filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
@@ -2133,7 +2186,8 @@ class DashboardView(APIView):
             ]
         ).count()
 
-        cards["ready_for_pick_up"] = loads.filter(status=READY_FOR_PICKUP).count()
+        cards["ready_for_pick_up"] = loads.filter(
+            status=READY_FOR_PICKUP).count()
         cards["in_transit"] = loads.filter(status=IN_TRANSIT).count()
         cards["delivered"] = loads.filter(status="Delivered").count()
         cards["canceled"] = loads.filter(status="Canceled").count()
@@ -2148,7 +2202,8 @@ class DashboardView(APIView):
         year = datetime.now().year
         loads = models.Load.objects.filter(filter_query)
         for i in range(1, 13):
-            monthly_loads = loads.filter(created_at__month=i, created_at__year=year)
+            monthly_loads = loads.filter(
+                created_at__month=i, created_at__year=year)
             obj = {}
             obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
             if monthly_loads.exists() is False:
@@ -2198,7 +2253,8 @@ class LoadSearchView(APIView):
         responses={200: serializers.LoadListSerializer(many=True)},
     )
     def post(self, request, *args, **kwargs):
-        app_user = utils.get_app_user_by_username(username=request.user.username)
+        app_user = utils.get_app_user_by_username(
+            username=request.user.username)
         filter_query = Q(created_by=app_user.id)
         filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
@@ -2214,7 +2270,8 @@ class LoadSearchView(APIView):
             loads = loads.filter(name__icontains=search)
 
         paginator = self.pagination_class()
-        paginated_loads = paginator.paginate_queryset(loads.order_by("-id"), request)
+        paginated_loads = paginator.paginate_queryset(
+            loads.order_by("-id"), request)
         loads = serializers.LoadListSerializer(paginated_loads, many=True).data
 
         return paginator.get_paginated_response(loads)
@@ -2246,7 +2303,8 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         )
         search = self.request.data.get("search", None)
         if search is None:
-            queryset = models.Contact.objects.filter(origin=self.request.user.id)
+            queryset = models.Contact.objects.filter(
+                origin=self.request.user.id)
         else:
             search = self.request.data["search"]
             queryset = models.Contact.objects.filter(
