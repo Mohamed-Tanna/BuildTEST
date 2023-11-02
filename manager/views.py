@@ -282,7 +282,7 @@ class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
         for contact in company_contacts:
             distinct.add(contact.contact.id)
 
-        company_contacts = auth_models.AppUser.objects.filter(id__in=distinct)
+        company_contacts = auth_models.AppUser.objects.filter(id__in=distinct).order_by("-id")
 
         return company_contacts
 
