@@ -53,4 +53,14 @@ class ManagerContactListSerializer(serializers.ModelSerializer):
             rep["tax_info"] = auth_serializers.CompanySerializer(tax_info).data
         elif isinstance(tax_info, auth_models.UserTax):
             rep["tax_info"] = auth_serializers.UserTaxSerializer(tax_info).data
+        rep["contact"] = auth_serializers.AppUserSerializer(instance).data
+        del rep["id"]
+        del rep["user"]
+        del rep["phone_number"]
+        del rep["user_type"]
+        del rep["selected_role"]
+        del rep["username"]
+        del rep["email"]
+        del rep["first_name"]
+        del rep["last_name"]
         return rep

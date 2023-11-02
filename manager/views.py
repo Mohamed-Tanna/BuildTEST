@@ -185,6 +185,47 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
         return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
 
 
+class FilterEmployeeLoadsView(GenericAPIView, ListModelMixin):
+    """
+    view for Listing loads inside a shipment
+    """
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = ship_serializers.LoadListSerializer
+    queryset = ship_models.Load.objects.all()
+    lookup_field = "shipment"
+
+    def post(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def list(self, request, *args, **kwargs):
+        instance = get_object_or_404(
+            ship_models.Shipment, id=self.request.data["shipment"])
+        try:
+            company = auth_models.Company.objects.get(
+                manager=auth_models.AppUser.objects.get(user=self.request.user)
+            )
+        except auth_models.Company.DoesNotExist:
+            return exceptions.PermissionDenied(detail=NOT_AUTH_SHIPMENT)
+
+        try:
+            owner_company = auth_models.CompanyEmployee.objects.get(
+                app_user=instance.created_by).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            owner_company = None
+
+        shipment_admins = ship_models.ShipmentAdmin.objects.filter(
+            shipment=instance).values_list("admin", flat=True)
+        shipment_admins_companies = auth_models.CompanyEmployee.objects.filter(
+            app_user__in=shipment_admins).values_list("company", flat=True)
+
+        if owner_company == company or company.id in shipment_admins_companies:
+            queryset = ship_models.Load.objects.filter(shipment=instance)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        return exceptions.PermissionDenied(detail=NOT_AUTH_SHIPMENT)
+
+
 class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
     """
     View for listing admin's company contacts
@@ -268,6 +309,7 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
                 | Q(address__city__icontains=search)
                 | Q(address__state__icontains=search)
                 | Q(address__zip_code__icontains=search)
+                | Q(building_name__icontains=search)
             )
 
         paginator = self.pagination_class()
@@ -308,7 +350,7 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
         return facilities
 
 
-class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
+class ListEmployeesShipmentsView(GenericAPIView, RetrieveModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = ship_serializers.ShipmentSerializer
     queryset = ship_models.Shipment.objects.all()
@@ -316,7 +358,7 @@ class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
     pagination_class = PageNumberPagination
 
     def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+        return self.retrieve(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         shipments = self.get_queryset()
@@ -365,43 +407,144 @@ class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class RetrieveEmployeeShipmentView(GenericAPIView, RetrieveModelMixin):
+class ListEmployeesShipmentAdminsView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
-    serializer_class = ship_serializers.LoadListSerializer
-    queryset = ship_models.Load.objects.all()
-    lookup_field = "id"
+    serializer_class = ship_serializers.ShipmentAdminSerializer
+    queryset = ship_models.ShipmentAdmin.objects.all()
 
     def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+        return self.list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        queryset = self.queryset
+        assert queryset is not None, (
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+        )
+        company_manager = auth_models.AppUser.objects.get(
+            user=self.request.user)
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = get_object_or_404(
-            ship_models.Shipment, id=self.kwargs["id"])
         try:
+            company = auth_models.Company.objects.get(manager=company_manager)
+        except auth_models.Company.DoesNotExist:
+            return queryset.none()
+
+        company_employees = auth_models.CompanyEmployee.objects.filter(
+            company=company
+        ).values_list("app_user", flat=True)
+
+        shipments_from_admins = ship_models.ShipmentAdmin.objects.filter(
+            admin__in=company_employees
+        ).values_list("shipment", flat=True)
+
+        queryset = (
+            ship_models.Shipment.objects.filter(
+                Q(id__in=shipments_from_admins) | Q(
+                    created_by__in=company_employees)
+            )
+            .distinct()
+            .order_by("-id")
+        )
+        if self.request.GET.get("id"):
+            shipment_id = self.request.GET.get("id")
+            queryset = queryset.filter(shipment=shipment_id)
+        else:
+            queryset = []
+
+        return queryset
+
+
+class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = ship_serializers.OfferSerializer
+    queryset = ship_models.Offer.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        if self.kwargs:
+            load = get_object_or_404(ship_models.Load, id=self.kwargs["id"])
             company = auth_models.Company.objects.get(
                 manager=auth_models.AppUser.objects.get(user=self.request.user)
             )
-        except auth_models.Company.DoesNotExist:
-            return exceptions.PermissionDenied(detail=NOT_AUTH_SHIPMENT)
+            created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = self._get_parties_companies(load)
+            if (
+                created_by_company == company
+                or customer_company == company
+                or shipper_company == company
+                or consignee_company == company
+                or dispatcher_company == company
+                or carrier_company == company
+            ):
+
+                queryset = self._handle_offers_filters(load, company, dispatcher_company, customer_company, carrier_company)
+
+                serializer = self.get_serializer(queryset, many=True)
+                return Response(serializer.data)
+            return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
+        else:
+            raise exceptions.ParseError(detail="Please provide Load id")
+
+    def _handle_offers_filters(self, load, company, dispatcher_company, customer_company, carrier_company):
+        queryset = self.queryset
+        queryset = queryset.filter(load=load)
+        queryset = queryset.exclude(status="Rejected").order_by("id")
+        # 2 main cases: Dispatcher (shows 2 offers), else: 3 cases: customer and carrier (show 2 offers), customer (shows 1 offer), carrier (shows 1 offer)
+        if dispatcher_company == company:
+            queryset = queryset.filter(party_1=load.dispatcher.id) # Returns 2 offers
+        else:
+            if customer_company == company and carrier_company == company:
+                queryset = queryset.filter(Q(party_2=load.customer.app_user.id) | Q(party_2=load.carrier.app_user.id))
+            elif customer_company == company:
+                queryset = queryset.filter(party_2=load.customer.app_user.id)
+            elif carrier_company == company:
+                queryset = queryset.filter(party_2=load.carrier.app_user.id)
+            else:
+                queryset = queryset.none()
+
+    def _get_parties_companies(self, load):
+        try:
+            created_by_company = auth_models.CompanyEmployee.objects.get(
+                app_user=load.created_by
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            created_by_company = None
 
         try:
-            owner_company = auth_models.CompanyEmployee.objects.get(
-                app_user=instance.owner).company
+            customer_company = auth_models.CompanyEmployee.objects.get(
+                app_user=load.customer.app_user
+            ).company
         except auth_models.CompanyEmployee.DoesNotExist:
-            owner_company = None
+            customer_company = None
 
-        shipment_admins = ship_models.ShipmentAdmin.objects.filter(
-            shipment=instance).values_list("app_user", flat=True)
-        shipment_admins_companies = auth_models.CompanyEmployee.objects.filter(
-            app_user__in=shipment_admins).values_list("company", flat=True)
+        try:
+            shipper_company = auth_models.CompanyEmployee.objects.get(
+                app_user=load.shipper.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            shipper_company = None
 
-        if owner_company == company or company.id in shipment_admins_companies:
-            queryset = ship_models.Load.objects.filter(shipment=instance)
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
+        try:
+            consignee_company = auth_models.CompanyEmployee.objects.get(
+                app_user=load.consignee.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            consignee_company = None
 
-        return exceptions.PermissionDenied(detail=NOT_AUTH_SHIPMENT)
+        try:
+            dispatcher_company = auth_models.CompanyEmployee.objects.get(
+                app_user=load.dispatcher.app_user
+            ).company
+        except auth_models.CompanyEmployee.DoesNotExist:
+            dispatcher_company = None
 
+        try:
+            if load.carrier:
+                carrier_company = auth_models.CompanyEmployee.objects.get(
+                    app_user=load.carrier.app_user
+                ).company
+            else:
+                carrier_company = None
+        except auth_models.CompanyEmployee.DoesNotExist:
+            carrier_company = None
+        return created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company
 
 class EmployeeBillingDocumentsView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
@@ -432,9 +575,9 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-                or (load.customer.app_user.id in company_employees
-                    and load.carrier.app_user.id in company_employees)
-            ):
+                    or (load.customer.app_user.id in company_employees
+                        and load.carrier.app_user.id in company_employees)
+                ):
             return Response(
                 status=status.HTTP_200_OK,
                 data=doc_serializers.DispatcherFinalAgreementSerializer(

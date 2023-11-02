@@ -841,7 +841,11 @@ class RetrieveLoadView(
                 authorized = True
 
         else:
-            models.ShipmentAdmin.objects.get(shipment=shipment, admin=app_user)
+            try:
+                models.ShipmentAdmin.objects.get(
+                    shipment=shipment, admin=app_user)
+            except models.ShipmentAdmin.DoesNotExist:
+                authorized = False
             authorized = True
 
         if authorized:

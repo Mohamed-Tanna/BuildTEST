@@ -85,8 +85,12 @@ def generate_shipment_name() -> string:
 
 def get_company_by_role(app_user, user_type="user"):
     try:
-        company_employee = auth_models.CompanyEmployee.objects.get(app_user=app_user)
-        company = auth_models.Company.objects.get(id=company_employee.company.id)
+        company = None
+        if app_user.user_type == "manager":
+            company = auth_models.Company.objects.get(manager=app_user)
+        else:
+            company_employee = auth_models.CompanyEmployee.objects.get(app_user=app_user)
+            company = auth_models.Company.objects.get(id=company_employee.company.id)
         return company
     except auth_models.CompanyEmployee.DoesNotExist:
         raise exceptions.NotFound(detail=f"{user_type} has no company")
