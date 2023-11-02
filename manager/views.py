@@ -350,15 +350,14 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
         return facilities
 
 
-class ListEmployeesShipmentsView(GenericAPIView, RetrieveModelMixin):
+class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = ship_serializers.ShipmentSerializer
     queryset = ship_models.Shipment.objects.all()
-    lookup_field = "id"
     pagination_class = PageNumberPagination
 
     def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+        return self.list(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         shipments = self.get_queryset()

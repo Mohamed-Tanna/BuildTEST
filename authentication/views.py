@@ -368,10 +368,14 @@ class CompanyView(GenericAPIView, CreateModelMixin):
     )
     def get(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user)
-        company_employee = get_object_or_404(
-            models.CompanyEmployee, app_user=app_user)
-        company = get_object_or_404(
-            models.Company, id=company_employee.company.id)
+        company = None
+        if app_user.user_type == "manager":
+            company = get_object_or_404(models.Company, manager=app_user)
+        else:
+            company_employee = get_object_or_404(
+                models.CompanyEmployee, app_user=app_user)
+            company = get_object_or_404(
+                models.Company, id=company_employee.company.id)
 
         return Response(
             status=status.HTTP_200_OK, data=serializers.CompanySerializer(

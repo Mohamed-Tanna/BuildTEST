@@ -12,7 +12,7 @@ urlpatterns = [
     path("facility/", views.ListEmployeesFacilitiesView.as_view()),
     path("search-facilities/", views.ListEmployeesFacilitiesView.as_view()),
 
-    path("shipment/<id>/", views.ListEmployeesShipmentsView.as_view()),
+    path("shipment/", views.ListEmployeesShipmentsView.as_view()),
     path("search-shipments/", views.ListEmployeesShipmentsView.as_view()),
 
     path("admin/", views.ListEmployeesShipmentAdminsView.as_view()),
