@@ -482,22 +482,23 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
         else:
             raise exceptions.ParseError(detail="Please provide Load id")
 
-    def _handle_offers_filters(self, load, company, dispatcher_company, customer_company, carrier_company):
+    def _handle_offers_filters(self, load: ship_models.Load, company, dispatcher_company, customer_company, carrier_company):
         queryset = self.queryset
         queryset = queryset.filter(load=load)
         queryset = queryset.exclude(status="Rejected").order_by("id")
         # 2 main cases: Dispatcher (shows 2 offers), else: 3 cases: customer and carrier (show 2 offers), customer (shows 1 offer), carrier (shows 1 offer)
         if dispatcher_company == company:
-            queryset = queryset.filter(party_1=load.dispatcher.id) # Returns 2 offers
+            queryset = queryset.filter(party_1=load.dispatcher) # Returns 2 offers
         else:
             if customer_company == company and carrier_company == company:
-                queryset = queryset.filter(Q(party_2=load.customer.app_user.id) | Q(party_2=load.carrier.app_user.id))
+                queryset = queryset.filter(Q(party_2=load.customer.app_user) | Q(party_2=load.carrier.app_user))
             elif customer_company == company:
-                queryset = queryset.filter(party_2=load.customer.app_user.id)
+                queryset = queryset.filter(party_2=load.customer.app_user)
             elif carrier_company == company:
-                queryset = queryset.filter(party_2=load.carrier.app_user.id)
+                queryset = queryset.filter(party_2=load.carrier.app_user)
             else:
                 queryset = queryset.none()
+        return queryset
 
     def _get_parties_companies(self, load):
         try:
