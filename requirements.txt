@@ -26,7 +26,7 @@ daphne==4.0.0
 defusedxml==0.7.1
 Deprecated==1.2.14
 dj-rest-auth==5.0.0
-Django==4.2.5
+Django==4.2.7
 django-allauth==0.56.1
 django-cors-headers==4.2.0
 django-defender==0.9.7
