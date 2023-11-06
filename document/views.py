@@ -41,6 +41,7 @@ class FileUploadView(GenericAPIView, ListModelMixin):
     permission_classes = [
         IsAuthenticated,
         permissions.HasRole,
+        permissions.IsNotCompanyManager,
     ]
     queryset = models.UploadedFile.objects.all()
 
@@ -131,7 +132,7 @@ class FileUploadView(GenericAPIView, ListModelMixin):
 
 
 class BillingDocumentsView(APIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole]
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
 
     @extend_schema(
         description="Get all billing documents related to a load.",
@@ -226,7 +227,7 @@ class BillingDocumentsView(APIView):
 
 
 class ValidateFinalAgreementView(APIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole]
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
 
     @extend_schema(
         description="Validate a final agreement.",

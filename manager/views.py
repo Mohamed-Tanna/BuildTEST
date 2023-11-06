@@ -249,7 +249,7 @@ class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
         paginator = self.pagination_class()
         paginated_contacts = paginator.paginate_queryset(
             contacts.order_by("-id"), request)
-        contacts = auth_serializers.AppUserSerializer(
+        contacts = serializers.ManagerContactListSerializer(
             paginated_contacts, many=True).data
 
         return paginator.get_paginated_response(contacts)
@@ -350,13 +350,16 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
         return facilities
 
 
-class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin):
+class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin, RetrieveModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = ship_serializers.ShipmentSerializer
     queryset = ship_models.Shipment.objects.all()
     pagination_class = PageNumberPagination
+    lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
+        if self.kwargs:
+            return self.retrieve(request, *args, **kwargs)
         return self.list(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -435,7 +438,7 @@ class ListEmployeesShipmentAdminsView(GenericAPIView, ListModelMixin):
             admin__in=company_employees
         ).values_list("shipment", flat=True)
 
-        queryset = (
+        shipments = (
             ship_models.Shipment.objects.filter(
                 Q(id__in=shipments_from_admins) | Q(
                     created_by__in=company_employees)
@@ -443,6 +446,7 @@ class ListEmployeesShipmentAdminsView(GenericAPIView, ListModelMixin):
             .distinct()
             .order_by("-id")
         )
+        queryset = queryset.filter(shipment__in=shipments)
         if self.request.GET.get("id"):
             shipment_id = self.request.GET.get("id")
             queryset = queryset.filter(shipment=shipment_id)
@@ -458,28 +462,28 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
     queryset = ship_models.Offer.objects.all()
 
     def get(self, request, *args, **kwargs):
-        if self.kwargs:
-            load = get_object_or_404(ship_models.Load, id=self.kwargs["id"])
-            company = auth_models.Company.objects.get(
-                manager=auth_models.AppUser.objects.get(user=self.request.user)
-            )
-            created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = self._get_parties_companies(load)
-            if (
-                created_by_company == company
-                or customer_company == company
-                or shipper_company == company
-                or consignee_company == company
-                or dispatcher_company == company
-                or carrier_company == company
-            ):
-
-                queryset = self._handle_offers_filters(load, company, dispatcher_company, customer_company, carrier_company)
-
-                serializer = self.get_serializer(queryset, many=True)
-                return Response(serializer.data)
-            return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
-        else:
+        if "load" not in request.query_params:
             raise exceptions.ParseError(detail="Please provide Load id")
+         
+        load = get_object_or_404(ship_models.Load, id=request.query_params.get("load"))
+        company = auth_models.Company.objects.get(
+            manager=auth_models.AppUser.objects.get(user=request.user)
+        )
+        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = self._get_parties_companies(load)
+        if (
+            created_by_company == company
+            or customer_company == company
+            or shipper_company == company
+            or consignee_company == company
+            or dispatcher_company == company
+            or carrier_company == company
+        ):
+
+            queryset = self._handle_offers_filters(load, company, dispatcher_company, customer_company, carrier_company)
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
 
     def _handle_offers_filters(self, load: ship_models.Load, company, dispatcher_company, customer_company, carrier_company):
         queryset = self.queryset

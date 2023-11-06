@@ -13,11 +13,12 @@ urlpatterns = [
     path("search-facilities/", views.ListEmployeesFacilitiesView.as_view()),
 
     path("shipment/", views.ListEmployeesShipmentsView.as_view()),
+    path("shipment/<id>/", views.ListEmployeesShipmentsView.as_view()),
     path("search-shipments/", views.ListEmployeesShipmentsView.as_view()),
 
     path("admin/", views.ListEmployeesShipmentAdminsView.as_view()),
 
-    path("offer/<id>/", views.RetrieveEmployeeOfferView.as_view()),
+    path("validate-rc/", views.RetrieveEmployeeOfferView.as_view()),
 
     path("file/", views.EmployeeFileUploadedView.as_view()),
 
