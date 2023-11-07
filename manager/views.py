@@ -523,7 +523,7 @@ class ValidateEmployeeFinalAgreementView(GenericAPIView):
             or carrier_company == company
         ):
             data = {}
-            final_agreement = get_object_or_404(doc_models.FinalAgreement, load=load)
+            final_agreement = get_object_or_404(doc_models.FinalAgreement, load_id=load.id)
             if dispatcher_company == company:
                 data["did_customer_agree"] = final_agreement.did_customer_agree
                 data["did_carrier_agree"] = final_agreement.did_carrier_agree
