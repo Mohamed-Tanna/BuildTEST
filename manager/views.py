@@ -460,12 +460,10 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = ship_serializers.OfferSerializer
     queryset = ship_models.Offer.objects.all()
+    lookup_field = "id"
 
-    def get(self, request, *args, **kwargs):
-        if "load" not in request.query_params:
-            raise exceptions.ParseError(detail="Please provide Load id")
-         
-        load = get_object_or_404(ship_models.Load, id=request.query_params.get("load"))
+    def get(self, request, *args, **kwargs):         
+        load = get_object_or_404(ship_models.Load, id=self.kwargs["id"])
         company = auth_models.Company.objects.get(
             manager=auth_models.AppUser.objects.get(user=request.user)
         )

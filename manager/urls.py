@@ -22,6 +22,8 @@ urlpatterns = [
 
     path("file/", views.EmployeeFileUploadedView.as_view()),
 
+    path("offer/<id>/", views.RetrieveEmployeeOfferView.as_view()),
+
     path("billing/", views.EmployeeBillingDocumentsView.as_view()),
 
     path("dashboard/", views.DashboardView.as_view()),
