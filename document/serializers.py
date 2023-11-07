@@ -141,6 +141,7 @@ class DispatcherFinalAgreementSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep['doc_type'] = 'dispatcher_docs'
+        return rep
 
 
 class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
@@ -258,6 +259,7 @@ class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep['doc_type'] = 'customer_docs'
+        return rep
 
 
 class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
@@ -369,6 +371,7 @@ class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep['doc_type'] = 'carrier_docs'
+        return rep
 
 
 class BOLSerializer(serializers.ModelSerializer):
@@ -470,3 +473,4 @@ class BOLSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep['doc_type'] = 'bol'
+        return rep
