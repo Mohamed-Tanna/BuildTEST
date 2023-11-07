@@ -49,3 +49,50 @@ def check_manager_can_view_load_queryset(queryset: QuerySet, user):
         )
 
     return queryset
+
+def get_parties_companies(load):
+    try:
+        created_by_company = auth_models.CompanyEmployee.objects.get(
+            app_user=load.created_by
+        ).company
+    except auth_models.CompanyEmployee.DoesNotExist:
+        created_by_company = None
+
+    try:
+        customer_company = auth_models.CompanyEmployee.objects.get(
+            app_user=load.customer.app_user
+        ).company
+    except auth_models.CompanyEmployee.DoesNotExist:
+        customer_company = None
+
+    try:
+        shipper_company = auth_models.CompanyEmployee.objects.get(
+            app_user=load.shipper.app_user
+        ).company
+    except auth_models.CompanyEmployee.DoesNotExist:
+        shipper_company = None
+
+    try:
+        consignee_company = auth_models.CompanyEmployee.objects.get(
+            app_user=load.consignee.app_user
+        ).company
+    except auth_models.CompanyEmployee.DoesNotExist:
+        consignee_company = None
+
+    try:
+        dispatcher_company = auth_models.CompanyEmployee.objects.get(
+            app_user=load.dispatcher.app_user
+        ).company
+    except auth_models.CompanyEmployee.DoesNotExist:
+        dispatcher_company = None
+
+    try:
+        if load.carrier:
+            carrier_company = auth_models.CompanyEmployee.objects.get(
+                app_user=load.carrier.app_user
+            ).company
+        else:
+            carrier_company = None
+    except auth_models.CompanyEmployee.DoesNotExist:
+        carrier_company = None
+    return created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company

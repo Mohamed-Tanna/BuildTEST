@@ -469,7 +469,7 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
         company = auth_models.Company.objects.get(
             manager=auth_models.AppUser.objects.get(user=request.user)
         )
-        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = self._get_parties_companies(load)
+        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(load)
         if (
             created_by_company == company
             or customer_company == company
@@ -503,52 +503,41 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
                 queryset = queryset.none()
         return queryset
 
-    def _get_parties_companies(self, load):
-        try:
-            created_by_company = auth_models.CompanyEmployee.objects.get(
-                app_user=load.created_by
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            created_by_company = None
 
-        try:
-            customer_company = auth_models.CompanyEmployee.objects.get(
-                app_user=load.customer.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            customer_company = None
+class ValidateEmployeeFinalAgreementView(GenericAPIView, ListModelMixin):
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = doc_serializers.FinalAgreementSerializer
+    queryset = doc_models.FinalAgreement.objects.all()
 
-        try:
-            shipper_company = auth_models.CompanyEmployee.objects.get(
-                app_user=load.shipper.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            shipper_company = None
+    def get(self, request, *args, **kwargs):
+        if "load" not in request.query_params:
+            raise exceptions.ParseError(detail="Please provide Load id")
+        load = get_object_or_404(ship_models.Load, id=request.query_params.get("load"))
+        company = auth_models.Company.objects.get(
+            manager=auth_models.AppUser.objects.get(user=request.user)
+        )
+        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(load)
+        if (
+            created_by_company == company
+            or customer_company == company
+            or shipper_company == company
+            or consignee_company == company
+            or dispatcher_company == company
+            or carrier_company == company
+        ):
+            data = {}
+            final_agreement = get_object_or_404(doc_models.FinalAgreement, load=load)
+            if dispatcher_company == company:
+                data["did_customer_agree"] = final_agreement.did_customer_agree
+                data["did_carrier_agree"] = final_agreement.did_carrier_agree
+            elif carrier_company == company:
+                data["did_carrier_agree"] = final_agreement.did_carrier_agree
+            elif customer_company == company:
+                data["did_customer_agree"] = final_agreement.did_customer_agree
+            
+            return Response(data=data, status=status.HTTP_200_OK)
 
-        try:
-            consignee_company = auth_models.CompanyEmployee.objects.get(
-                app_user=load.consignee.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            consignee_company = None
-
-        try:
-            dispatcher_company = auth_models.CompanyEmployee.objects.get(
-                app_user=load.dispatcher.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            dispatcher_company = None
-
-        try:
-            if load.carrier:
-                carrier_company = auth_models.CompanyEmployee.objects.get(
-                    app_user=load.carrier.app_user
-                ).company
-            else:
-                carrier_company = None
-        except auth_models.CompanyEmployee.DoesNotExist:
-            carrier_company = None
-        return created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company
+        return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
 
 class EmployeeBillingDocumentsView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]

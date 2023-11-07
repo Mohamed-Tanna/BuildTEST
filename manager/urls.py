@@ -18,7 +18,7 @@ urlpatterns = [
 
     path("admin/", views.ListEmployeesShipmentAdminsView.as_view()),
 
-    path("validate-rc/", views.RetrieveEmployeeOfferView.as_view()),
+    path("validate-rc/", views.ValidateEmployeeFinalAgreementView.as_view()),
 
     path("file/", views.EmployeeFileUploadedView.as_view()),
 
