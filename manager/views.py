@@ -502,9 +502,8 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ValidateEmployeeFinalAgreementView(GenericAPIView, ListModelMixin):
+class ValidateEmployeeFinalAgreementView(GenericAPIView):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
-    serializer_class = doc_serializers.FinalAgreementSerializer
     queryset = doc_models.FinalAgreement.objects.all()
 
     def get(self, request, *args, **kwargs):
