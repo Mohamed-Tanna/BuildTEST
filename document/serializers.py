@@ -138,6 +138,10 @@ class DispatcherFinalAgreementSerializer(serializers.ModelSerializer):
             "verified_at",
         )
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'dispatcher_docs'
+
 
 class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
     class Meta:
@@ -251,6 +255,10 @@ class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
             "verified_at",
         )
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'customer_docs'
+
 
 class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
     class Meta:
@@ -358,6 +366,10 @@ class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
             "verified_at",
         )
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'carrier_docs'
+
 
 class BOLSerializer(serializers.ModelSerializer):
     class Meta:
@@ -454,3 +466,7 @@ class BOLSerializer(serializers.ModelSerializer):
             "generated_at",
             "verified_at",
         )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'BOL'
