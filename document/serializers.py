@@ -469,4 +469,4 @@ class BOLSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep['doc_type'] = 'BOL'
+        rep['doc_type'] = 'bol'
