@@ -263,6 +263,16 @@ class FacilityView(
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+
+        log_utils.handle_log(
+            user=self.request.user,
+            action="Create",
+            model="Facility",
+            details=serializer.data,
+            log_fields=["id", "building_name"]
+        )
+
+
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
@@ -723,9 +733,11 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 continue
             updated_fields.append(field)
         details = {}
+        details["old"] = {}
+        details["new"] = {}
         for field in updated_fields:
-            details[field] = original_instance[field] + \
-                "->" + request_data[field]
+            details["old"][field] = original_instance[field]
+            details["new"][field] = request_data[field]
         log_utils.handle_log(
             user=self.request.user,
             action="Update",
@@ -942,6 +954,15 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 self.perform_create(serializer)
                 headers = self.get_success_headers(serializer.data)
 
+                log_utils.handle_log(
+                    user=self.request.user,
+                    action="Create",
+                    model="Contact",
+                    details=serializer.data,
+                    log_fields=["contact"]
+                )
+
+
                 return Response(
                     serializer.data, status=status.HTTP_201_CREATED, headers=headers
                 )
@@ -1107,6 +1128,15 @@ class ShipmentView(
             try:
                 self.perform_create(serializer)
                 headers = self.get_success_headers(serializer.data)
+
+                log_utils.handle_log(
+                    user=self.request.user,
+                    action="Create",
+                    model="Shipment",
+                    details=serializer.data,
+                    log_fields=["id", "name"]
+                )
+
 
                 return Response(
                     serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -1590,6 +1620,8 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
     def _process_accept_action(
         self, request, load: models.Load, instance: models.Offer, partial
     ):
+        original_instance, original_request = log_utils.get_original_instance_and_original_request(
+            request, instance)
         if load.status == AWAITING_CUSTOMER:
             load.status = ASSIGNING_CARRIER
             load.save()
@@ -1637,11 +1669,16 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
+        self._handle_update_log(request_data=original_request,
+                                original_instance=original_instance)
+
         return Response(serializer.data)
 
     def _process_reject_action(
         self, request, load: models.Load, instance: models.Offer, partial
     ):
+        original_instance, original_request = log_utils.get_original_instance_and_original_request(
+            request, instance)
         user = utils.get_app_user_by_username(username=request.user.username)
         if "carrier" in user.user_type and instance.to == "carrier":
             load.status = ASSIGNING_CARRIER
@@ -1669,11 +1706,16 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
+        self._handle_update_log(request_data=original_request,
+                                original_instance=original_instance)
+
         return Response(serializer.data)
 
     def _proccess_counter_action(
         self, request, load: models.Load, instance: models.Offer, partial
     ):
+        original_instance, original_request = log_utils.get_original_instance_and_original_request(
+            request, instance)
         if "current" not in request.data:
             return Response(
                 [{"details": "current is required"}],
@@ -1717,6 +1759,9 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
+        self._handle_update_log(request_data=original_request,
+                                original_instance=original_instance)
+
         return Response(serializer.data)
 
     def _create_offer_for_customer(self, request, load):
@@ -1745,6 +1790,16 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 headers = self.get_success_headers(serializer.data)
                 load.status = AWAITING_CUSTOMER
                 load.save()
+            
+            log_utils.handle_log(
+                user=self.request.user,
+                action="Create",
+                model="Offer",
+                details=serializer.data,
+                log_fields=["id", "to", "initial"]
+            )
+
+
             return Response(
                 data=serializer.data,
                 status=status.HTTP_201_CREATED,
@@ -1786,6 +1841,15 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.save()
             if self_accepting:
                 self._create_final_agreement(load=load)
+            
+            log_utils.handle_log(
+                user=self.request.user,
+                action="Create",
+                model="Offer",
+                details=serializer.data,
+                log_fields=["id", "to", "initial"]
+            )
+            
             return Response(
                 serializer.data,
                 status=status.HTTP_201_CREATED,
@@ -1902,6 +1966,25 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             load_type=load.load_type,
         )
 
+    def _handle_update_log(self, request_data, original_instance):
+        updated_fields = []
+        for field in request_data:
+            if field == "action":
+                continue
+            updated_fields.append(field)
+        details = {}
+        details["old"] = {}
+        details["new"] = {}
+        for field in updated_fields:
+            details["old"][field] = original_instance[field]
+            details["new"][field] = request_data[field]
+        log_utils.handle_log(
+            user=self.request.user,
+            action="Update",
+            model="Offer",
+            details=details,
+            log_fields=updated_fields,
+        )
 
 class ShipmentAdminView(
     GenericAPIView,
@@ -2005,6 +2088,15 @@ class ShipmentAdminView(
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
+
+            log_utils.handle_log(
+                user=self.request.user,
+                action="Create",
+                model="Shipment Admin",
+                details=serializer.data,
+                log_fields=["shipment", "admin"]
+            )
+
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
@@ -2030,9 +2122,17 @@ class ShipmentAdminView(
         return queryset
 
     def destroy(self, request, *args, **kwargs):
-        instance = models.Shipment.objects.get(id=kwargs["id"])
+        shipment = models.Shipment.objects.get(id=kwargs["id"])
         app_user = models.AppUser.objects.get(user=request.user.id)
-        if instance.created_by.id == app_user.id:
+        if shipment.created_by.id == app_user.id:
+            instance = self.get_object()
+            log_utils.handle_log(
+                user=self.request.user,
+                action="Delete",
+                model="Shipment Admin",
+                details=instance,
+                log_fields=["id", "shipment", "admin"]
+            )
             self.perform_destroy(instance)
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
@@ -2071,6 +2171,15 @@ class DispatcherRejectView(APIView):
         send_notifications_to_load_parties(
             load=load, action="load_status_changed", event="load_status_changed"
         )
+        
+        log_utils.handle_log(
+            user=self.request.user,
+            action="Reject",
+            model="Load",
+            details=load,
+            log_fields=["id", "name"]
+        )
+
         return Response({"detail": "load canceled."}, status=status.HTTP_200_OK)
 
 
@@ -2134,6 +2243,14 @@ class UpdateLoadStatus(APIView):
                 {"details": "The load status cannot be changed."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        log_utils.handle_log(
+            user=self.request.user,
+            action="Update status",
+            model="Load",
+            details=load,
+            log_fields=["id", "name", "status"]
+        )
 
         return Response(
             data=serializers.LoadCreateRetrieveSerializer(load).data,
