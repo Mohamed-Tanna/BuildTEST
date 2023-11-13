@@ -741,8 +741,7 @@ class DashboardView(APIView):
         # getting number of FTL,LTL, heavy haul loads
         ftl = filter_query.filter(load_type="FTL").count()
         ltl = filter_query.filter(load_type="LTL").count()
-        # TODO: To be added to the model
-        heavy_haul = filter_query.filter(load_type="HHL").count()
+        heavy_haul = filter_query.filter(weight__gte=80000).count()
 
         result["load_types"] = {
             "ftl": ftl,
@@ -752,26 +751,36 @@ class DashboardView(APIView):
 
         # Get bar charts for cost of shipping to each carrier
         carrier_offers = ship_models.Offer.objects.filter(
-            load__in=filter_query, status="Accepted", party_2__user_type__contains="carrier"
+            load__in=filter_query, status="Accepted", to="carrier"
         )
 
         carriers = carrier_offers.values_list("party_2", flat=True).distinct()
         result["carrier_offers"] = {}
 
         for carrier in carriers:
-            aggregates = carrier_offers.filter(party_2=carrier).aggregate(
-                avg=Avg("current"), sum=Sum("current"))
+            aggregates = carrier_offers.filter(party_2=carrier).aggregate(sum=Sum("current"))
             carrier = auth_models.AppUser.objects.get(id=carrier).user
-            """  TODO: just to check if needed more stats
-            carrier_obj = {}
-            carrier_obj["name"] = carrier
-            carrier_obj["number_of_loads"] = carrier_offers.filter(party_2=carrier).count()
-            carrier_obj["average_cost"] = aggregates["avg"]
-            carrier_obj["total_cost"] = aggregates["sum"]
-            result["carrier_offers"].append(carrier_obj)
-            result["carrier_offers"].append(carrier_obj)    
-            """
-            result["carrier_offers"][carrier.username] = aggregates["avg"]
+            result["carrier_offers"][carrier.username] = aggregates["sum"]
+
+        customer_offers = ship_models.Offer.objects.filter(
+            load__in=filter_query, status="Accepted", to="customer"
+        )
+
+        customers = customer_offers.values_list("party_2", flat=True).distinct()
+        result["customer_offers"] = {}
+
+        for customer in customers:
+            aggregates = customer_offers.filter(party_2=customer).aggregate(sum=Sum("current"))
+            customer = auth_models.AppUser.objects.get(id=customer).user
+            result["customer_offers"][customer.username] = aggregates["sum"]
+
+        total_paid = carrier_offers.aggregate(sum=Sum("current"))["sum"]
+        total_received = customer_offers.aggregate(sum=Sum("current"))["sum"]
+        revenue = total_received - total_paid
+        result["total_paid"] = total_paid
+        result["total_received"] = total_received
+        result["revenue"] = revenue
+
 
         # Get top 5-10 equipments used with number of uses
         equipments = filter_query.values("equipment").annotate(
