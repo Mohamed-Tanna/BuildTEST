@@ -129,6 +129,7 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
                 EIN=ticket.EIN,
                 fax_number=ticket.company_fax_number,
                 phone_number=ticket.company_phone_number,
+                company_size=ticket.company_size,
             )
 
             manager_models.Insurance.objects.create(
