@@ -4,7 +4,7 @@ from django.template.loader import get_template
 from django.core.mail import EmailMultiAlternatives
 from shipment.models import Load, Shipment
 from twilio.rest import Client
-from authentication.models import AppUser
+from authentication.models import AppUser, CompanyEmployee, Company
 import notifications.models as models
 from phonenumbers import parse, format_number, PhoneNumberFormat, NumberParseException
 from freightmonster.settings.base import (
@@ -94,6 +94,7 @@ def handle_notification(
     sender: AppUser = None,
     shipment=None,
 ):
+    handle_notification_for_manager(app_user, action, load, sender, shipment)
     """Handle the notification to user's prefrences"""
     try:
         notification_setting = models.NotificationSetting.objects.get(user=app_user)
@@ -128,6 +129,44 @@ def handle_notification(
     else:
         return False
 
+def handle_notification_for_manager(
+    app_user: AppUser,
+    action,
+    load=None,
+    sender: AppUser = None,
+    shipment=None,
+):
+    # Get Company Manager if exists
+    try:
+        company = CompanyEmployee.objects.get(app_user=app_user).company
+        manager = company.manager
+        if manager:
+            try:
+                manager_notification_setting = models.NotificationSetting.objects.get(user=manager)
+            except models.NotificationSetting.DoesNotExist:
+                return
+
+            if manager_notification_setting.is_allowed:
+                action_to_attr_mapping = {
+                    "add_as_contact": "add_as_contact",
+                    "add_to_load": "add_to_load",
+                    "got_offer": "got_offer",
+                    "offer_updated": "offer_updated",
+                    "add_as_shipment_admin": "add_as_shipment_admin",
+                    "load_status_changed": "load_status_changed",
+                    "RC_approved": "RC_approved",
+                    "assign_carrier": "load_status_changed",
+                }
+
+                message, url = get_notification_msg_and_url_for_manager(
+                    action, load, shipment, app_user, sender
+                )
+                if action in action_to_attr_mapping and getattr(
+                    manager_notification_setting, action_to_attr_mapping[action]
+                ):
+                    send_notification(manager, message, url)
+    except CompanyEmployee.DoesNotExist:
+        return
 
 def send_notification(app_user: AppUser, message, url=None):
     """Send the notification to user's preferred method(s)"""
@@ -216,6 +255,57 @@ def get_notification_msg_and_url(
     elif action == "assign_carrier":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned you as a carrier for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    
+def get_notification_msg_and_url_for_manager(
+    action,
+    load: Load = None,
+    shipment: Shipment = None,
+    app_user: AppUser = None,
+    sender: AppUser = None,
+):
+    """Get the notification message based on the action"""
+    environment = os.getenv("ENV").lower()
+    if action == "add_as_contact":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a contact.",
+            f"https://{environment}.freightslayer.com/login?redirect=/contact",
+        )
+    elif action == "add_to_load":
+        roles = find_user_roles_in_a_load(load, app_user)
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) to the load {load.name} as a {', '.join(roles)}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "got_offer":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has sent your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) an offer for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "offer_updated":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has countered your employee's ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) offer on the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "add_as_shipment_admin":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a shipment admin on shipment '{shipment.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/shipment-details/{shipment.id}",
+        )
+    elif action == "load_status_changed":
+        return (
+            f"Kindly be informed that there has been a recent update regarding the load '{load.name}' status,  and it is now {load.status}.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "RC_approved":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has approved the rate confirmation for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "assign_carrier":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a carrier for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
 

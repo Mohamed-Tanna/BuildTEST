@@ -320,11 +320,11 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
     # override
     def create(self, request, *args, **kwargs):
         app_user = models.AppUser.objects.get(user=request.user.id)
-
         try:
             ship_utils.get_user_tax_or_company(app_user=app_user)
-        except exceptions.NotFound:
+        except exceptions.NotFound as e:
             app_user.delete()
+            raise e
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
