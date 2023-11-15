@@ -111,7 +111,9 @@ class Load(models.Model):
         null=False,
         default="Created",
     )
+
     shipment = models.ForeignKey(to=Shipment, null=False, on_delete=models.CASCADE)
+    actual_delivery_date = models.DateField(null=True)
 
     class Meta:
         constraints = [

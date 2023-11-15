@@ -12,4 +12,4 @@ class Log(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.app_user + " " + self.action + " " + self.model
+        return self.app_user.user.username + " " + self.action + " " + self.model

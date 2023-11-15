@@ -2,7 +2,7 @@
 from datetime import datetime
 
 # Django imports
-from django.db.models import Q
+from django.db.models import Q, F
 from django.contrib.auth.models import User
 from django.db.models import Avg, Sum, Count
 from django.shortcuts import get_object_or_404
@@ -36,7 +36,6 @@ from drf_spectacular.utils import (
     OpenApiParameter,
     extend_schema,
     inline_serializer,
-
 )
 
 
@@ -282,7 +281,8 @@ class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
         for contact in company_contacts:
             distinct.add(contact.contact.id)
 
-        company_contacts = auth_models.AppUser.objects.filter(id__in=distinct).order_by("-id")
+        company_contacts = auth_models.AppUser.objects.filter(
+            id__in=distinct).order_by("-id")
 
         return company_contacts
 
@@ -416,7 +416,7 @@ class ListEmployeesShipmentAdminsView(GenericAPIView, ListModelMixin):
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
-    
+
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
@@ -462,12 +462,13 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
     queryset = ship_models.Offer.objects.all()
     lookup_field = "id"
 
-    def get(self, request, *args, **kwargs):         
+    def get(self, request, *args, **kwargs):
         load = get_object_or_404(ship_models.Load, id=self.kwargs["id"])
         company = auth_models.Company.objects.get(
             manager=auth_models.AppUser.objects.get(user=request.user)
         )
-        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(load)
+        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(
+            load)
         if (
             created_by_company == company
             or customer_company == company
@@ -477,7 +478,8 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
             or carrier_company == company
         ):
 
-            queryset = self._handle_offers_filters(load, company, dispatcher_company, customer_company, carrier_company)
+            queryset = self._handle_offers_filters(
+                load, company, dispatcher_company, customer_company, carrier_company)
 
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
@@ -489,10 +491,12 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
         queryset = queryset.exclude(status="Rejected").order_by("id")
         # 2 main cases: Dispatcher (shows 2 offers), else: 3 cases: customer and carrier (show 2 offers), customer (shows 1 offer), carrier (shows 1 offer)
         if dispatcher_company == company:
-            queryset = queryset.filter(party_1=load.dispatcher) # Returns 2 offers
+            queryset = queryset.filter(
+                party_1=load.dispatcher)  # Returns 2 offers
         else:
             if customer_company == company and carrier_company == company:
-                queryset = queryset.filter(Q(party_2=load.customer.app_user) | Q(party_2=load.carrier.app_user))
+                queryset = queryset.filter(
+                    Q(party_2=load.customer.app_user) | Q(party_2=load.carrier.app_user))
             elif customer_company == company:
                 queryset = queryset.filter(party_2=load.customer.app_user)
             elif carrier_company == company:
@@ -509,11 +513,13 @@ class ValidateEmployeeFinalAgreementView(GenericAPIView):
     def get(self, request, *args, **kwargs):
         if "load" not in request.query_params:
             raise exceptions.ParseError(detail="Please provide Load id")
-        load = get_object_or_404(ship_models.Load, id=request.query_params.get("load"))
+        load = get_object_or_404(
+            ship_models.Load, id=request.query_params.get("load"))
         company = auth_models.Company.objects.get(
             manager=auth_models.AppUser.objects.get(user=request.user)
         )
-        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(load)
+        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(
+            load)
         if (
             created_by_company == company
             or customer_company == company
@@ -523,7 +529,8 @@ class ValidateEmployeeFinalAgreementView(GenericAPIView):
             or carrier_company == company
         ):
             data = {}
-            final_agreement = get_object_or_404(doc_models.FinalAgreement, load_id=load.id)
+            final_agreement = get_object_or_404(
+                doc_models.FinalAgreement, load_id=load.id)
             if dispatcher_company == company:
                 data["did_customer_agree"] = final_agreement.did_customer_agree
                 data["did_carrier_agree"] = final_agreement.did_carrier_agree
@@ -531,10 +538,11 @@ class ValidateEmployeeFinalAgreementView(GenericAPIView):
                 data["did_carrier_agree"] = final_agreement.did_carrier_agree
             elif customer_company == company:
                 data["did_customer_agree"] = final_agreement.did_customer_agree
-            
+
             return Response(data=data, status=status.HTTP_200_OK)
 
         return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
+
 
 class EmployeeBillingDocumentsView(APIView):
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
@@ -565,8 +573,8 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-                    or (load.customer.app_user.id in company_employees
-                        and load.carrier.app_user.id in company_employees)
+                or (load.customer.app_user.id in company_employees
+                    and load.carrier.app_user.id in company_employees)
                 ):
             return Response(
                 status=status.HTTP_200_OK,
@@ -677,7 +685,7 @@ class DashboardView(APIView):
         )
         if filter_query.exists() is False:
             raise exceptions.NotFound(detail="No loads found.")
-
+        delivered_loads = filter_query.filter(status="Delivered")
         result = {}
         cards = {}
         cards["total"] = filter_query.count()
@@ -694,7 +702,7 @@ class DashboardView(APIView):
         cards["ready_for_pick_up"] = filter_query.filter(
             status=READY_FOR_PICKUP).count()
         cards["in_transit"] = filter_query.filter(status=IN_TRANSIT).count()
-        cards["delivered"] = filter_query.filter(status="Delivered").count()
+        cards["delivered"] = delivered_loads.count()
         cards["canceled"] = filter_query.filter(status="Canceled").count()
 
         loads = filter_query.order_by("-id")[:3]
@@ -746,41 +754,84 @@ class DashboardView(APIView):
         result["load_types"] = {
             "ftl": ftl,
             "ltl": ltl,
-            "HHL": heavy_haul,
+            "hhl": heavy_haul,
         }
 
         # Get bar charts for cost of shipping to each carrier
         carrier_offers = ship_models.Offer.objects.filter(
-            load__in=filter_query, status="Accepted", to="carrier"
+            load__in=delivered_loads, status="Accepted", to="carrier"
         )
 
         carriers = carrier_offers.values_list("party_2", flat=True).distinct()
         result["carrier_offers"] = {}
+        
+        result["carriers_chart"] = {}
 
         for carrier in carriers:
-            aggregates = carrier_offers.filter(party_2=carrier).aggregate(sum=Sum("current"))
+            carrier_queryset = carrier_offers.filter(
+                party_2=carrier)
+            aggregates = carrier_queryset.aggregate(sum=Sum("current"))
             carrier = auth_models.AppUser.objects.get(id=carrier).user
             result["carrier_offers"][carrier.username] = aggregates["sum"]
 
-        customer_offers = ship_models.Offer.objects.filter(
-            load__in=filter_query, status="Accepted", to="customer"
-        )
+            result["carriers_chart"][carrier.username] = []
+            year = datetime.now().year
+            for i in range(1, 13):
+                monthly_loads = filter_query.filter(
+                    created_at__month=i, created_at__year=year)
+                carriers_monthly_loads = carrier_queryset.filter(
+                    load__in=monthly_loads)
+                obj = {}
+                obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+                if carriers_monthly_loads.exists() is False:
+                    obj["total"] = 0
+                    result["carriers_chart"][carrier.username].append(obj)
+                    continue
+                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))["sum"]
+                
+                result["carriers_chart"][carrier.username].append(obj)
 
-        customers = customer_offers.values_list("party_2", flat=True).distinct()
+        # Get bar charts for cost of shipping to each customer
+        customer_offers = ship_models.Offer.objects.filter(
+            load__in=delivered_loads, status="Accepted", to="customer"
+        )
+        
+        customers = customer_offers.values_list(
+            "party_2", flat=True).distinct()
         result["customer_offers"] = {}
 
+        result["customers_chart"] = {}
+
         for customer in customers:
-            aggregates = customer_offers.filter(party_2=customer).aggregate(sum=Sum("current"))
+            aggregates = customer_offers.filter(
+                party_2=customer).aggregate(sum=Sum("current"))
             customer = auth_models.AppUser.objects.get(id=customer).user
             result["customer_offers"][customer.username] = aggregates["sum"]
 
+            result["customers_chart"][customer.username] = []
+            year = datetime.now().year
+            for i in range(1, 13):
+                monthly_loads = filter_query.filter(
+                    created_at__month=i, created_at__year=year)
+                carriers_monthly_loads = carrier_queryset.filter(
+                    load__in=monthly_loads)
+                obj = {}
+                obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+                if carriers_monthly_loads.exists() is False:
+                    obj["total"] = 0
+                    result["customers_chart"][customer.username].append(obj)
+                    continue
+                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))["sum"]
+                
+                result["customers_chart"][customer.username].append(obj)
+
+        # Profit Analysis
         total_paid = carrier_offers.aggregate(sum=Sum("current"))["sum"]
         total_received = customer_offers.aggregate(sum=Sum("current"))["sum"]
         revenue = total_received - total_paid
         result["total_paid"] = total_paid
         result["total_received"] = total_received
         result["revenue"] = revenue
-
 
         # Get top 5-10 equipments used with number of uses
         equipments = filter_query.values("equipment").annotate(
@@ -789,5 +840,40 @@ class DashboardView(APIView):
         for equipment in equipments:
             result["equipments"][equipment["equipment"]
                                  ] = equipment["equipment_count"]
+
+        # Get top 5 employees(dispatchers) in terms of number of loads and revenue
+        dispatchers = delivered_loads.values("dispatcher").annotate(
+            load_count=Count("dispatcher")).order_by("-load_count")[:5]
+        result["top_employees"] = {}
+        for dispatcher in dispatchers:
+            # Get Revenue for each dispatcher
+            received_from_customers = ship_models.Offer.objects.filter(
+                load__in=delivered_loads, status="Accepted", to="customer", party_1=dispatcher["dispatcher"]
+            ).aggregate(sum=Sum("current"))['sum']
+            paid_to_carriers = ship_models.Offer.objects.filter(
+                load__in=delivered_loads, status="Accepted", to="carrier", party_1=dispatcher["dispatcher"]
+            ).aggregate(sum=Sum("current"))['sum']
+            if received_from_customers is None:
+                received_from_customers = 0
+            if paid_to_carriers is None:
+                paid_to_carriers = 0
+            revenue_for_dispatcher = received_from_customers - paid_to_carriers
+            dispatcher_name = auth_models.Dispatcher.objects.get(
+                id=dispatcher["dispatcher"]).app_user.user.username
+            result["top_employees"][dispatcher_name] = {
+                "load_count": dispatcher["load_count"],
+                "revenue": revenue_for_dispatcher
+            }
+
+        # Delivery Performance
+        on_time = delivered_loads.filter(
+            actual_delivery_date__lte=F("delivery_date")).count()
+        late = delivered_loads.filter(
+            actual_delivery_date__gt=F("delivery_date")).count()
+        result["delivery_performance"] = {
+            "on_time": on_time,
+            "late": late,
+            "missed": 0, # TODO: Implement this
+        }
 
         return Response(data=result, status=status.HTTP_200_OK)

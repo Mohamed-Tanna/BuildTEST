@@ -2233,6 +2233,7 @@ class UpdateLoadStatus(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             load.status = "Delivered"
+            load.actual_delivery_date = datetime.now()
             load.save()
             send_notifications_to_load_parties(
                 load=load, action="load_status_changed", event="load_status_changed"
