@@ -573,8 +573,8 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-                or (load.customer.app_user.id in company_employees
-                    and load.carrier.app_user.id in company_employees)
+                    or (load.customer.app_user.id in company_employees
+                        and load.carrier.app_user.id in company_employees)
                 ):
             return Response(
                 status=status.HTTP_200_OK,
@@ -764,7 +764,7 @@ class DashboardView(APIView):
 
         carriers = carrier_offers.values_list("party_2", flat=True).distinct()
         result["carrier_offers"] = {}
-        
+
         result["carriers_chart"] = {}
 
         for carrier in carriers:
@@ -787,15 +787,16 @@ class DashboardView(APIView):
                     obj["total"] = 0
                     result["carriers_chart"][carrier.username].append(obj)
                     continue
-                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))["sum"]
-                
+                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
+                    "sum"]
+
                 result["carriers_chart"][carrier.username].append(obj)
 
         # Get bar charts for cost of shipping to each customer
         customer_offers = ship_models.Offer.objects.filter(
             load__in=delivered_loads, status="Accepted", to="customer"
         )
-        
+
         customers = customer_offers.values_list(
             "party_2", flat=True).distinct()
         result["customer_offers"] = {}
@@ -821,8 +822,9 @@ class DashboardView(APIView):
                     obj["total"] = 0
                     result["customers_chart"][customer.username].append(obj)
                     continue
-                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))["sum"]
-                
+                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
+                    "sum"]
+
                 result["customers_chart"][customer.username].append(obj)
 
         # Profit Analysis
@@ -845,6 +847,7 @@ class DashboardView(APIView):
         dispatchers = delivered_loads.values("dispatcher").annotate(
             load_count=Count("dispatcher")).order_by("-load_count")[:5]
         result["top_employees"] = {}
+        count = 0
         for dispatcher in dispatchers:
             # Get Revenue for each dispatcher
             received_from_customers = ship_models.Offer.objects.filter(
@@ -858,12 +861,16 @@ class DashboardView(APIView):
             if paid_to_carriers is None:
                 paid_to_carriers = 0
             revenue_for_dispatcher = received_from_customers - paid_to_carriers
-            dispatcher_name = auth_models.Dispatcher.objects.get(
-                id=dispatcher["dispatcher"]).app_user.user.username
-            result["top_employees"][dispatcher_name] = {
+            dispatcher_user = auth_models.Dispatcher.objects.get(
+                id=dispatcher["dispatcher"]).app_user.user
+
+            result["top_employees"][count] = {
+                "name": dispatcher_user.username,
+                "email": dispatcher_user.email,
                 "load_count": dispatcher["load_count"],
                 "revenue": revenue_for_dispatcher
             }
+            count += 1
 
         # Delivery Performance
         on_time = delivered_loads.filter(
@@ -873,7 +880,7 @@ class DashboardView(APIView):
         result["delivery_performance"] = {
             "on_time": on_time,
             "late": late,
-            "missed": 0, # TODO: Implement this
+            "missed": 0,  # TODO: Implement this
         }
 
         return Response(data=result, status=status.HTTP_200_OK)

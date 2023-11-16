@@ -313,9 +313,9 @@ class DispatcherView(GenericAPIView, CreateModelMixin):
 
     # override
     def perform_create(self, serializer):
-        carrier = serializer.save()
-        carrier.allowed_to_operate = True
-        carrier.save()
+        dispatcher = serializer.save()
+        dispatcher.allowed_to_operate = True
+        dispatcher.save()
 
     # override
     def create(self, request, *args, **kwargs):
