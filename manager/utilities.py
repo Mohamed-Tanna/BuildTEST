@@ -16,39 +16,50 @@ def check_manager_can_view_load(load_id, user):
     company_employees = auth_models.CompanyEmployee.objects.filter(
         company=company
     ).values_list("app_user", flat=True)
+    
+    not_created_by_employee = load.created_by.id not in company_employees
+    not_customer_employee = load.customer.app_user.id not in company_employees
+    not_shipper_employee = load.shipper.app_user.id not in company_employees
+    not_consignee_employee = load.consignee.app_user.id not in company_employees
+    not_dispatcher_employee = load.dispatcher.app_user.id not in company_employees
+    
+    if load.carrier:
+        not_carrier_employee = load.carrier.app_user.id not in company_employees
+    else:
+        not_carrier_employee = True
+
     if (
-        load.created_by.id not in company_employees
-        and load.customer.app_user.id not in company_employees
-        and load.shipper.app_user.id not in company_employees
-        and load.consignee.app_user.id not in company_employees
-        and load.dispatcher.app_user.id not in company_employees
+        not_created_by_employee
+        and not_customer_employee
+        and not_shipper_employee
+        and not_consignee_employee
+        and not_dispatcher_employee
+        and not_carrier_employee
     ):
-        print(load.created_by, company_employees)
         raise exceptions.PermissionDenied(
             detail="You don't have access to view this load's information")
-    if load.carrier and load.carrier.app_user.id not in company_employees:
-            raise exceptions.PermissionDenied(
-                detail="You don't have access to view this load's information")
     return load, company_employees
+
 
 def check_manager_can_view_load_queryset(queryset: QuerySet, user):
     manager = get_object_or_404(
         auth_models.AppUser, user=user)
     company = get_object_or_404(auth_models.Company, manager=manager)
     queryset = (
-            queryset.filter(
-                Q(created_by__companyemployee__company=company)
-                | Q(customer__app_user__companyemployee__company=company)
-                | Q(shipper__app_user__companyemployee__company=company)
-                | Q(consignee__app_user__companyemployee__company=company)
-                | Q(dispatcher__app_user__companyemployee__company=company)
-                | Q(carrier__app_user__companyemployee__company=company)
-            )
-            .distinct()
-            .order_by("-id")
+        queryset.filter(
+            Q(created_by__companyemployee__company=company)
+            | Q(customer__app_user__companyemployee__company=company)
+            | Q(shipper__app_user__companyemployee__company=company)
+            | Q(consignee__app_user__companyemployee__company=company)
+            | Q(dispatcher__app_user__companyemployee__company=company)
+            | Q(carrier__app_user__companyemployee__company=company)
         )
+        .distinct()
+        .order_by("-id")
+    )
 
     return queryset
+
 
 def get_parties_companies(load):
     try:

@@ -272,7 +272,6 @@ class FacilityView(
             log_fields=["id", "building_name"]
         )
 
-
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
@@ -926,27 +925,24 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
             else:
                 origin = utils.get_app_user_by_username(request.user.username)
                 contact = models.AppUser.objects.get(user=contact.id)
-                if origin.user_type == "carrier":
-                    if contact.user_type == SHIPMENT_PARTY:
-                        return Response(
-                            [
-                                {
-                                    "details": "You cannot add customers or shipment parties to your contact list."
-                                },
-                            ],
-                            status=status.HTTP_403_FORBIDDEN,
-                        )
-
-                elif origin.user_type == SHIPMENT_PARTY:
-                    if contact.user_type == "carrier":
-                        return Response(
-                            [
-                                {
-                                    "details": "You cannot add carriers to your contact list."
-                                },
-                            ],
-                            status=status.HTTP_403_FORBIDDEN,
-                        )
+                if origin.user_type == "carrier" and contact.user_type == SHIPMENT_PARTY:
+                    return Response(
+                        [
+                            {
+                                "details": "You cannot add customers or shipment parties to your contact list."
+                            },
+                        ],
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                if origin.user_type == SHIPMENT_PARTY and contact.user_type == "carrier":
+                    return Response(
+                        [
+                            {
+                                "details": "You cannot add carriers to your contact list."
+                            },
+                        ],
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
 
                 request.data["contact"] = contact.id
                 serializer = self.get_serializer(data=request.data)
@@ -961,7 +957,6 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
                     details=serializer.data,
                     log_fields=["contact"]
                 )
-
 
                 return Response(
                     serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -1136,7 +1131,6 @@ class ShipmentView(
                     details=serializer.data,
                     log_fields=["id", "name"]
                 )
-
 
                 return Response(
                     serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -1790,7 +1784,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 headers = self.get_success_headers(serializer.data)
                 load.status = AWAITING_CUSTOMER
                 load.save()
-            
+
             log_utils.handle_log(
                 user=self.request.user,
                 action="Create",
@@ -1798,7 +1792,6 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 details=serializer.data,
                 log_fields=["id", "to", "initial"]
             )
-
 
             return Response(
                 data=serializer.data,
@@ -1841,7 +1834,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 load.save()
             if self_accepting:
                 self._create_final_agreement(load=load)
-            
+
             log_utils.handle_log(
                 user=self.request.user,
                 action="Create",
@@ -1849,7 +1842,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                 details=serializer.data,
                 log_fields=["id", "to", "initial"]
             )
-            
+
             return Response(
                 serializer.data,
                 status=status.HTTP_201_CREATED,
@@ -1985,6 +1978,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             details=details,
             log_fields=updated_fields,
         )
+
 
 class ShipmentAdminView(
     GenericAPIView,
@@ -2171,7 +2165,7 @@ class DispatcherRejectView(APIView):
         send_notifications_to_load_parties(
             load=load, action="load_status_changed", event="load_status_changed"
         )
-        
+
         log_utils.handle_log(
             user=self.request.user,
             action="Reject",
