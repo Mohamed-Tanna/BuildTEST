@@ -573,8 +573,8 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-                    or (load.customer.app_user.id in company_employees
-                        and load.carrier.app_user.id in company_employees)
+                or (load.customer.app_user.id in company_employees
+                    and load.carrier.app_user.id in company_employees)
                 ):
             return Response(
                 status=status.HTTP_200_OK,
@@ -705,10 +705,10 @@ class DashboardView(APIView):
         cards["delivered"] = delivered_loads.count()
         cards["canceled"] = filter_query.filter(status="Canceled").count()
 
-        loads = filter_query.order_by("-id")[:3]
+        # loads = filter_query.order_by("-id")[:3]
 
-        loads = ship_serializers.LoadListSerializer(loads, many=True).data
-        cards["loads"] = loads
+        # loads = ship_serializers.LoadListSerializer(loads, many=True).data
+        # cards["loads"] = loads
         result["cards"] = cards
         result["chart"] = []
 
@@ -763,34 +763,40 @@ class DashboardView(APIView):
         )
 
         carriers = carrier_offers.values_list("party_2", flat=True).distinct()
-        result["carrier_offers"] = {}
+        result["carrier_offers"] = []
 
-        result["carriers_chart"] = {}
+        result["carriers_chart"] = []
 
         for carrier in carriers:
             carrier_queryset = carrier_offers.filter(
                 party_2=carrier)
             aggregates = carrier_queryset.aggregate(sum=Sum("current"))
             carrier = auth_models.AppUser.objects.get(id=carrier).user
-            result["carrier_offers"][carrier.username] = aggregates["sum"]
+            obj = {}
+            obj["name"] = carrier.username
+            if aggregates["sum"] is None:
+                obj["total"] = 0
+                result["carrier_offers"].append(obj)
+                continue
+            obj["total"] = aggregates["sum"]
+            result["carrier_offers"].append(obj)
 
-            result["carriers_chart"][carrier.username] = []
-            year = datetime.now().year
-            for i in range(1, 13):
-                monthly_loads = filter_query.filter(
-                    created_at__month=i, created_at__year=year)
-                carriers_monthly_loads = carrier_queryset.filter(
-                    load__in=monthly_loads)
-                obj = {}
-                obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
-                if carriers_monthly_loads.exists() is False:
-                    obj["total"] = 0
-                    result["carriers_chart"][carrier.username].append(obj)
-                    continue
-                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
-                    "sum"]
-
-                result["carriers_chart"][carrier.username].append(obj)
+            # THIS SECTION IS FOR MONTHLY CHARTS FOR EACH CARRIER
+            # result["carriers_chart"][carrier.username] = []
+            # for i in range(1, 13):
+            #     monthly_loads = filter_query.filter(
+            #         created_at__month=i, created_at__year=year)
+            #     carriers_monthly_loads = carrier_queryset.filter(
+            #         load__in=monthly_loads)
+            #     obj = {}
+            #     obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+            #     if carriers_monthly_loads.exists() is False:
+            #         obj["total"] = 0
+            #         result["carriers_chart"][carrier.username].append(obj)
+            #         continue
+            #     obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
+            #         "sum"]
+            #     result["carriers_chart"][carrier.username].append(obj)
 
         # Get bar charts for cost of shipping to each customer
         customer_offers = ship_models.Offer.objects.filter(
@@ -799,33 +805,39 @@ class DashboardView(APIView):
 
         customers = customer_offers.values_list(
             "party_2", flat=True).distinct()
-        result["customer_offers"] = {}
+        result["customer_offers"] = []
 
-        result["customers_chart"] = {}
+        result["customers_chart"] = []
 
         for customer in customers:
             aggregates = customer_offers.filter(
                 party_2=customer).aggregate(sum=Sum("current"))
             customer = auth_models.AppUser.objects.get(id=customer).user
-            result["customer_offers"][customer.username] = aggregates["sum"]
+            obj = {}
+            obj["name"] = customer.username
+            if aggregates["sum"] is None:
+                obj["total"] = 0
+                result["customer_offers"].append(obj)
+                continue
+            obj["total"] = aggregates["sum"]
+            result["customer_offers"].append(obj)
 
-            result["customers_chart"][customer.username] = []
-            year = datetime.now().year
-            for i in range(1, 13):
-                monthly_loads = filter_query.filter(
-                    created_at__month=i, created_at__year=year)
-                carriers_monthly_loads = carrier_queryset.filter(
-                    load__in=monthly_loads)
-                obj = {}
-                obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
-                if carriers_monthly_loads.exists() is False:
-                    obj["total"] = 0
-                    result["customers_chart"][customer.username].append(obj)
-                    continue
-                obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
-                    "sum"]
-
-                result["customers_chart"][customer.username].append(obj)
+            # THIS SECTION IS FOR MONTHLY CHARTS FOR EACH CUSTOMER
+            # result["customers_chart"][customer.username] = []
+            # for i in range(1, 13):
+            #     monthly_loads = filter_query.filter(
+            #         created_at__month=i, created_at__year=year)
+            #     carriers_monthly_loads = carrier_queryset.filter(
+            #         load__in=monthly_loads)
+            #     obj = {}
+            #     obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+            #     if carriers_monthly_loads.exists() is False:
+            #         obj["total"] = 0
+            #         result["customers_chart"][customer.username].append(obj)
+            #         continue
+            #     obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
+            #         "sum"]
+            #     result["customers_chart"][customer.username].append(obj)
 
         # Profit Analysis
         total_paid = carrier_offers.aggregate(sum=Sum("current"))["sum"]
@@ -833,7 +845,49 @@ class DashboardView(APIView):
         revenue = total_received - total_paid
         result["total_paid"] = total_paid
         result["total_received"] = total_received
+        # TODO: Revenue should be calculated based on the date range (this_month, this_year)
         result["revenue"] = revenue
+
+        result["profit_summary_chart"] = {}
+
+        result["profit_summary_chart"]["year"] = []
+        for i in range(1, 13):
+            total_paid = carrier_offers.filter(
+                created_at__month=i, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
+            if total_paid is None:
+                total_paid = 0
+            total_received = customer_offers.filter(
+                created_at__month=i, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
+            if total_received is None:
+                total_received = 0
+            revenue = total_received - total_paid
+            obj = {}
+            obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
+            obj["total_paid"] = total_paid
+            obj["total_received"] = total_received
+            obj["revenue"] = revenue
+
+            result["profit_summary_chart"]["year"].append(obj)
+
+        month = datetime.now().month
+        result["profit_summary_chart"]["month"] = []
+        for i in range(1, 32):
+            total_paid = carrier_offers.filter(
+                created_at__day=i, created_at__month=month, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
+            if total_paid is None:
+                total_paid = 0
+            total_received = customer_offers.filter(
+                created_at__day=i, created_at__month=month, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
+            if total_received is None:
+                total_received = 0
+            revenue = total_received - total_paid
+            obj = {}
+            obj["name"] = datetime.strptime(str(i), "%d").strftime("%d")
+            obj["total_paid"] = total_paid
+            obj["total_received"] = total_received
+            obj["revenue"] = revenue
+
+            result["profit_summary_chart"]["month"].append(obj)
 
         # Get top 5-10 equipments used with number of uses
         equipments = filter_query.values("equipment").annotate(
