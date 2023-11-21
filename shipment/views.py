@@ -851,14 +851,13 @@ class RetrieveLoadView(
             ):
                 authorized = True
 
-        else:
-            try:
-                models.ShipmentAdmin.objects.get(
-                    shipment=shipment, admin=app_user)
-            except models.ShipmentAdmin.DoesNotExist:
-                authorized = False
+    
+        try:
+            models.ShipmentAdmin.objects.get(
+                shipment=shipment, admin=app_user)
             authorized = True
-
+        except models.ShipmentAdmin.DoesNotExist:
+            pass
         if authorized:
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
