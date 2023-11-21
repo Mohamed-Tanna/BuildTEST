@@ -6,11 +6,17 @@ def handle_log(user, action, model, details, log_fields=[]):
     app_user = auth_models.AppUser.objects.get(user=user)
 
     log_json = {}
-    log_json["old"] = {}
-    log_json["new"] = {}
-    for field in log_fields:
-        log_json["old"][field] = details["old"][field]
-        log_json["new"][field] = details["new"][field]
+    if action.lower() == "create":
+        log_json["old"] = None
+        log_json["new"] = {}
+        for field in log_fields:
+            log_json["new"][field] = details[field]
+    else:
+        log_json["old"] = {}
+        log_json["new"] = {}
+        for field in log_fields:
+            log_json["old"][field] = details["old"][field]
+            log_json["new"][field] = details["new"][field]
 
     log = models.Log(app_user=app_user, action=action,
                      model=model, details=log_json)
