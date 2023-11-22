@@ -17,6 +17,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         rep = super().to_representation(instance)
         rep["user"] = auth_serializers.AppUserSerializer(instance.user).data
         rep["sender"] = auth_serializers.AppUserSerializer(instance.sender).data
+        del rep["manager_seen"]
         return rep
 
 
@@ -51,6 +52,9 @@ class ManagerNotificationSerializer(serializers.ModelSerializer):
         elif "assigned you" in rep["message"]:
             new_message = rep["message"].replace("assigned you", f"assigned your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
         rep["message"] = new_message
+
+        rep["seen"] = instance.manager_seen
+        del rep["manager_seen"]
 
         return rep
 
