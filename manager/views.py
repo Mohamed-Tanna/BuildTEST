@@ -2,6 +2,7 @@
 from datetime import datetime
 
 # Django imports
+from django.http import QueryDict
 from django.db.models import Q, F
 from django.contrib.auth.models import User
 from django.db.models import Avg, Sum, Count
@@ -16,19 +17,20 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers as drf_serializers
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, UpdateModelMixin
+
 
 # Module imports
 import manager.utilities as utils
 import document.models as doc_models
 import shipment.models as ship_models
-import shipment.utilities as ship_utils
 import manager.serializers as serializers
 import authentication.models as auth_models
 import document.serializers as doc_serializers
 import shipment.serializers as ship_serializers
 import authentication.permissions as permissions
-import authentication.serializers as auth_serializers
+import notifications.models as notif_models
+import notifications.serializers as notif_serializers
 
 # ThirdParty imports
 from drf_spectacular.types import OpenApiTypes
@@ -192,6 +194,7 @@ class FilterEmployeeLoadsView(GenericAPIView, ListModelMixin):
     serializer_class = ship_serializers.LoadListSerializer
     queryset = ship_models.Load.objects.all()
     lookup_field = "shipment"
+    pagination_class = PageNumberPagination
 
     def post(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -219,8 +222,10 @@ class FilterEmployeeLoadsView(GenericAPIView, ListModelMixin):
 
         if owner_company == company or company.id in shipment_admins_companies:
             queryset = ship_models.Load.objects.filter(shipment=instance)
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
+            paginator = self.pagination_class()
+            paginated_loads = paginator.paginate_queryset(queryset.order_by("-id"), request)
+            serializer = self.get_serializer(paginated_loads, many=True)
+            return paginator.get_paginated_response(serializer.data)
 
         return exceptions.PermissionDenied(detail=NOT_AUTH_SHIPMENT)
 
@@ -634,6 +639,81 @@ class EmployeeFileUploadedView(GenericAPIView, ListModelMixin):
         utils.check_manager_can_view_load(load_id, self.request.user)
         queryset = queryset.filter(load=load_id)
         return queryset
+
+
+class ListEmpoloyeeNotificationsView(GenericAPIView, ListModelMixin):
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
+    serializer_class = notif_serializers.ManagerNotificationSerializer
+    queryset = notif_models.Notification.objects.all()
+    pagination_class = PageNumberPagination
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        assert queryset is not None, (
+            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+        )
+        company_manager = auth_models.AppUser.objects.get(
+            user=self.request.user)
+
+        try:
+            company = auth_models.Company.objects.get(manager=company_manager)
+        except auth_models.Company.DoesNotExist:
+            return queryset.none()
+
+        company_employees = auth_models.CompanyEmployee.objects.filter(
+            company=company
+        ).values_list("app_user", flat=True)
+
+        assert self.queryset is not None, (
+            "'%s' should either include a `queryset` attribute, "
+            "or override the `get_queryset()` method." % self.__class__.__name__
+        )
+        read_or_unread = self.request.query_params.get("seen", None)
+        if read_or_unread is None:
+            return self.queryset.none()
+        elif read_or_unread == "read":
+            return self.queryset.filter(user__in=company_employees, manager_seen=True).order_by("-id")
+        elif read_or_unread == "unread":
+            return self.queryset.filter(user__in=company_employees, manager_seen=False).order_by("-id")
+
+
+class ManagerUpdateNotificationView(GenericAPIView, UpdateModelMixin):
+    permission_classes = (IsAuthenticated, permissions.IsCompanyManager)
+    serializer_class = notif_serializers.ManagerNotificationSerializer
+    queryset = notif_models.Notification.objects.all()
+    lookup_field = "id"
+
+    def put(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        app_user = get_object_or_404(auth_models.AppUser, user=request.user)
+        company = auth_models.Company.objects.get(manager=app_user)
+        company_employees = auth_models.CompanyEmployee.objects.filter(
+            company=company
+        ).values_list("app_user", flat=True)
+        if instance.user not in company_employees:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        if isinstance(request.data, QueryDict):
+            request.data._mutable = True
+        
+        request.data["manager_seen"] = request.data["seen"]
+        del request.data["seen"]
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, "_prefetched_objects_cache", None):
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
 
 class DashboardView(APIView):

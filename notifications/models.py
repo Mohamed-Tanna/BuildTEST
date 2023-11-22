@@ -9,6 +9,7 @@ class Notification(models.Model):
     url = models.URLField(null=False)
     seen = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    manager_seen = models.BooleanField(default=False)
 
 
 class NotificationSetting(models.Model):

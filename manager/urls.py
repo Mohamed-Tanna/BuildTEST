@@ -26,5 +26,8 @@ urlpatterns = [
 
     path("billing/", views.EmployeeBillingDocumentsView.as_view()),
 
+    path("notifications/", views.ListEmpoloyeeNotificationsView.as_view()),
+    path("notifications/<id>/", views.ManagerUpdateNotificationView.as_view()),
+
     path("dashboard/", views.DashboardView.as_view()),
 ]
