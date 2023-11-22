@@ -667,10 +667,6 @@ class ListEmpoloyeeNotificationsView(GenericAPIView, ListModelMixin):
             company=company
         ).values_list("app_user", flat=True)
 
-        assert self.queryset is not None, (
-            "'%s' should either include a `queryset` attribute, "
-            "or override the `get_queryset()` method." % self.__class__.__name__
-        )
         read_or_unread = self.request.query_params.get("seen", None)
         if read_or_unread is None:
             return self.queryset.none()
@@ -697,7 +693,7 @@ class ManagerUpdateNotificationView(GenericAPIView, UpdateModelMixin):
         company_employees = auth_models.CompanyEmployee.objects.filter(
             company=company
         ).values_list("app_user", flat=True)
-        if instance.user not in company_employees:
+        if instance.user.id not in company_employees:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         if isinstance(request.data, QueryDict):

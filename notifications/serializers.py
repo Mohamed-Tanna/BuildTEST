@@ -42,13 +42,13 @@ class ManagerNotificationSerializer(serializers.ModelSerializer):
 
         # handle message for manager
         new_message = rep["message"]
-        if rep["message"].contains("has added you"):
+        if "has added you" in rep["message"]:
             new_message = rep["message"].replace("has added you", f"has added your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
-        elif rep["message"].contains("has sent you"):
+        elif "has sent you" in rep["message"]:
             new_message = rep["message"].replace("has sent you", f"has sent your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
-        elif rep["message"].contains("has countered your"):
+        elif "has countered your" in rep["message"]:
             new_message = rep["message"].replace("has countered your", f"has countered your employee's ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
-        elif rep["message"].contains("assigned you"):
+        elif "assigned you" in rep["message"]:
             new_message = rep["message"].replace("assigned you", f"assigned your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
         rep["message"] = new_message
 
