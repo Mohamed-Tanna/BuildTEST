@@ -223,7 +223,8 @@ class FilterEmployeeLoadsView(GenericAPIView, ListModelMixin):
         if owner_company == company or company.id in shipment_admins_companies:
             queryset = ship_models.Load.objects.filter(shipment=instance)
             paginator = self.pagination_class()
-            paginated_loads = paginator.paginate_queryset(queryset.order_by("-id"), request)
+            paginated_loads = paginator.paginate_queryset(
+                queryset.order_by("-id"), request)
             serializer = self.get_serializer(paginated_loads, many=True)
             return paginator.get_paginated_response(serializer.data)
 
@@ -578,9 +579,9 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-                or (load.customer.app_user.id in company_employees
-                    and load.carrier.app_user.id in company_employees)
-                ):
+            or (load.customer.app_user.id in company_employees
+                        and load.carrier.app_user.id in company_employees)
+            ):
             return Response(
                 status=status.HTTP_200_OK,
                 data=doc_serializers.DispatcherFinalAgreementSerializer(
@@ -698,11 +699,12 @@ class ManagerUpdateNotificationView(GenericAPIView, UpdateModelMixin):
 
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
-        
+
         request.data["manager_seen"] = request.data["seen"]
         del request.data["seen"]
 
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -967,11 +969,15 @@ class DashboardView(APIView):
 
         # Get top 5-10 equipments used with number of uses
         equipments = filter_query.values("equipment").annotate(
-            equipment_count=Count("equipment")).order_by("-equipment_count")[:10]
+            equipment_count=Count("equipment")).order_by("-equipment_count")[:5]
         result["equipments"] = {}
+        count = 0
         for equipment in equipments:
-            result["equipments"][equipment["equipment"]
-                                 ] = equipment["equipment_count"]
+            result["equipments"][count] = {
+                "name": equipment["equipment"],
+                "count": equipment["equipment_count"]
+                }
+            count += 1
 
         # Get top 5 employees(dispatchers) in terms of number of loads and revenue
         dispatchers = delivered_loads.values("dispatcher").annotate(
