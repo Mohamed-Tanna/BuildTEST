@@ -2123,7 +2123,7 @@ class ShipmentAdminView(
                 user=self.request.user,
                 action="Delete",
                 model="Shipment Admin",
-                details=instance,
+                details=serializers.ShipmentAdminSerializer(instance).data,
                 log_fields=["id", "shipment", "admin"]
             )
             self.perform_destroy(instance)
@@ -2169,7 +2169,7 @@ class DispatcherRejectView(APIView):
             user=self.request.user,
             action="Reject",
             model="Load",
-            details=load,
+            details=serializers.LoadCreateRetrieveSerializer(load).data,
             log_fields=["id", "name"]
         )
 
@@ -2226,7 +2226,7 @@ class UpdateLoadStatus(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             load.status = "Delivered"
-            load.actual_delivery_date = datetime.now()
+            load.actual_delivery_date = datetime.now().date()
             load.save()
             send_notifications_to_load_parties(
                 load=load, action="load_status_changed", event="load_status_changed"
@@ -2242,7 +2242,7 @@ class UpdateLoadStatus(APIView):
             user=self.request.user,
             action="Update status",
             model="Load",
-            details=load,
+            details=serializers.LoadCreateRetrieveSerializer(load).data,
             log_fields=["id", "name", "status"]
         )
 
