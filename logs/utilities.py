@@ -6,7 +6,7 @@ def handle_log(user, action, model, details, log_fields=[]):
     app_user = auth_models.AppUser.objects.get(user=user)
 
     log_json = {}
-    if action.lower() == "create":
+    if action.lower() == "create" or action.lower() == "reject" or action.lower() == "update status" or action.lower() == "delete":
         log_json["old"] = None
         log_json["new"] = {}
         for field in log_fields:
