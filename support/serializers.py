@@ -24,7 +24,6 @@ elif os.getenv("ENV") == "STAGING":
 else:
     from freightmonster.settings.local import GS_COMPANY_MANAGER_BUCKET_NAME
 
-
 ticket_fields = [
     "id",
     "email",
@@ -35,6 +34,7 @@ ticket_fields = [
     "company_domain",
     "company_size",
     "EIN",
+    "scac",
     "company_fax_number",
     "company_phone_number",
     "sid_photo",
@@ -68,6 +68,7 @@ class CreateTicketSerializer(serializers.Serializer):
         fields = ticket_fields
         extra_kwargs = {
             "company_fax_number": {"required": False},
+            "scac": {"required": False},
         }
         read_only_fields = (
             "id",
@@ -75,7 +76,6 @@ class CreateTicketSerializer(serializers.Serializer):
             "created_at",
             "handled_at",
         )
-
     def create(self, validated_data):
         """
         Create a new ticket.
@@ -88,7 +88,7 @@ class CreateTicketSerializer(serializers.Serializer):
         personal_photo_name = f"personal_{timestamp}_{personal_photo.name}"
 
         if models.Ticket.objects.filter(
-            Q(sid_photo=sid_photo_name) | Q(personal_photo=personal_photo_name)
+                Q(sid_photo=sid_photo_name) | Q(personal_photo=personal_photo_name)
         ).exists():
             return Response(
                 {"message": "The photo already exists"},
@@ -102,9 +102,12 @@ class CreateTicketSerializer(serializers.Serializer):
         validated_data["sid_photo"] = sid_photo_name
         validated_data["personal_photo"] = personal_photo_name
         company_fax_number = ""
-        if  "company_fax_number" in validated_data:
+        scac = ""
+        if "company_fax_number" in validated_data:
             company_fax_number = validated_data["company_fax_number"]
-        
+        if "scac" in validated_data:
+            scac = validated_data["scac"]
+
         obj = models.Ticket(
             email=validated_data["email"],
             first_name=validated_data["first_name"],
@@ -114,6 +117,7 @@ class CreateTicketSerializer(serializers.Serializer):
             company_domain=validated_data["company_domain"],
             company_size=validated_data["company_size"],
             EIN=validated_data["EIN"],
+            scac=scac,
             company_fax_number=company_fax_number,
             company_phone_number=validated_data["company_phone_number"],
             sid_photo=validated_data["sid_photo"],

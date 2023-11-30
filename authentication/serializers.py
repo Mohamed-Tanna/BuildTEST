@@ -101,8 +101,12 @@ class CompanySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Company
-        fields = ["id", "name", "EIN", "identifier", "address", "phone_number", "manager", "domain", "company_size"]
-        extra_kwargs = {"id": {"required": False}}
+        fields = ["id", "name", "EIN", "scac", "identifier", "address", "phone_number", "manager", "domain",
+                  "company_size"]
+        extra_kwargs = {
+            "id": {"required": False},
+            "scac": {"required": False}
+        }
         read_only_fields = ("id",)
 
     def to_representation(self, instance):
@@ -134,4 +138,3 @@ class UserTaxSerializer(serializers.ModelSerializer):
         rep["app_user"] = AppUserSerializer(instance.app_user).data
         rep["address"] = AddressSerializer(instance.address).data
         return rep
-

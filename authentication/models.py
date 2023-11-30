@@ -6,7 +6,6 @@ SHIPMENT_PARTY = "shipment party"
 
 
 class AppUser(models.Model):
-
     user = models.OneToOneField(
         to=User,
         null=False,
@@ -43,13 +42,12 @@ class AppUser(models.Model):
         max_length=14,
         null=False,
     )
-    
+
     def __str__(self):
         return self.user.username
 
 
 class Dispatcher(models.Model):
-
     app_user = models.OneToOneField(
         to=AppUser,
         null=False,
@@ -64,7 +62,6 @@ class Dispatcher(models.Model):
 
 
 class Carrier(models.Model):
-
     app_user = models.OneToOneField(
         to=AppUser,
         null=False,
@@ -79,7 +76,6 @@ class Carrier(models.Model):
 
 
 class ShipmentParty(models.Model):
-
     app_user = models.OneToOneField(
         to=AppUser,
         null=False,
@@ -115,6 +111,11 @@ class Company(models.Model):
         blank=False,
         unique=True,
         validators=[MinLengthValidator(9)],
+    )
+    scac = models.CharField(
+        max_length=4,
+        default="",
+        validators=[MinLengthValidator(2)],
     )
     address = models.OneToOneField(
         to=Address, null=False, blank=False, on_delete=models.CASCADE

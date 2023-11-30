@@ -127,6 +127,7 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
                 domain=ticket.company_domain,
                 identifier=company_id,
                 EIN=ticket.EIN,
+                scac=ticket.scac,
                 fax_number=ticket.company_fax_number,
                 phone_number=ticket.company_phone_number,
                 company_size=ticket.company_size,

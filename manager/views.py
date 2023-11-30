@@ -19,7 +19,6 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, UpdateModelMixin
 
-
 # Module imports
 import manager.utilities as utils
 import document.models as doc_models
@@ -39,7 +38,6 @@ from drf_spectacular.utils import (
     extend_schema,
     inline_serializer,
 )
-
 
 NOT_AUTH_MSG = "You are not authorized to view this document."
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
@@ -85,7 +83,7 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         queryset = utils.check_manager_can_view_load_queryset(
@@ -113,50 +111,8 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
         company = auth_models.Company.objects.get(
             manager=auth_models.AppUser.objects.get(user=self.request.user)
         )
-        try:
-            created_by_company = auth_models.CompanyEmployee.objects.get(
-                app_user=instance.created_by
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            created_by_company = None
-
-        try:
-            customer_company = auth_models.CompanyEmployee.objects.get(
-                app_user=instance.customer.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            customer_company = None
-
-        try:
-            shipper_company = auth_models.CompanyEmployee.objects.get(
-                app_user=instance.shipper.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            shipper_company = None
-
-        try:
-            consignee_company = auth_models.CompanyEmployee.objects.get(
-                app_user=instance.consignee.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            consignee_company = None
-
-        try:
-            dispatcher_company = auth_models.CompanyEmployee.objects.get(
-                app_user=instance.dispatcher.app_user
-            ).company
-        except auth_models.CompanyEmployee.DoesNotExist:
-            dispatcher_company = None
-
-        try:
-            if instance.carrier:
-                carrier_company = auth_models.CompanyEmployee.objects.get(
-                    app_user=instance.carrier.app_user
-                ).company
-            else:
-                carrier_company = None
-        except auth_models.CompanyEmployee.DoesNotExist:
-            carrier_company = None
+        created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(
+            instance)
 
         shipment_creator = instance.shipment.created_by
         try:
@@ -172,14 +128,14 @@ class RetrieveEmployeeLoadView(GenericAPIView, RetrieveModelMixin):
             app_user__in=shipment_admins).values_list("company", flat=True)
 
         if (
-            created_by_company == company
-            or customer_company == company
-            or shipper_company == company
-            or consignee_company == company
-            or dispatcher_company == company
-            or carrier_company == company
-            or shipment_creator_company == company
-            or company.id in shipment_admins_companies
+                created_by_company == company
+                or customer_company == company
+                or shipper_company == company
+                or consignee_company == company
+                or dispatcher_company == company
+                or carrier_company == company
+                or shipment_creator_company == company
+                or company.id in shipment_admins_companies
         ):
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
@@ -262,7 +218,7 @@ class ListEmployeesContactsView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         company_manager = auth_models.AppUser.objects.get(
             user=self.request.user)
@@ -329,7 +285,7 @@ class ListEmployeesFacilitiesView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         company_manager = auth_models.AppUser.objects.get(
             user=self.request.user)
@@ -385,7 +341,7 @@ class ListEmployeesShipmentsView(GenericAPIView, ListModelMixin, RetrieveModelMi
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         company_manager = auth_models.AppUser.objects.get(
             user=self.request.user)
@@ -426,7 +382,7 @@ class ListEmployeesShipmentAdminsView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         company_manager = auth_models.AppUser.objects.get(
             user=self.request.user)
@@ -476,14 +432,13 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
         created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(
             load)
         if (
-            created_by_company == company
-            or customer_company == company
-            or shipper_company == company
-            or consignee_company == company
-            or dispatcher_company == company
-            or carrier_company == company
+                created_by_company == company
+                or customer_company == company
+                or shipper_company == company
+                or consignee_company == company
+                or dispatcher_company == company
+                or carrier_company == company
         ):
-
             queryset = self._handle_offers_filters(
                 load, company, dispatcher_company, customer_company, carrier_company)
 
@@ -491,7 +446,8 @@ class RetrieveEmployeeOfferView(GenericAPIView, ListModelMixin):
             return Response(serializer.data)
         return exceptions.PermissionDenied(detail="You don't have access to view this load's information")
 
-    def _handle_offers_filters(self, load: ship_models.Load, company, dispatcher_company, customer_company, carrier_company):
+    def _handle_offers_filters(self, load: ship_models.Load, company, dispatcher_company, customer_company,
+                               carrier_company):
         queryset = self.queryset
         queryset = queryset.filter(load=load)
         queryset = queryset.exclude(status="Rejected").order_by("id")
@@ -527,12 +483,12 @@ class ValidateEmployeeFinalAgreementView(GenericAPIView):
         created_by_company, customer_company, shipper_company, consignee_company, dispatcher_company, carrier_company = utils.get_parties_companies(
             load)
         if (
-            created_by_company == company
-            or customer_company == company
-            or shipper_company == company
-            or consignee_company == company
-            or dispatcher_company == company
-            or carrier_company == company
+                created_by_company == company
+                or customer_company == company
+                or shipper_company == company
+                or consignee_company == company
+                or dispatcher_company == company
+                or carrier_company == company
         ):
             data = {}
             final_agreement = get_object_or_404(
@@ -579,9 +535,9 @@ class EmployeeBillingDocumentsView(APIView):
     def _handle_agreement(self, request, load, final_agreement, company_employees):
 
         if ((load.dispatcher.app_user.id in company_employees)
-            or (load.customer.app_user.id in company_employees
-                        and load.carrier.app_user.id in company_employees)
-            ):
+                or (load.customer.app_user.id in company_employees
+                    and load.carrier.app_user.id in company_employees)
+        ):
             return Response(
                 status=status.HTTP_200_OK,
                 data=doc_serializers.DispatcherFinalAgreementSerializer(
@@ -634,7 +590,7 @@ class EmployeeFileUploadedView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         load_id = self.request.query_params.get("load")
         utils.check_manager_can_view_load(load_id, self.request.user)
@@ -654,7 +610,7 @@ class ListEmpoloyeeNotificationsView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         queryset = self.queryset
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         company_manager = auth_models.AppUser.objects.get(
             user=self.request.user)
@@ -976,7 +932,7 @@ class DashboardView(APIView):
             result["equipments"][count] = {
                 "name": equipment["equipment"],
                 "count": equipment["equipment_count"]
-                }
+            }
             count += 1
 
         # Get top 5 employees(dispatchers) in terms of number of loads and revenue
