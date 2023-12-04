@@ -1,8 +1,14 @@
 import os
+import re
+
+from rest_framework import status
+
 from document.utilities import get_storage_client
 from django.template.loader import get_template
 from django.utils.html import strip_tags
 from django.core.mail import EmailMultiAlternatives
+
+from support.models import Ticket
 
 if os.getenv("ENV") == "DEV":
     from freightmonster.settings.dev import GS_COMPANY_MANAGER_BUCKET_NAME
@@ -18,6 +24,7 @@ def upload_to_gcs(uploaded_file, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME):
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob("pdfs/" + uploaded_file.name)
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
+
 
 def send_request_result(subject, template, to, password_or_reason, company_name):
     """Send whether the company manager request was approved or denied"""
@@ -42,3 +49,23 @@ def send_request_result(subject, template, to, password_or_reason, company_name)
     message.mixed_subtype = "related"
     res = message.send()
     print(res)
+
+
+def is_scac_valid(scac):
+    pattern = r'^[A-Z]*$'
+    result = {
+        "isValid": False,
+        "message": "",
+        "errorStatus": ""
+    }
+    if re.match(pattern, scac) and 2 <= len(scac) <= 4:
+        tickets = Ticket.objects.filter(scac=scac)
+        if not tickets.exists():
+            result["isValid"] = True
+        else:
+            result["message"] = "scac already exists"
+            result["errorStatus"] = status.HTTP_409_CONFLICT
+    else:
+        result["message"] = "scac length should be 2-4 characters and contain upper case letters only"
+        result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
+    return result

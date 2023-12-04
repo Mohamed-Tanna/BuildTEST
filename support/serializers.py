@@ -76,6 +76,7 @@ class CreateTicketSerializer(serializers.Serializer):
             "created_at",
             "handled_at",
         )
+
     def create(self, validated_data):
         """
         Create a new ticket.
@@ -106,8 +107,14 @@ class CreateTicketSerializer(serializers.Serializer):
         if "company_fax_number" in validated_data:
             company_fax_number = validated_data["company_fax_number"]
         if "scac" in validated_data:
-            scac = validated_data["scac"]
-
+            scac = validated_data["scac"].strip()
+        if len(scac) > 0:
+            scac_validity_result = utils.is_scac_valid(scac)
+            if not scac_validity_result["isValid"]:
+                return Response(
+                    {"details": scac_validity_result["message"]},
+                    status=scac_validity_result["errorStatus"],
+                )
         obj = models.Ticket(
             email=validated_data["email"],
             first_name=validated_data["first_name"],
