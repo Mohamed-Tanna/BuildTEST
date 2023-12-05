@@ -1,5 +1,6 @@
 import os
 import re
+from django.core.exceptions import ValidationError
 
 from rest_framework import status
 
@@ -69,3 +70,34 @@ def is_scac_valid(scac):
         result["message"] = "scac length should be 2-4 characters and contain upper case letters only"
         result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
     return result
+
+
+def ein_validation(ein):
+    pattern = r'^\d{2}-\d{7}$'
+    result = {
+        "isValid": False,
+        "message": "",
+        "errorStatus": ""
+    }
+    if re.match(pattern, ein):
+        result["isValid"] = True
+    else:
+        result["message"] = "Invalid EIN format. It should be in the form XX-XXXXXXX where X is a digit."
+        result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERRORs
+    return result
+
+    
+def min_length_validation(value, min_length):
+    pattern = fr'^[\w\d-]{{{min_length},}}$'
+    result = {
+        "isValid": False,
+        "message": "",
+        "errorStatus": ""
+    }
+    if re.match(pattern, value):
+        result["isValid"] = True
+    else:
+        result["message"] = (f"Invalid format. It should be at least {min_length} characters long and can include letters, digits, and hyphens.")
+        result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
+    return result
+    

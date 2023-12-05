@@ -1,11 +1,5 @@
 from django.db import models
-from django.core.validators import MinLengthValidator, RegexValidator
 
-
-upper_case_only_validator = RegexValidator(
-    r'^[A-Z]*$',
-    'Only upper case letters are allowed.'
-)
 class Ticket(models.Model):
     email = models.EmailField(max_length=100, null=False, blank=False, unique=True)
     first_name = models.CharField(max_length=100, null=False, blank=False)
@@ -31,16 +25,14 @@ class Ticket(models.Model):
         blank=False,
     )
     EIN = models.CharField(
-        max_length=9,
+        max_length=10,
         null=False,
         blank=False,
         unique=True,
-        validators=[MinLengthValidator(9)],
     )
     scac = models.CharField(
         max_length=4,
         default="",
-        validators=[MinLengthValidator(2), upper_case_only_validator],
     )
     company_fax_number = models.CharField(
         max_length=100, default=""
@@ -55,7 +47,7 @@ class Ticket(models.Model):
     country = models.CharField(max_length=100, null=False, blank=False)
     insurance_provider = models.CharField(max_length=100, null=False, blank=False)
     insurance_policy_number = models.CharField(
-        max_length=20, null=False, blank=False, validators=[MinLengthValidator(8)]
+        max_length=20, null=False, blank=False,
     )
     insurance_type = models.CharField(max_length=100, null=False, blank=False)
     insurance_premium_amount = models.FloatField(null=False, blank=False)

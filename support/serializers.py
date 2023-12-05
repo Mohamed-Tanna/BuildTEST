@@ -115,6 +115,21 @@ class CreateTicketSerializer(serializers.Serializer):
                     {"details": scac_validity_result["message"]},
                     status=scac_validity_result["errorStatus"],
                 )
+        if "EIN" in validated_data:
+            ein_validity_result = utils.ein_validation(validated_data["EIN"])
+            if not ein_validity_result["isValid"]:
+                return Response(
+                    {"details": ein_validity_result["message"]},
+                    status=ein_validity_result["errorStatus"],
+                )
+        if "insurance_policy_number" in validated_data:
+            IPN_validity_result = utils.min_length_validation(validated_data["insurance_policy_number"], 8)
+            if not IPN_validity_result["isValid"]:
+                return Response(
+                    {"details": IPN_validity_result["message"]},
+                    status=IPN_validity_result["errorStatus"],
+                )
+        
         obj = models.Ticket(
             email=validated_data["email"],
             first_name=validated_data["first_name"],
