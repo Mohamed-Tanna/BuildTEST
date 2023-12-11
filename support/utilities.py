@@ -5,7 +5,6 @@ from rest_framework import status
 
 from document.utilities import get_storage_client
 from django.template.loader import get_template
-from django.utils.html import strip_tags
 from django.core.mail import EmailMultiAlternatives
 
 from support.models import Ticket
