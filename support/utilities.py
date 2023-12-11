@@ -1,6 +1,5 @@
 import os
 import re
-from django.core.exceptions import ValidationError
 
 from rest_framework import status
 
@@ -37,7 +36,6 @@ def send_request_result(subject, template, to, password_or_reason, company_name)
             "company_name": company_name,
         }
     )
-    text_content = strip_tags(html_content)
     message = EmailMultiAlternatives(
         subject=subject,
         body=html_content,
@@ -86,7 +84,7 @@ def ein_validation(ein):
         result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERRORs
     return result
 
-    
+
 def min_length_validation(value, min_length):
     pattern = fr'^[\w\d-]{{{min_length},}}$'
     result = {
@@ -97,7 +95,7 @@ def min_length_validation(value, min_length):
     if re.match(pattern, value):
         result["isValid"] = True
     else:
-        result["message"] = (f"Invalid format. It should be at least {min_length} characters long and can include letters, digits, and hyphens.")
+        result["message"] = (
+            f"Invalid format. It should be at least {min_length} characters long and can include letters, digits, and hyphens.")
         result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
     return result
-    
