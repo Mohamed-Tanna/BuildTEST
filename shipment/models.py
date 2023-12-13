@@ -232,8 +232,28 @@ class Claim(models.Model):
         ],
         max_length=11,
     )
-    info = models.TextField(blank=False, null=False)
+    description_of_loss = models.TextField(blank=False, null=False)
     evidences = models.TextField(null=False, blank=True)
+    commodity_type = models.CharField(
+        null=False,
+        blank=False
+    )
+    commodity_description = models.TextField(
+        blank=True,
+        null=False
+    )
+    type_of_loss = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("damaged", "damaged"),
+            ("lost", "lost"),
+            ("delayed", "delayed"),
+        ],
+        max_length=7,
+    )
+    Date_of_loss = models.DateField(null=False)
+   
 
 
 class ClaimMessage(models.Model):
@@ -251,8 +271,14 @@ class ClaimMessage(models.Model):
         ],
         max_length=10,
     )
-    message = models.TextField(blank=False, null=False)
-    evidences = models.TextField(null=False, blank=True)
+    message = models.TextField(
+          blank=False,
+          null=False
+    )
+    evidences = models.TextField(
+        null=False,
+        blank=True
+    )
 
     class Meta:
         unique_together = ('claim_id', 'claimer', 'role')
