@@ -39,6 +39,8 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 
+from freightmonster.thread import ThreadWithReturnValue
+
 NOT_AUTH_MSG = "You are not authorized to view this document."
 ERR_FIRST_PART = "should either include a `queryset` attribute,"
 ERR_SECOND_PART = "or override the `get_queryset()` method."
@@ -720,259 +722,64 @@ class DashboardView(APIView):
         if filter_query.exists() is False:
             raise exceptions.NotFound(detail="No loads found.")
         delivered_loads = filter_query.filter(status="Delivered")
-        result = {}
-        cards = {}
-        cards["total"] = filter_query.count()
-        cards["pending"] = filter_query.filter(
-            status__in=[
-                "Created",
-                AWAITING_CUSTOMER,
-                ASSIGNING_CARRIER,
-                AWAITING_CARRIER,
-                AWAITING_DISPATCHER,
-            ]
-        ).count()
+        result = dict()
 
-        cards["ready_for_pick_up"] = filter_query.filter(
-            status=READY_FOR_PICKUP).count()
-        cards["in_transit"] = filter_query.filter(status=IN_TRANSIT).count()
-        cards["delivered"] = delivered_loads.count()
-        cards["canceled"] = filter_query.filter(status="Canceled").count()
-
-        # loads = filter_query.order_by("-id")[:3]
-
-        # loads = ship_serializers.LoadListSerializer(loads, many=True).data
-        # cards["loads"] = loads
-        result["cards"] = cards
-        result["chart"] = []
-
-        year = datetime.now().year
-        for i in range(1, 13):
-            monthly_loads = filter_query.filter(
-                created_at__month=i, created_at__year=year)
-            obj = {}
-            obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
-            if monthly_loads.exists() is False:
-                obj["total"] = 0
-                obj["pending"] = 0
-                obj["ready_for_pick_up"] = 0
-                obj["in_transit"] = 0
-                obj["delivered"] = 0
-                obj["canceled"] = 0
-                result["chart"].append(obj)
-                continue
-            obj["total"] = monthly_loads.count()
-            obj["pending"] = monthly_loads.filter(
-                status__in=[
-                    "Created",
-                    AWAITING_CUSTOMER,
-                    ASSIGNING_CARRIER,
-                    AWAITING_CARRIER,
-                    AWAITING_DISPATCHER,
-                ]
-            ).count()
-
-            obj["ready_for_pick_up"] = monthly_loads.filter(
-                status=READY_FOR_PICKUP
-            ).count()
-            obj["in_transit"] = monthly_loads.filter(status=IN_TRANSIT).count()
-            obj["delivered"] = monthly_loads.filter(status="Delivered").count()
-            obj["canceled"] = monthly_loads.filter(status="Canceled").count()
-            result["chart"].append(obj)
-
-        # getting number of FTL,LTL, heavy haul loads
-        ftl = filter_query.filter(load_type="FTL").count()
-        ltl = filter_query.filter(load_type="LTL").count()
-        heavy_haul = filter_query.filter(weight__gte=80000).count()
-
-        result["load_types"] = {
-            "ftl": ftl,
-            "ltl": ltl,
-            "hhl": heavy_haul,
-        }
-
-        # Get bar charts for cost of shipping to each carrier
-        carrier_offers = ship_models.Offer.objects.filter(
-            load__in=delivered_loads, status="Accepted", to="carrier"
+        dashboard_card_thread = ThreadWithReturnValue(
+            target=utils.create_dashboard_cards,
+            args=(filter_query, delivered_loads,)
         )
+        dashboard_card_thread.start()
 
-        carriers = carrier_offers.values_list("party_2", flat=True).distinct()
-        result["carrier_offers"] = []
-
-        result["carriers_chart"] = []
-
-        for carrier in carriers:
-            carrier_queryset = carrier_offers.filter(
-                party_2=carrier)
-            aggregates = carrier_queryset.aggregate(sum=Sum("current"))
-            carrier = auth_models.AppUser.objects.get(id=carrier).user
-            obj = {}
-            obj["name"] = carrier.username
-            if aggregates["sum"] is None:
-                obj["total"] = 0
-                result["carrier_offers"].append(obj)
-                continue
-            obj["total"] = aggregates["sum"]
-            result["carrier_offers"].append(obj)
-
-            # THIS SECTION IS FOR MONTHLY CHARTS FOR EACH CARRIER
-            # result["carriers_chart"][carrier.username] = []
-            # for i in range(1, 13):
-            #     monthly_loads = filter_query.filter(
-            #         created_at__month=i, created_at__year=year)
-            #     carriers_monthly_loads = carrier_queryset.filter(
-            #         load__in=monthly_loads)
-            #     obj = {}
-            #     obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
-            #     if carriers_monthly_loads.exists() is False:
-            #         obj["total"] = 0
-            #         result["carriers_chart"][carrier.username].append(obj)
-            #         continue
-            #     obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
-            #         "sum"]
-            #     result["carriers_chart"][carrier.username].append(obj)
-
-        # Get bar charts for cost of shipping to each customer
-        customer_offers = ship_models.Offer.objects.filter(
-            load__in=delivered_loads, status="Accepted", to="customer"
+        dashboard_chart_thread = ThreadWithReturnValue(
+            target=utils.create_dashboard_chart,
+            args=(filter_query,)
         )
+        dashboard_chart_thread.start()
 
-        customers = customer_offers.values_list(
-            "party_2", flat=True).distinct()
-        result["customer_offers"] = []
+        dashboard_load_types_thread = ThreadWithReturnValue(
+            target=utils.create_dashboard_load_types,
+            args=(filter_query,)
+        )
+        dashboard_load_types_thread.start()
 
-        result["customers_chart"] = []
+        dashboard_offers_info_thread = ThreadWithReturnValue(
+            target=utils.create_dashboard_offers_info,
+            args=(delivered_loads,)
+        )
+        dashboard_offers_info_thread.start()
 
-        for customer in customers:
-            aggregates = customer_offers.filter(
-                party_2=customer).aggregate(sum=Sum("current"))
-            customer = auth_models.AppUser.objects.get(id=customer).user
-            obj = {}
-            obj["name"] = customer.username
-            if aggregates["sum"] is None:
-                obj["total"] = 0
-                result["customer_offers"].append(obj)
-                continue
-            obj["total"] = aggregates["sum"]
-            result["customer_offers"].append(obj)
+        dashboard_equipments_thread = ThreadWithReturnValue(
+            target=utils.create_dashboard_equipment,
+            args=(filter_query,)
+        )
+        dashboard_equipments_thread.start()
 
-            # THIS SECTION IS FOR MONTHLY CHARTS FOR EACH CUSTOMER
-            # result["customers_chart"][customer.username] = []
-            # for i in range(1, 13):
-            #     monthly_loads = filter_query.filter(
-            #         created_at__month=i, created_at__year=year)
-            #     carriers_monthly_loads = carrier_queryset.filter(
-            #         load__in=monthly_loads)
-            #     obj = {}
-            #     obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
-            #     if carriers_monthly_loads.exists() is False:
-            #         obj["total"] = 0
-            #         result["customers_chart"][customer.username].append(obj)
-            #         continue
-            #     obj["total"] = carriers_monthly_loads.aggregate(sum=Sum("current"))[
-            #         "sum"]
-            #     result["customers_chart"][customer.username].append(obj)
+        dashboard_top_employees_thread = ThreadWithReturnValue(
+            target=utils.create_dashboard_top_employees,
+            args=(delivered_loads,)
+        )
+        dashboard_top_employees_thread.start()
 
-        # Profit Analysis
-        total_paid = carrier_offers.aggregate(sum=Sum("current"))["sum"]
-        total_received = customer_offers.aggregate(sum=Sum("current"))["sum"]
-        revenue = total_received - total_paid
-        result["total_paid"] = total_paid
-        result["total_received"] = total_received
-        # TODO: Revenue should be calculated based on the date range (this_month, this_year)
-        result["revenue"] = revenue
+        dashboard_delivery_performance = ThreadWithReturnValue(
+            target=utils.get_dashboard_delivery_performance,
+            args=(delivered_loads,)
+        )
+        dashboard_delivery_performance.start()
 
-        result["profit_summary_chart"] = {}
-
-        result["profit_summary_chart"]["year"] = []
-        for i in range(1, 13):
-            total_paid = carrier_offers.filter(
-                created_at__month=i, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
-            if total_paid is None:
-                total_paid = 0
-            total_received = customer_offers.filter(
-                created_at__month=i, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
-            if total_received is None:
-                total_received = 0
-            revenue = total_received - total_paid
-            obj = {}
-            obj["name"] = datetime.strptime(str(i), "%m").strftime("%b")
-            obj["total_paid"] = total_paid
-            obj["total_received"] = total_received
-            obj["revenue"] = revenue
-
-            result["profit_summary_chart"]["year"].append(obj)
-
-        month = datetime.now().month
-        result["profit_summary_chart"]["month"] = []
-        for i in range(1, 32):
-            total_paid = carrier_offers.filter(
-                created_at__day=i, created_at__month=month, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
-            if total_paid is None:
-                total_paid = 0
-            total_received = customer_offers.filter(
-                created_at__day=i, created_at__month=month, created_at__year=year).aggregate(sum=Sum("current"))["sum"]
-            if total_received is None:
-                total_received = 0
-            revenue = total_received - total_paid
-            obj = {}
-            obj["name"] = datetime.strptime(str(i), "%d").strftime("%d")
-            obj["total_paid"] = total_paid
-            obj["total_received"] = total_received
-            obj["revenue"] = revenue
-
-            result["profit_summary_chart"]["month"].append(obj)
-
-        # Get top 5-10 equipments used with number of uses
-        equipments = filter_query.values("equipment").annotate(
-            equipment_count=Count("equipment")).order_by("-equipment_count")[:5]
-        result["equipments"] = {}
-        count = 0
-        for equipment in equipments:
-            result["equipments"][count] = {
-                "name": equipment["equipment"],
-                "count": equipment["equipment_count"]
-            }
-            count += 1
-
-        # Get top 5 employees(dispatchers) in terms of number of loads and revenue
-        dispatchers = delivered_loads.values("dispatcher").annotate(
-            load_count=Count("dispatcher")).order_by("-load_count")[:5]
-        result["top_employees"] = {}
-        count = 0
-        for dispatcher in dispatchers:
-            # Get Revenue for each dispatcher
-            received_from_customers = ship_models.Offer.objects.filter(
-                load__in=delivered_loads, status="Accepted", to="customer", party_1=dispatcher["dispatcher"]
-            ).aggregate(sum=Sum("current"))['sum']
-            paid_to_carriers = ship_models.Offer.objects.filter(
-                load__in=delivered_loads, status="Accepted", to="carrier", party_1=dispatcher["dispatcher"]
-            ).aggregate(sum=Sum("current"))['sum']
-            if received_from_customers is None:
-                received_from_customers = 0
-            if paid_to_carriers is None:
-                paid_to_carriers = 0
-            revenue_for_dispatcher = received_from_customers - paid_to_carriers
-            dispatcher_user = auth_models.Dispatcher.objects.get(
-                id=dispatcher["dispatcher"]).app_user.user
-
-            result["top_employees"][count] = {
-                "name": dispatcher_user.username,
-                "email": dispatcher_user.email,
-                "load_count": dispatcher["load_count"],
-                "revenue": revenue_for_dispatcher
-            }
-            count += 1
-
-        # Delivery Performance
-        on_time = delivered_loads.filter(
-            actual_delivery_date__lte=F("delivery_date")).count()
-        late = delivered_loads.filter(
-            actual_delivery_date__gt=F("delivery_date")).count()
-        result["delivery_performance"] = {
-            "on_time": on_time,
-            "late": late,
-            "missed": 0,  # TODO: Implement this
-        }
+        result["cards"] = dashboard_card_thread.join()
+        result["chart"] = dashboard_chart_thread.join()
+        result["load_types"] = dashboard_load_types_thread.join()
+        dashboard_offers_info_result = dashboard_offers_info_thread.join()
+        result["carrier_offers"] = dashboard_offers_info_result["carrier_offers"]
+        result["carriers_chart"] = dashboard_offers_info_result["carriers_chart"]
+        result["customer_offers"] = dashboard_offers_info_result["customer_offers"]
+        result["customers_chart"] = dashboard_offers_info_result["customers_chart"]
+        result["total_paid"] = dashboard_offers_info_result["total_paid"]
+        result["total_received"] = dashboard_offers_info_result["total_received"]
+        result["revenue"] = dashboard_offers_info_result["total_received"]
+        result["profit_summary_chart"] = dashboard_offers_info_result["profit_summary_chart"]
+        result["equipments"] = dashboard_equipments_thread.join()
+        result["top_employees"] = dashboard_top_employees_thread.join()
+        result["delivery_performance"] = dashboard_delivery_performance.join()
 
         return Response(data=result, status=status.HTTP_200_OK)
