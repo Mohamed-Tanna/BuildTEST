@@ -254,3 +254,10 @@ def get_load_party_by_id(load, app_user_id):
         return load_consignee
     else:
         return None
+
+
+def is_there_claim_for_load_id(load_id):
+    claims = models.Claim.objects.get(load=load_id)
+    if not claims:
+        return False
+    return True

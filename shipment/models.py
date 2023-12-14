@@ -184,8 +184,8 @@ class ShipmentAdmin(models.Model):
 
 
 class Claim(models.Model):
-    load_id = models.OneToOneField(to=Load, on_delete=models.CASCADE)
-    claimant = models.OneToOneField(
+    load = models.OneToOneField(to=Load, on_delete=models.CASCADE)
+    claimant = models.ForeignKey(
         to=AppUser,
         related_name='claim_claimant',
         null=False,
@@ -203,7 +203,7 @@ class Claim(models.Model):
         ],
         max_length=10,
     )
-    claimed_on = models.OneToOneField(
+    claimed_on = models.ForeignKey(
         to=AppUser,
         related_name='claim_claimed_on',
         null=False,
@@ -240,7 +240,8 @@ class Claim(models.Model):
     )
     commodity_description = models.TextField(
         blank=True,
-        null=False
+        null=False,
+        default=""
     )
     type_of_loss = models.CharField(
         null=False,

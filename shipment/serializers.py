@@ -119,7 +119,19 @@ class ShipmentSerializer(serializers.ModelSerializer):
         return rep
 
 
+class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Claim
+        fields = "__all__"
+        extra_kwargs = {
+            "commodity_description": {"required": False},
+        }
+        read_only_fields = ("id", "created_at")
+
+
 class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
+    claim = ClaimCreateRetrieveSerializer(many=False, read_only=True)
+
     class Meta:
         model = models.Load
         fields = "__all__"
@@ -154,6 +166,8 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             "state": instance.destination.address.state,
         }
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
+        if hasattr(instance, 'claim'):
+            rep['claim'] = ClaimCreateRetrieveSerializer(instance.claim).data
 
         return rep
 

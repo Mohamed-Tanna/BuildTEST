@@ -2449,7 +2449,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ClaimedOnLoadParties(APIView):
+class ClaimedOnLoadPartiesView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
     @staticmethod
@@ -2476,3 +2476,46 @@ class ClaimedOnLoadParties(APIView):
             {"parties": claimed_on_serializer.data},
             status=status.HTTP_200_OK,
         )
+
+
+class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+    serializer_class = serializers.ClaimCreateRetrieveSerializer
+    queryset = models.Claim.objects.all()
+    lookup_field = 'load'
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data
+        app_user = models.AppUser.objects.get(user=request.user)
+        if utils.is_there_claim_for_load_id(mutable_request_data["load_id"]):
+            return Response(
+                {"details": "Claim on this load already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        mutable_request_data["claimant"] = str(app_user.id)
+        mutable_request_data["status"] = "negotiation"
+        serializer = self.get_serializer(data=mutable_request_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        claim_object = self.get_object()
+        app_user_id = models.AppUser.objects.get(user=request.user.id).id
+        user_load_party = utils.get_load_party_by_id(claim_object.load, app_user_id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = self.get_serializer(claim_object)
+        return Response(serializer.data)
