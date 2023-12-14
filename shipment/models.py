@@ -88,7 +88,7 @@ class Load(models.Model):
     equipment = models.CharField(max_length=255, null=False, blank=False)
     goods_info = models.CharField(
         choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
-    ) #Hazardous materials
+    )  # Hazardous materials
     load_type = models.CharField(
         choices=[("LTL", "LTL"), ("FTL", "FTL")],
         max_length=3,
@@ -181,3 +181,104 @@ class ShipmentAdmin(models.Model):
 
     class Meta:
         unique_together = (("shipment", "admin"),)
+
+
+class Claim(models.Model):
+    load_id = models.OneToOneField(to=Load, on_delete=models.CASCADE)
+    claimant = models.OneToOneField(
+        to=AppUser,
+        related_name='claim_claimant',
+        null=False,
+        on_delete=models.CASCADE
+    )
+    claimant_role = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("customer", "customer"),
+            ("carrier", "carrier"),
+            ("shipper", "shipper"),
+            ("consignee", "consignee"),
+            ("dispatcher", "dispatcher")
+        ],
+        max_length=10,
+    )
+    claimed_on = models.OneToOneField(
+        to=AppUser,
+        related_name='claim_claimed_on',
+        null=False,
+        on_delete=models.CASCADE
+    )
+    claimed_on_role = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("customer", "customer"),
+            ("carrier", "carrier"),
+            ("shipper", "shipper"),
+            ("consignee", "consignee"),
+            ("dispatcher", "dispatcher")
+        ],
+        max_length=10,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("negotiation", "negotiation"),
+            ("resolved", "resolved"),
+            ("unresolved", "unresolved"),
+        ],
+        max_length=11,
+    )
+    description_of_loss = models.TextField(blank=False, null=False)
+    evidences = models.TextField(null=False, blank=True)
+    commodity_type = models.CharField(
+        null=False,
+        blank=False
+    )
+    commodity_description = models.TextField(
+        blank=True,
+        null=False
+    )
+    type_of_loss = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("damaged", "damaged"),
+            ("lost", "lost"),
+            ("delayed", "delayed"),
+        ],
+        max_length=7,
+    )
+    Date_of_loss = models.DateField(null=False)
+   
+
+
+class ClaimMessage(models.Model):
+    claim_id = models.ForeignKey(to=Claim, on_delete=models.CASCADE)
+    claimer = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
+    role = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("customer", "customer"),
+            ("carrier", "carrier"),
+            ("shipper", "shipper"),
+            ("consignee", "consignee"),
+            ("dispatcher", "dispatcher")
+        ],
+        max_length=10,
+    )
+    message = models.TextField(
+          blank=False,
+          null=False
+    )
+    evidences = models.TextField(
+        null=False,
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ('claim_id', 'claimer', 'role')
