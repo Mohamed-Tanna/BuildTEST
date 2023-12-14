@@ -189,7 +189,7 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
         if load_customer.app_user.id != app_user_id:
             result.append(
                 {
-                    "id": load_customer.app_user.user.id,
+                    "id": load_customer.app_user.id,
                     "name": load_customer.app_user.user.username,
                     "party_role": "customer"
                 }
@@ -197,7 +197,7 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
         if load_shipper.app_user.id != app_user_id:
             result.append(
                 {
-                    "id": load_shipper.app_user.user.id,
+                    "id": load_shipper.app_user.id,
                     "name": load_shipper.app_user.user.username,
                     "party_role": "shipper"
                 }
@@ -205,7 +205,7 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
         if load_dispatcher.app_user.id != app_user_id:
             result.append(
                 {
-                    "id": load_dispatcher.app_user.user.id,
+                    "id": load_dispatcher.app_user.id,
                     "name": load_dispatcher.app_user.user.username,
                     "party_role": "dispatcher"
                 }
@@ -213,7 +213,7 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
         if load_carrier.app_user.id != app_user_id:
             result.append(
                 {
-                    "id": load_carrier.app_user.user.id,
+                    "id": load_carrier.app_user.id,
                     "name": load_carrier.app_user.user.username,
                     "party_role": "carrier"
                 }
@@ -221,7 +221,7 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
         if load_consignee.app_user.id != app_user_id:
             result.append(
                 {
-                    "id": load_consignee.app_user.user.id,
+                    "id": load_consignee.app_user.id,
                     "name": load_consignee.app_user.user.username,
                     "party_role": "consignee"
                 }
