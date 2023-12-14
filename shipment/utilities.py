@@ -13,9 +13,9 @@ def get_shipment_party_by_username(username):
         user = auth_models.ShipmentParty.objects.get(app_user=user.id)
         return user
     except (
-        auth_models.User.DoesNotExist,
-        auth_models.AppUser.DoesNotExist,
-        auth_models.ShipmentParty.DoesNotExist,
+            auth_models.User.DoesNotExist,
+            auth_models.AppUser.DoesNotExist,
+            auth_models.ShipmentParty.DoesNotExist,
     ):
         raise exceptions.NotFound(detail="shipment party does not exist.")
     except BaseException as e:
@@ -30,9 +30,9 @@ def get_carrier_by_username(username):
         user = auth_models.Carrier.objects.get(app_user=user.id)
         return user
     except (
-        auth_models.User.DoesNotExist,
-        auth_models.AppUser.DoesNotExist,
-        auth_models.Carrier.DoesNotExist,
+            auth_models.User.DoesNotExist,
+            auth_models.AppUser.DoesNotExist,
+            auth_models.Carrier.DoesNotExist,
     ):
         raise exceptions.NotFound(detail="carrier does not exist.")
     except BaseException as e:
@@ -47,9 +47,9 @@ def get_dispatcher_by_username(username):
         user = auth_models.Dispatcher.objects.get(app_user=user.id)
         return user
     except (
-        auth_models.User.DoesNotExist,
-        auth_models.AppUser.DoesNotExist,
-        auth_models.Dispatcher.DoesNotExist,
+            auth_models.User.DoesNotExist,
+            auth_models.AppUser.DoesNotExist,
+            auth_models.Dispatcher.DoesNotExist,
     ):
         raise exceptions.NotFound(detail="dispatcher does not exist.")
     except BaseException as e:
@@ -140,26 +140,26 @@ def extract_billing_info(billing_info, party):
         billing_info = {
             "name": billing_info.name,
             "address": billing_info.address.address
-            + ", "
-            + billing_info.address.city
-            + ", "
-            + billing_info.address.state
-            + ", "
-            + billing_info.address.zip_code,
+                       + ", "
+                       + billing_info.address.city
+                       + ", "
+                       + billing_info.address.state
+                       + ", "
+                       + billing_info.address.zip_code,
             "phone_number": billing_info.phone_number,
         }
     if isinstance(billing_info, auth_models.UserTax):
         billing_info = {
             "name": party.app_user.user.first_name
-            + ", "
-            + party.app_user.user.last_name,
+                    + ", "
+                    + party.app_user.user.last_name,
             "address": billing_info.address.address
-            + ", "
-            + billing_info.address.city
-            + ", "
-            + billing_info.address.state
-            + ", "
-            + billing_info.address.zip_code,
+                       + ", "
+                       + billing_info.address.city
+                       + ", "
+                       + billing_info.address.state
+                       + ", "
+                       + billing_info.address.zip_code,
             "phone_number": party.app_user.phone_number,
         }
 
@@ -212,9 +212,9 @@ def apply_load_access_filters_for_user(filter_query, app_user: auth_models.AppUs
         try:
             shipment_party = models.ShipmentParty.objects.get(app_user=app_user.id)
             filter_query |= (
-                Q(shipper=shipment_party.id)
-                | Q(consignee=shipment_party.id)
-                | Q(customer=shipment_party.id)
+                    Q(shipper=shipment_party.id)
+                    | Q(consignee=shipment_party.id)
+                    | Q(customer=shipment_party.id)
             )
         except models.ShipmentParty.DoesNotExist:
             pass
@@ -225,7 +225,7 @@ def apply_load_access_filters_for_user(filter_query, app_user: auth_models.AppUs
             filter_query |= Q(dispatcher=dispatcher.id)
         except models.Dispatcher.DoesNotExist:
             pass
-        
+
     elif app_user.selected_role == "carrier":
         try:
             carrier = models.Carrier.objects.get(app_user=app_user.id)
@@ -234,3 +234,23 @@ def apply_load_access_filters_for_user(filter_query, app_user: auth_models.AppUs
             pass
 
     return filter_query
+
+
+def get_load_party_by_id(load, app_user_id):
+    load_customer = load.customer
+    load_shipper = load.shipper
+    load_dispatcher = load.dispatcher
+    load_carrier = load.carrier
+    load_consignee = load.consignee
+    if load_customer.app_user.id == app_user_id:
+        return load_customer
+    elif load_shipper.app_user.id == app_user_id:
+        return load_shipper
+    elif load_dispatcher.app_user.id == app_user_id:
+        return load_dispatcher
+    elif load_carrier.app_user.id == app_user_id:
+        return load_carrier
+    elif load_consignee.app_user.id == app_user_id:
+        return load_consignee
+    else:
+        return None

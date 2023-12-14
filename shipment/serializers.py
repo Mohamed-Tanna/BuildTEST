@@ -169,3 +169,61 @@ class ShipmentAdminSerializer(serializers.ModelSerializer):
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
         return rep
+
+
+class ClaimedOnSerializer(serializers.ModelSerializer):
+    claimed_on_parties = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Load
+        fields = ['claimed_on_parties']
+
+    def get_claimed_on_parties(self, load):
+        result = []
+        app_user_id = self.context.get('app_user_id')
+        load_customer = load.customer
+        load_shipper = load.shipper
+        load_dispatcher = load.dispatcher
+        load_carrier = load.carrier
+        load_consignee = load.consignee
+        if load_customer.app_user.id != app_user_id:
+            result.append(
+                {
+                    "id": load_customer.app_user.user.id,
+                    "name": load_customer.app_user.user.username,
+                    "party_role": "customer"
+                }
+            )
+        if load_shipper.app_user.id != app_user_id:
+            result.append(
+                {
+                    "id": load_shipper.app_user.user.id,
+                    "name": load_shipper.app_user.user.username,
+                    "party_role": "shipper"
+                }
+            )
+        if load_dispatcher.app_user.id != app_user_id:
+            result.append(
+                {
+                    "id": load_dispatcher.app_user.user.id,
+                    "name": load_dispatcher.app_user.user.username,
+                    "party_role": "dispatcher"
+                }
+            )
+        if load_carrier.app_user.id != app_user_id:
+            result.append(
+                {
+                    "id": load_carrier.app_user.user.id,
+                    "name": load_carrier.app_user.user.username,
+                    "party_role": "carrier"
+                }
+            )
+        if load_consignee.app_user.id != app_user_id:
+            result.append(
+                {
+                    "id": load_consignee.app_user.user.id,
+                    "name": load_consignee.app_user.user.username,
+                    "party_role": "consignee"
+                }
+            )
+        return result

@@ -218,7 +218,7 @@ class FacilityView(
 
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         queryset = models.Facility.objects.filter(owner=self.request.user.id)
 
@@ -685,7 +685,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         )
 
     def _check_facility_belongs_to_shipment_parties(
-        self, pick_up_location_id, destination_id, shipper_username, consignee_username
+            self, pick_up_location_id, destination_id, shipper_username, consignee_username
     ):
         pick_up_location = get_object_or_404(
             models.Facility, id=pick_up_location_id)
@@ -772,7 +772,7 @@ class ListLoadView(GenericAPIView, ListModelMixin):
         queryset = self.queryset
 
         assert queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         app_user = models.AppUser.objects.get(user=self.request.user.id)
@@ -827,16 +827,16 @@ class RetrieveLoadView(
             authorized = True
 
         elif (
-            app_user.selected_role == "dispatcher"
-            and instance.dispatcher
-            == utils.get_dispatcher_by_username(username=request.user.username)
+                app_user.selected_role == "dispatcher"
+                and instance.dispatcher
+                == utils.get_dispatcher_by_username(username=request.user.username)
         ):
             authorized = True
 
         elif (
-            app_user.selected_role == "carrier"
-            and instance.carrier
-            == utils.get_carrier_by_username(username=request.user.username)
+                app_user.selected_role == "carrier"
+                and instance.carrier
+                == utils.get_carrier_by_username(username=request.user.username)
         ):
             authorized = True
 
@@ -845,13 +845,12 @@ class RetrieveLoadView(
                 username=request.user.username
             )
             if (
-                instance.shipper == shipment_party
-                or instance.consignee == shipment_party
-                or instance.customer == shipment_party
+                    instance.shipper == shipment_party
+                    or instance.consignee == shipment_party
+                    or instance.customer == shipment_party
             ):
                 authorized = True
 
-    
         try:
             models.ShipmentAdmin.objects.get(
                 shipment=shipment, admin=app_user)
@@ -983,7 +982,7 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
     # override
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         queryset = models.Contact.objects.filter(origin=self.request.user.id)
         if isinstance(queryset, QuerySet):
@@ -1092,7 +1091,7 @@ class ShipmentView(
     # override
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         shipments = models.ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
@@ -1183,7 +1182,7 @@ class ShipmentFilterView(GenericAPIView, ListModelMixin):
 
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         try:
@@ -1254,7 +1253,7 @@ class FacilityFilterView(GenericAPIView, ListModelMixin):
     # override
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         username = None
         keyword = ""
@@ -1327,7 +1326,7 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
     # override
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         if "type" in self.request.data:
@@ -1342,8 +1341,8 @@ class ContactFilterView(GenericAPIView, ListModelMixin):
                     contact__user__username__icontains=keyword,
                 ).values_list("contact", flat=True)
                 tax_query = (
-                    Q(companyemployee__isnull=False) | Q(usertax__isnull=False)
-                ) & (Q(id__in=contacts))
+                                    Q(companyemployee__isnull=False) | Q(usertax__isnull=False)
+                            ) & (Q(id__in=contacts))
                 tax_app_users = models.AppUser.objects.filter(tax_query).values_list(
                     "id", flat=True
                 )
@@ -1418,7 +1417,7 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
 
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         shipment_id = self.request.data.get("shipment")
@@ -1432,8 +1431,8 @@ class LoadFilterView(GenericAPIView, ListModelMixin):
                     shipment=shipment_id
                 ).values_list("admin", flat=True)
                 if (
-                    app_user.id not in shipment_admins
-                    and shipment.created_by != app_user
+                        app_user.id not in shipment_admins
+                        and shipment.created_by != app_user
                 ):
                     return self.queryset.none()
 
@@ -1611,7 +1610,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
 
     def _process_accept_action(
-        self, request, load: models.Load, instance: models.Offer, partial
+            self, request, load: models.Load, instance: models.Offer, partial
     ):
         original_instance, original_request = log_utils.get_original_instance_and_original_request(
             request, instance)
@@ -1668,7 +1667,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _process_reject_action(
-        self, request, load: models.Load, instance: models.Offer, partial
+            self, request, load: models.Load, instance: models.Offer, partial
     ):
         original_instance, original_request = log_utils.get_original_instance_and_original_request(
             request, instance)
@@ -1705,7 +1704,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         return Response(serializer.data)
 
     def _proccess_counter_action(
-        self, request, load: models.Load, instance: models.Offer, partial
+            self, request, load: models.Load, instance: models.Offer, partial
     ):
         original_instance, original_request = log_utils.get_original_instance_and_original_request(
             request, instance)
@@ -1717,7 +1716,7 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         app_user = utils.get_app_user_by_username(request.user.username)
         if (
-            SHIPMENT_PARTY in app_user.user_type or "carrier" in app_user.user_type
+                SHIPMENT_PARTY in app_user.user_type or "carrier" in app_user.user_type
         ) and (load.status == AWAITING_CUSTOMER or load.status == AWAITING_CARRIER):
             load.status = AWAITING_DISPATCHER
             load.save()
@@ -1893,30 +1892,30 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             shipment_name=load.shipment.name,
             shipper_username=shipper.app_user.user.username,
             shipper_full_name=shipper.app_user.user.first_name
-            + " "
-            + shipper.app_user.user.last_name,
+                              + " "
+                              + shipper.app_user.user.last_name,
             shipper_phone_number=shipper.app_user.phone_number,
             consignee_username=consignee.app_user.user.username,
             consignee_full_name=consignee.app_user.user.first_name
-            + " "
-            + consignee.app_user.user.last_name,
+                                + " "
+                                + consignee.app_user.user.last_name,
             consignee_phone_number=consignee.app_user.phone_number,
             dispatcher_username=dispatcher.app_user.user.username,
             dispatcher_full_name=dispatcher.app_user.user.first_name
-            + " "
-            + dispatcher.app_user.user.last_name,
+                                 + " "
+                                 + dispatcher.app_user.user.last_name,
             dispatcher_phone_number=dispatcher.app_user.phone_number,
             dispatcher_email=dispatcher.app_user.user.email,
             customer_username=customer.app_user.user.username,
             customer_full_name=customer.app_user.user.first_name
-            + " "
-            + customer.app_user.user.last_name,
+                               + " "
+                               + customer.app_user.user.last_name,
             customer_phone_number=customer.app_user.phone_number,
             customer_email=customer.app_user.user.email,
             carrier_username=carrier.app_user.user.username,
             carrier_full_name=carrier.app_user.user.first_name
-            + " "
-            + carrier.app_user.user.last_name,
+                              + " "
+                              + carrier.app_user.user.last_name,
             carrier_phone_number=carrier.app_user.phone_number,
             carrier_email=carrier.app_user.user.email,
             dispatcher_billing_name=dispatcher_billing["name"],
@@ -1930,20 +1929,20 @@ class OfferView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             customer_billing_phone_number=customer_billing["phone_number"],
             shipper_facility_name=pickup_facility.building_name,
             shipper_facility_address=pickup_facility.address.address
-            + ", "
-            + pickup_facility.address.city
-            + ", "
-            + pickup_facility.address.state
-            + ", "
-            + pickup_facility.address.zip_code,
+                                     + ", "
+                                     + pickup_facility.address.city
+                                     + ", "
+                                     + pickup_facility.address.state
+                                     + ", "
+                                     + pickup_facility.address.zip_code,
             consignee_facility_name=drop_off_facility.building_name,
             consignee_facility_address=drop_off_facility.address.address
-            + ", "
-            + drop_off_facility.address.city
-            + ", "
-            + drop_off_facility.address.state
-            + ", "
-            + drop_off_facility.address.zip_code,
+                                       + ", "
+                                       + drop_off_facility.address.city
+                                       + ", "
+                                       + drop_off_facility.address.state
+                                       + ", "
+                                       + drop_off_facility.address.zip_code,
             pickup_date=load.pick_up_date,
             dropoff_date=load.delivery_date,
             length=load.length,
@@ -2102,7 +2101,7 @@ class ShipmentAdminView(
     # override
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
 
         if self.request.GET.get("id"):
@@ -2206,7 +2205,7 @@ class UpdateLoadStatus(APIView):
                 doc_models.FinalAgreement, load_id=load_id
             )
             if not (
-                final_agreement.did_carrier_agree and final_agreement.did_customer_agree
+                    final_agreement.did_carrier_agree and final_agreement.did_customer_agree
             ):
                 return Response(
                     {"details": "This agreement is not finalized yet."},
@@ -2432,7 +2431,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
 
     def get_queryset(self):
         assert self.queryset is not None, (
-            f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
+                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
         )
         search = self.request.data.get("search", None)
         if search is None:
@@ -2448,3 +2447,32 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
             queryset = queryset.all()
 
         return queryset
+
+
+class ClaimedOnLoadParties(APIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+
+    @staticmethod
+    def get(request, *args, **kwargs):
+        load_id = request.query_params.get("load_id", None)
+        if load_id is None:
+            return Response(
+                {"details": "Load ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        app_user_id = models.AppUser.objects.get(user=request.user.id).id
+        load = get_object_or_404(models.Load, id=load_id)
+        user_load_party = utils.get_load_party_by_id(load, app_user_id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        claimed_on_serializer = serializers.ClaimedOnSerializer(
+            load,
+            context={"app_user_id": app_user_id}
+        )
+        return Response(
+            {"parties": claimed_on_serializer.data},
+            status=status.HTTP_200_OK,
+        )
