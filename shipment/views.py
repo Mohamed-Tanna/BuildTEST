@@ -2473,7 +2473,7 @@ class ClaimedOnLoadPartiesView(APIView):
             context={"app_user_id": app_user_id}
         )
         return Response(
-            {"parties": claimed_on_serializer.data},
+            {claimed_on_serializer.data},
             status=status.HTTP_200_OK,
         )
 
@@ -2482,7 +2482,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
     permission_classes = [IsAuthenticated, permissions.HasRole]
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
-    lookup_field = 'load'
+    lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
