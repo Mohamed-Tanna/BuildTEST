@@ -167,8 +167,9 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         }
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
         if hasattr(instance, 'claim'):
-            rep['claim'] = ClaimCreateRetrieveSerializer(instance.claim).data
-
+            rep['claim'] = {
+                "id": ClaimCreateRetrieveSerializer(instance.claim).data.get("id")
+            }
         return rep
 
 
@@ -217,7 +218,6 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
             load.carrier: "carrier",
             load.consignee: "consignee"
         }
-
         for party, role in party_roles.items():
             if party.app_user.id != app_user_id:
                 result.append(
