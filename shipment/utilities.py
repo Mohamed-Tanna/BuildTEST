@@ -3,6 +3,9 @@ from django.db.models import Q
 import shipment.models as models
 import authentication.models as auth_models
 import rest_framework.exceptions as exceptions
+
+from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
+    AWAITING_DISPATCHER
 from notifications.utilities import handle_notification
 
 
@@ -237,27 +240,32 @@ def apply_load_access_filters_for_user(filter_query, app_user: auth_models.AppUs
 
 
 def get_load_party_by_id(load, app_user_id):
-    load_customer = load.customer
-    load_shipper = load.shipper
-    load_dispatcher = load.dispatcher
-    load_carrier = load.carrier
-    load_consignee = load.consignee
-    if load_customer.app_user.id == app_user_id:
-        return load_customer
-    elif load_shipper.app_user.id == app_user_id:
-        return load_shipper
-    elif load_dispatcher.app_user.id == app_user_id:
-        return load_dispatcher
-    elif load_carrier.app_user.id == app_user_id:
-        return load_carrier
-    elif load_consignee.app_user.id == app_user_id:
-        return load_consignee
-    else:
-        return None
+    load_parties = {
+        "customer": load.customer,
+        "shipper": load.shipper,
+        "dispatcher": load.dispatcher,
+        "carrier": load.carrier,
+        "consignee": load.consignee
+    }
+    for key, value in load_parties.items():
+        if value is not None and value.app_user.id == app_user_id:
+            return value
+    return None
 
 
 def is_there_claim_for_load_id(load_id):
-    claims = models.Claim.objects.get(load=load_id)
-    if not claims:
+    try:
+        models.Claim.objects.get(load=load_id)
+        return True
+    except models.Claim.DoesNotExist:
         return False
-    return True
+
+
+def is_load_status_valid_to_create_claim(status):
+    return not (
+            status == CREATED or
+            status == AWAITING_CUSTOMER or
+            status == AWAITING_CARRIER or
+            status == ASSIGNING_CARRIER or
+            status == AWAITING_DISPATCHER
+    )
