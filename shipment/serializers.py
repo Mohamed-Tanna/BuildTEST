@@ -192,52 +192,39 @@ class ClaimedOnSerializer(serializers.ModelSerializer):
         model = models.Load
         fields = ['claimed_on_parties']
 
+    @staticmethod
+    def merge_same_parties_with_different_roles(list_of_parties):
+        merged_parties = {}
+        for party in list_of_parties:
+            party_id = party["id"]
+            if party_id not in merged_parties:
+                merged_parties[party_id] = {
+                    "id": party_id,
+                    "name": party["name"],
+                    "party_roles": [party["party_roles"][0]]
+                }
+            else:
+                merged_parties[party_id]["party_roles"].append(party["party_roles"][0])
+        return list(merged_parties.values())
+
     def get_claimed_on_parties(self, load):
         result = []
         app_user_id = self.context.get('app_user_id')
-        load_customer = load.customer
-        load_shipper = load.shipper
-        load_dispatcher = load.dispatcher
-        load_carrier = load.carrier
-        load_consignee = load.consignee
-        if load_customer.app_user.id != app_user_id:
-            result.append(
-                {
-                    "id": load_customer.app_user.id,
-                    "name": load_customer.app_user.user.username,
-                    "party_role": "customer"
-                }
-            )
-        if load_shipper.app_user.id != app_user_id:
-            result.append(
-                {
-                    "id": load_shipper.app_user.id,
-                    "name": load_shipper.app_user.user.username,
-                    "party_role": "shipper"
-                }
-            )
-        if load_dispatcher.app_user.id != app_user_id:
-            result.append(
-                {
-                    "id": load_dispatcher.app_user.id,
-                    "name": load_dispatcher.app_user.user.username,
-                    "party_role": "dispatcher"
-                }
-            )
-        if load_carrier.app_user.id != app_user_id:
-            result.append(
-                {
-                    "id": load_carrier.app_user.id,
-                    "name": load_carrier.app_user.user.username,
-                    "party_role": "carrier"
-                }
-            )
-        if load_consignee.app_user.id != app_user_id:
-            result.append(
-                {
-                    "id": load_consignee.app_user.id,
-                    "name": load_consignee.app_user.user.username,
-                    "party_role": "consignee"
-                }
-            )
-        return result
+        party_roles = {
+            load.customer: "customer",
+            load.shipper: "shipper",
+            load.dispatcher: "dispatcher",
+            load.carrier: "carrier",
+            load.consignee: "consignee"
+        }
+
+        for party, role in party_roles.items():
+            if party.app_user.id != app_user_id:
+                result.append(
+                    {
+                        "id": party.app_user.id,
+                        "name": party.app_user.user.username,
+                        "party_roles": [role]
+                    }
+                )
+        return self.merge_same_parties_with_different_roles(result)
