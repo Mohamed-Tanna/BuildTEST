@@ -2471,7 +2471,7 @@ class ClaimedOnLoadPartiesView(APIView):
             context={"app_user_id": app_user_id}
         )
         return Response(
-            {"data":claimed_on_serializer.data},
+            claimed_on_serializer.data,
             status=status.HTTP_200_OK,
         )
 
