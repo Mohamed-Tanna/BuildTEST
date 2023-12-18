@@ -1,42 +1,14 @@
 # Python imports
 from datetime import datetime
 
-# Module imports
-import shipment.models as models
-import shipment.utilities as utils
-import document.models as doc_models
-import shipment.serializers as serializers
-import authentication.permissions as permissions
-import logs.utilities as log_utils
-from authentication.utilities import create_address
-from notifications.utilities import handle_notification
-from shipment.utilities import send_notifications_to_load_parties
-
+import rest_framework.exceptions as exceptions
+from django.db import IntegrityError
 # Django imports
 from django.db.models import Q
+from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import QueryDict
-from django.db import IntegrityError
-from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
-
-# DRF imports
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-import rest_framework.exceptions as exceptions
-from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import serializers as drf_serializers
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.mixins import (
-    CreateModelMixin,
-    UpdateModelMixin,
-    RetrieveModelMixin,
-    ListModelMixin,
-    DestroyModelMixin,
-)
-
 # Third Party imports
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -45,6 +17,33 @@ from drf_spectacular.utils import (
     OpenApiExample,
     inline_serializer,
 )
+from rest_framework import serializers as drf_serializers
+# DRF imports
+from rest_framework import status
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import (
+    CreateModelMixin,
+    UpdateModelMixin,
+    RetrieveModelMixin,
+    ListModelMixin,
+    DestroyModelMixin,
+)
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+import authentication.permissions as permissions
+import document.models as doc_models
+import logs.utilities as log_utils
+# Module imports
+import shipment.models as models
+import shipment.serializers as serializers
+import shipment.utilities as utils
+from authentication.utilities import create_address
+from freightmonster.constants import CLAIM_NEGOTIATION_STATUS
+from notifications.utilities import handle_notification
+from shipment.utilities import send_notifications_to_load_parties
 
 IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
@@ -2449,7 +2448,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ClaimedOnLoadParties(APIView):
+class ClaimedOnLoadPartiesView(APIView):
     permission_classes = [IsAuthenticated, permissions.HasRole]
 
     @staticmethod
@@ -2473,6 +2472,63 @@ class ClaimedOnLoadParties(APIView):
             context={"app_user_id": app_user_id}
         )
         return Response(
-            {"parties": claimed_on_serializer.data},
+            claimed_on_serializer.data,
             status=status.HTTP_200_OK,
         )
+
+
+class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+    permission_classes = [IsAuthenticated, permissions.HasRole]
+    serializer_class = serializers.ClaimCreateRetrieveSerializer
+    queryset = models.Claim.objects.all()
+    lookup_field = 'id'
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        load = get_object_or_404(models.Load, id=mutable_request_data["load_id"])
+        user_load_party = utils.get_load_party_by_id(load, app_user.id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not utils.is_load_status_valid_to_create_claim(load.status):
+            return Response(
+                {"details": "You can't create a claim on the load cause of it's status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if utils.is_there_claim_for_load_id(mutable_request_data["load_id"]):
+            return Response(
+                {"details": "Claim on this load already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        mutable_request_data["claimant"] = str(app_user.id)
+        mutable_request_data["status"] = CLAIM_NEGOTIATION_STATUS
+        del mutable_request_data["load_id"]
+        mutable_request_data["load"] = request.data["load_id"]
+        serializer = self.get_serializer(data=mutable_request_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        claim_object = self.get_object()
+        app_user_id = models.AppUser.objects.get(user=request.user.id).id
+        user_load_party = utils.get_load_party_by_id(claim_object.load, app_user_id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = self.get_serializer(claim_object)
+        return Response(serializer.data)

@@ -184,43 +184,21 @@ class ShipmentAdmin(models.Model):
 
 
 class Claim(models.Model):
-    load_id = models.OneToOneField(to=Load, on_delete=models.CASCADE)
-    claimant = models.OneToOneField(
+    load = models.OneToOneField(to=Load, on_delete=models.CASCADE)
+    claimant = models.ForeignKey(
         to=AppUser,
         related_name='claim_claimant',
         null=False,
         on_delete=models.CASCADE
     )
-    claimant_role = models.CharField(
-        null=False,
-        blank=False,
-        choices=[
-            ("customer", "customer"),
-            ("carrier", "carrier"),
-            ("shipper", "shipper"),
-            ("consignee", "consignee"),
-            ("dispatcher", "dispatcher")
-        ],
-        max_length=10,
-    )
-    claimed_on = models.OneToOneField(
+
+    claimed_on = models.ForeignKey(
         to=AppUser,
         related_name='claim_claimed_on',
         null=False,
         on_delete=models.CASCADE
     )
-    claimed_on_role = models.CharField(
-        null=False,
-        blank=False,
-        choices=[
-            ("customer", "customer"),
-            ("carrier", "carrier"),
-            ("shipper", "shipper"),
-            ("consignee", "consignee"),
-            ("dispatcher", "dispatcher")
-        ],
-        max_length=10,
-    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         null=False,
@@ -240,7 +218,8 @@ class Claim(models.Model):
     )
     commodity_description = models.TextField(
         blank=True,
-        null=False
+        null=False,
+        default=""
     )
     type_of_loss = models.CharField(
         null=False,
@@ -253,7 +232,6 @@ class Claim(models.Model):
         max_length=7,
     )
     Date_of_loss = models.DateField(null=False)
-   
 
 
 class ClaimMessage(models.Model):
@@ -272,8 +250,8 @@ class ClaimMessage(models.Model):
         max_length=10,
     )
     message = models.TextField(
-          blank=False,
-          null=False
+        blank=False,
+        null=False
     )
     evidences = models.TextField(
         null=False,
