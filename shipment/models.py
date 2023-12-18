@@ -191,36 +191,14 @@ class Claim(models.Model):
         null=False,
         on_delete=models.CASCADE
     )
-    claimant_role = models.CharField(
-        null=False,
-        blank=False,
-        choices=[
-            ("customer", "customer"),
-            ("carrier", "carrier"),
-            ("shipper", "shipper"),
-            ("consignee", "consignee"),
-            ("dispatcher", "dispatcher")
-        ],
-        max_length=10,
-    )
+
     claimed_on = models.ForeignKey(
         to=AppUser,
         related_name='claim_claimed_on',
         null=False,
         on_delete=models.CASCADE
     )
-    claimed_on_role = models.CharField(
-        null=False,
-        blank=False,
-        choices=[
-            ("customer", "customer"),
-            ("carrier", "carrier"),
-            ("shipper", "shipper"),
-            ("consignee", "consignee"),
-            ("dispatcher", "dispatcher")
-        ],
-        max_length=10,
-    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         null=False,
