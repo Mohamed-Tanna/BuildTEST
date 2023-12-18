@@ -2509,8 +2509,9 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         mutable_request_data["claimant"] = str(app_user.id)
+        #TODO: move negotiation string to a variable in constants file
         mutable_request_data["status"] = "negotiation"
-        del mutable_request_data["load_id"]
+        del mutable_request_data["load_id"] #O(1)
         mutable_request_data["load"] = request.data["load_id"]
         serializer = self.get_serializer(data=mutable_request_data)
         serializer.is_valid(raise_exception=True)
