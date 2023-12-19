@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import shipment.models as models
+from freightmonster.constants import CLAIM_CREATED
 from shipment.utilities import send_notifications_to_load_parties
 from notifications.utilities import handle_notification
 
@@ -13,9 +14,17 @@ def add_to_load_notification_handler(sender, instance: models.Load, created, **k
         )
 
 
+@receiver(post_save, sender=models.Claim)
+def add_to_load_notification_handler(sender, instance: models.Claim, created, **kwargs):
+    if created:
+        send_notifications_to_load_parties(
+            load=instance.load, action=CLAIM_CREATED, event=CLAIM_CREATED, claim=instance
+        )
+
+
 @receiver(post_save, sender=models.ShipmentAdmin)
 def add_to_shipment_admin_notification_handler(
-    sender, instance: models.ShipmentAdmin, created, **kwargs
+        sender, instance: models.ShipmentAdmin, created, **kwargs
 ):
     if created:
         shipment = models.Shipment.objects.get(id=instance.shipment.id)
@@ -29,7 +38,7 @@ def add_to_shipment_admin_notification_handler(
 
 @receiver(post_save, sender=models.Contact)
 def add_as_contact_notification_handler(
-    sender, instance: models.Contact, created, **kwargs
+        sender, instance: models.Contact, created, **kwargs
 ):
     if created:
         origin = models.AppUser.objects.get(user=instance.origin)
