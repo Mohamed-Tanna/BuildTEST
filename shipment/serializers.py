@@ -153,7 +153,32 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
                 generate_signed_url_for_claim_supporting_docs(doc)
             )
         representation['supporting_docs'] = signed_urls_for_supporting_docs
+
+        representation['claimant'] = {
+            "id":instance.claimant.id,
+            "username":instance.claimant.user.username
+            
+        }
+        representation['claimed_on'] = {
+            "id":instance.claimed_on.id,
+            "username":instance.claimed_on.user.username
+            
+        }
+        
+        
+       
+
+
         return representation
+    
+
+
+    
+
+    
+
+
+    
 
 
 class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
