@@ -232,8 +232,10 @@ class Claim(models.Model):
         ],
         max_length=7,
     )
+
     date_of_loss = models.DateField(null=False)
    
+
 
 
 class ClaimMessage(models.Model):
@@ -252,8 +254,8 @@ class ClaimMessage(models.Model):
         max_length=10,
     )
     message = models.TextField(
-          blank=False,
-          null=False
+        blank=False,
+        null=False
     )
     evidences = models.TextField(
         null=False,
