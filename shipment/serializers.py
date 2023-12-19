@@ -1,6 +1,9 @@
+import time
+
 import shipment.models as models
 from rest_framework import serializers
 from authentication.serializers import AppUserSerializer, AddressSerializer
+from shipment.utilities import upload_claim_supporting_docs_to_gcs, generate_signed_url_for_claim_supporting_docs
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -120,6 +123,8 @@ class ShipmentSerializer(serializers.ModelSerializer):
 
 
 class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
+    supporting_docs = serializers.ListField(child=serializers.FileField())
+
     class Meta:
         model = models.Claim
         fields = "__all__"
@@ -127,6 +132,28 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
             "commodity_description": {"required": False},
         }
         read_only_fields = ("id", "created_at")
+
+    def create(self, validated_data):
+        supporting_docs = validated_data.pop("supporting_docs", [])
+        supporting_docs_name = []
+        for doc in supporting_docs:
+            timestamp = int(time.time())
+            doc_name = f"supporting_docs_{timestamp}_{doc.name}"
+            doc.name = doc_name
+            upload_claim_supporting_docs_to_gcs(doc)
+            supporting_docs_name.append(doc_name)
+        validated_data["supporting_docs"] = supporting_docs_name
+        return super().create(validated_data)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        signed_urls_for_supporting_docs = []
+        for doc in instance.supporting_docs:
+            signed_urls_for_supporting_docs.append(
+                generate_signed_url_for_claim_supporting_docs(doc)
+            )
+        representation['supporting_docs'] = signed_urls_for_supporting_docs
+        return representation
 
 
 class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
