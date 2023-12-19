@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
+from django.contrib.postgres.fields import ArrayField
 from authentication.models import (
     User,
     AppUser,
@@ -211,7 +212,7 @@ class Claim(models.Model):
         max_length=11,
     )
     description_of_loss = models.TextField(blank=False, null=False)
-    evidences = models.TextField(null=False, blank=True)
+    supporting_docs = ArrayField(models.TextField(), null=False, blank=True)
     commodity_type = models.CharField(
         null=False,
         blank=False
@@ -231,7 +232,10 @@ class Claim(models.Model):
         ],
         max_length=7,
     )
-    Date_of_loss = models.DateField(null=False)
+
+    date_of_loss = models.DateField(null=False)
+   
+
 
 
 class ClaimMessage(models.Model):

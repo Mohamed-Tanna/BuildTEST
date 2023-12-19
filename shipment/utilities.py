@@ -4,9 +4,11 @@ import shipment.models as models
 import authentication.models as auth_models
 import rest_framework.exceptions as exceptions
 
+from document.utilities import get_storage_client, get_signing_creds
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
-    AWAITING_DISPATCHER, CLAIM_CREATED
+    AWAITING_DISPATCHER, CLAIM_CREATED, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
 from notifications.utilities import handle_notification
+from datetime import datetime, timedelta
 
 
 def get_shipment_party_by_username(username):
@@ -275,3 +277,39 @@ def is_load_status_valid_to_create_claim(status):
             status == ASSIGNING_CARRIER or
             status == AWAITING_DISPATCHER
     )
+
+
+def upload_claim_supporting_docs_to_gcs(uploaded_file):
+    storage_client = get_storage_client()
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+    blob = bucket.blob("images/" + uploaded_file.name)
+    blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
+
+
+def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
+    """Generates a signed URL for downloading an object from a bucket."""
+    bucket_name = GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
+    try:
+        storage_client = get_storage_client()
+        bucket = storage_client.get_bucket(bucket_name)
+        blob = bucket.blob("images/" + object_name)
+        if not blob.exists():
+            raise NameError
+
+        signing_creds = get_signing_creds(storage_client._credentials)
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.utcnow() + timedelta(seconds=expiration),
+            method="GET",
+            credentials=signing_creds,
+        )
+
+        return url
+
+    except NameError:
+        print(f"Error: Object {object_name} not found in bucket {bucket_name}")
+        return None
+
+    except (BaseException) as e:
+        print(f"Unexpected {e=}, {type(e)=}")
+        return None
