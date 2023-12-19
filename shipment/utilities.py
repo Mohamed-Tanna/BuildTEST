@@ -5,7 +5,7 @@ import authentication.models as auth_models
 import rest_framework.exceptions as exceptions
 
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
-    AWAITING_DISPATCHER
+    AWAITING_DISPATCHER, CLAIM_CREATED
 from notifications.utilities import handle_notification
 
 
@@ -187,7 +187,7 @@ def is_app_user_carrier_of_load(app_user: auth_models.AppUser, load: models.Load
     return False
 
 
-def send_notifications_to_load_parties(load: models.Load, action, event=None):
+def send_notifications_to_load_parties(load: models.Load, action, event=None, claim: models.Claim = None):
     notified_usernames = set()
     roles = ["dispatcher", "shipper", "consignee", "customer"]
 
@@ -203,10 +203,16 @@ def send_notifications_to_load_parties(load: models.Load, action, event=None):
                 handle_notification(
                     action=action, app_user=app_user, load=load, sender=load.created_by
                 )
+            elif event == CLAIM_CREATED:
+                handle_notification(
+                    action=action,
+                    app_user=app_user,
+                    load=load,
+                    sender=claim.claimant
+                )
             elif event == "load_status_changed":
                 handle_notification(
-                    action=action, app_user=app_user, load=load, sender=None
-                )
+                    action=action, app_user=app_user, load=load)
             notified_usernames.add(username)
 
 

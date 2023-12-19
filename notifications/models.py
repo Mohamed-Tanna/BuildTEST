@@ -27,4 +27,5 @@ class NotificationSetting(models.Model):
     add_as_shipment_admin = models.BooleanField(default=True)
     load_status_changed = models.BooleanField(default=True)
     RC_approved = models.BooleanField(default=True)
+    claim_created = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -2,6 +2,8 @@ import os
 from django.utils.html import strip_tags
 from django.template.loader import get_template
 from django.core.mail import EmailMultiAlternatives
+
+from freightmonster.constants import CLAIM_CREATED
 from shipment.models import Load, Shipment
 from twilio.rest import Client
 from authentication.models import AppUser, CompanyEmployee, Company
@@ -88,11 +90,11 @@ def trigger_send_sms_notification(app_user: AppUser, sid, token, phone_number, m
 
 # main
 def handle_notification(
-    app_user: AppUser,
-    action,
-    load=None,
-    sender: AppUser = None,
-    shipment=None,
+        app_user: AppUser,
+        action,
+        load=None,
+        sender: AppUser = None,
+        shipment=None,
 ):
     handle_notification_for_manager(app_user, action, load, sender, shipment)
     """Handle the notification to user's prefrences"""
@@ -110,6 +112,7 @@ def handle_notification(
             "load_status_changed": "load_status_changed",
             "RC_approved": "RC_approved",
             "assign_carrier": "load_status_changed",
+            "claim_created": "claim_created"
         }
 
         message, url = get_notification_msg_and_url(
@@ -120,7 +123,7 @@ def handle_notification(
         )
         notification.save()
         if action in action_to_attr_mapping and getattr(
-            notification_setting, action_to_attr_mapping[action]
+                notification_setting, action_to_attr_mapping[action]
         ):
             send_notification(app_user, message, url)
             return True
@@ -129,12 +132,13 @@ def handle_notification(
     else:
         return False
 
+
 def handle_notification_for_manager(
-    app_user: AppUser,
-    action,
-    load=None,
-    sender: AppUser = None,
-    shipment=None,
+        app_user: AppUser,
+        action,
+        load=None,
+        sender: AppUser = None,
+        shipment=None,
 ):
     # Get Company Manager if exists
     try:
@@ -156,17 +160,19 @@ def handle_notification_for_manager(
                     "load_status_changed": "load_status_changed",
                     "RC_approved": "RC_approved",
                     "assign_carrier": "load_status_changed",
+                    "claim_created": "claim_created"
                 }
 
                 message, url = get_notification_msg_and_url_for_manager(
                     action, load, shipment, app_user, sender
                 )
                 if action in action_to_attr_mapping and getattr(
-                    manager_notification_setting, action_to_attr_mapping[action]
+                        manager_notification_setting, action_to_attr_mapping[action]
                 ):
                     send_notification(manager, message, url)
     except CompanyEmployee.DoesNotExist:
         return
+
 
 def send_notification(app_user: AppUser, message, url=None):
     """Send the notification to user's preferred method(s)"""
@@ -208,11 +214,11 @@ def send_notification(app_user: AppUser, message, url=None):
 
 
 def get_notification_msg_and_url(
-    action,
-    load: Load = None,
-    shipment: Shipment = None,
-    app_user: AppUser = None,
-    sender: AppUser = None,
+        action,
+        load: Load = None,
+        shipment: Shipment = None,
+        app_user: AppUser = None,
+        sender: AppUser = None,
 ):
     """Get the notification message based on the action"""
     environment = os.getenv("ENV").lower()
@@ -257,13 +263,19 @@ def get_notification_msg_and_url(
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned you as a carrier for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
-    
+    elif action == CLAIM_CREATED:
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has created a claim for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+
+
 def get_notification_msg_and_url_for_manager(
-    action,
-    load: Load = None,
-    shipment: Shipment = None,
-    app_user: AppUser = None,
-    sender: AppUser = None,
+        action,
+        load: Load = None,
+        shipment: Shipment = None,
+        app_user: AppUser = None,
+        sender: AppUser = None,
 ):
     """Get the notification message based on the action"""
     environment = os.getenv("ENV").lower()
@@ -306,6 +318,11 @@ def get_notification_msg_and_url_for_manager(
     elif action == "assign_carrier":
         return (
             f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a carrier for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == CLAIM_CREATED:
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has created a claim for the load '{load.name}'.",
             f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
         )
 
