@@ -3,16 +3,13 @@ import authentication.models as models
 
 
 class IsAppUser(permissions.BasePermission):
-
     message = "User profile incomplete, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
-
         return models.AppUser.objects.filter(user=request.user).exists()
 
 
 class IsDispatcher(permissions.BasePermission):
-
     message = "User is not a dispatcher, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
@@ -24,7 +21,6 @@ class IsDispatcher(permissions.BasePermission):
 
 
 class IsCarrier(permissions.BasePermission):
-
     message = "User is not a carrier, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
@@ -36,7 +32,6 @@ class IsCarrier(permissions.BasePermission):
 
 
 class IsShipmentParty(permissions.BasePermission):
-
     message = "User is not a shipment party, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
@@ -48,7 +43,6 @@ class IsShipmentParty(permissions.BasePermission):
 
 
 class IsShipmentPartyOrDispatcher(permissions.BasePermission):
-
     message = "User is not a shipment party nor a dispatcher, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
@@ -56,15 +50,14 @@ class IsShipmentPartyOrDispatcher(permissions.BasePermission):
             app_user = models.AppUser.objects.get(user=request.user)
 
             return (
-                models.ShipmentParty.objects.filter(app_user=app_user).exists()
-                or models.Dispatcher.objects.filter(app_user=app_user).exists()
+                    models.ShipmentParty.objects.filter(app_user=app_user).exists()
+                    or models.Dispatcher.objects.filter(app_user=app_user).exists()
             )
         except models.AppUser.DoesNotExist:
             return False
 
 
 class IsShipmentPartyOrCarrier(permissions.BasePermission):
-
     message = "User is not a shipment party nor a carrier, fill out all of the profile's necessary information before trying again."
 
     def has_permission(self, request, view):
@@ -72,24 +65,23 @@ class IsShipmentPartyOrCarrier(permissions.BasePermission):
             app_user = models.AppUser.objects.get(user=request.user)
 
             return (
-                models.ShipmentParty.objects.filter(app_user=app_user).exists()
-                or models.Carrier.objects.filter(app_user=app_user).exists()
+                    models.ShipmentParty.objects.filter(app_user=app_user).exists()
+                    or models.Carrier.objects.filter(app_user=app_user).exists()
             )
         except models.AppUser.DoesNotExist:
             return False
 
 
 class HasRole(permissions.BasePermission):
-
     message = "This user does not have a specified role; please complete your account and try again later."
 
     def has_permission(self, request, view):
         try:
             app_user = models.AppUser.objects.get(user=request.user)
             return (
-                models.ShipmentParty.objects.filter(app_user=app_user).exists()
-                or models.Dispatcher.objects.filter(app_user=app_user).exists()
-                or models.Carrier.objects.filter(app_user=app_user).exists()
+                    models.ShipmentParty.objects.filter(app_user=app_user).exists()
+                    or models.Dispatcher.objects.filter(app_user=app_user).exists()
+                    or models.Carrier.objects.filter(app_user=app_user).exists()
             )
         except models.AppUser.DoesNotExist:
             return False
@@ -97,17 +89,18 @@ class HasRole(permissions.BasePermission):
 
 class IsCompanyManager(permissions.BasePermission):
     message = "This user is not a company manager, if you believe this is an error, please contact support."
-    
+
     def has_permission(self, request, view):
         try:
             app_user = models.AppUser.objects.get(user=request.user)
             return app_user.user_type == "manager"
         except models.AppUser.DoesNotExist:
             return False
-        
+
+
 class IsNotCompanyManager(permissions.BasePermission):
     message = "This user is a company manager, if you believe this is an error, please contact support."
-    
+
     def has_permission(self, request, view):
         try:
             app_user = models.AppUser.objects.get(user=request.user)
@@ -115,9 +108,17 @@ class IsNotCompanyManager(permissions.BasePermission):
         except models.AppUser.DoesNotExist:
             return False
 
+
+class HasRoleOrIsCompanyManager(permissions.BasePermission):
+    def has_permission(self, request, view):
+        has_role_permission = HasRole().has_permission(request, view)
+        is_company_manager_permission = IsCompanyManager().has_permission(request, view)
+        return has_role_permission or is_company_manager_permission
+
+
 class IsSupport(permissions.BasePermission):
     message = "This user is not a support agent."
-    
+
     def has_permission(self, request, view):
         try:
             app_user = models.AppUser.objects.get(user=request.user)
