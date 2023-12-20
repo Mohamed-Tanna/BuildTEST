@@ -1,4 +1,5 @@
 import string, random
+from datetime import datetime
 from django.db.models import Q
 import shipment.models as models
 import authentication.models as auth_models
@@ -278,13 +279,27 @@ def is_load_status_valid_to_create_claim(status):
             status == AWAITING_DISPATCHER
     )
 
+def get_unique_symbol_algorithm_id(length):
+    symbols = string.ascii_letters + string.digits + "-/*=+_&%$#@!"
+    return ''.join(random.choice(symbols) for _ in range(length))
+
 
 def upload_claim_supporting_docs_to_gcs(uploaded_file):
+
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     blob = bucket.blob("images/" + uploaded_file.name)
-    blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
 
+    while blob.exists():
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            unique_id = get_unique_symbol_algorithm_id(20)
+            object_name_with_id = f"{uploaded_file.name}_{timestamp}_{unique_id}"
+            blob = bucket.blob("images/" + object_name_with_id)
+          
+    
+    blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
+            
+    
 
 def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
     """Generates a signed URL for downloading an object from a bucket."""
