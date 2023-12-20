@@ -41,7 +41,7 @@ import shipment.models as models
 import shipment.serializers as serializers
 import shipment.utilities as utils
 from authentication.utilities import create_address
-from freightmonster.constants import CLAIM_NEGOTIATION_STATUS
+from freightmonster.constants import CLAIM_NEGOTIATION_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
 from shipment.utilities import send_notifications_to_load_parties
 
@@ -2478,10 +2478,20 @@ class ClaimedOnLoadPartiesView(APIView):
 
 
 class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
-    permission_classes = [IsAuthenticated, permissions.HasRole]
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
     lookup_field = 'id'
+
+    def get_permissions(self):
+        permission_classes = [IsAuthenticated()]
+        if self.request.method == 'GET':
+            permission_classes.append(permissions.HasRoleOrIsCompanyManager())
+            return permission_classes
+        elif self.request.method == 'POST':
+            permission_classes.append(permissions.HasRole())
+            permission_classes.append(permissions.IsNotCompanyManager())
+            return permission_classes
+        return permission_classes
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
@@ -2523,12 +2533,29 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
 
     def retrieve(self, request, *args, **kwargs):
         claim_object = self.get_object()
-        app_user_id = models.AppUser.objects.get(user=request.user.id).id
-        user_load_party = utils.get_load_party_by_id(claim_object.load, app_user_id)
-        if user_load_party is None:
-            return Response(
-                {"details": "You aren't one of the load parties"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        serializer = self.get_serializer(claim_object)
-        return Response(serializer.data)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        user_can_see_claim = False
+        if app_user.user_type == MANAGER_USER_TYPE:
+            if utils.can_company_manager_see_claim(claim_object.load, app_user):
+                user_can_see_claim = True
+            else:
+                return Response(
+                    {"details": "You aren't a manager for one of the load parties"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            app_user_id = app_user.id
+            user_load_party = utils.get_load_party_by_id(claim_object.load, app_user_id)
+            if user_load_party is None:
+                return Response(
+                    {"details": "You aren't one of the load parties"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            user_can_see_claim = True
+        if user_can_see_claim:
+            serializer = self.get_serializer(claim_object)
+            return Response(serializer.data)
+        return Response(
+            {"details": "Error occurred while getting the claim"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

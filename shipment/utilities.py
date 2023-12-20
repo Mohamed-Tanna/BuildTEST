@@ -1,6 +1,8 @@
 import string, random
 from datetime import datetime
 from django.db.models import Q
+
+import authentication
 import shipment.models as models
 import authentication.models as auth_models
 import rest_framework.exceptions as exceptions
@@ -330,3 +332,21 @@ def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
         return None
+
+
+def can_company_manager_see_claim(load: models.Load, manager: models.AppUser):
+    load_parties = [
+        load.customer,
+        load.shipper,
+        load.dispatcher,
+        load.consignee,
+        load.carrier
+    ]
+    manager_company = auth_models.Company.objects.get(manager=manager)
+    for party in load_parties:
+        try:
+            auth_models.CompanyEmployee(app_user=party.app_user, company=manager_company)
+            return True
+        except auth_models.CompanyEmployee.DoesNotExist:
+            return False
+    return False
