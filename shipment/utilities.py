@@ -333,3 +333,18 @@ def can_company_manager_see_claim(load: models.Load, manager: models.AppUser):
         except auth_models.CompanyEmployee.DoesNotExist:
             return False
     return False
+
+
+def get_app_user_load_party_rules(app_user: auth_models.AppUser, load: models.Load):
+    result = []
+    party_roles = {
+        load.customer: "customer",
+        load.shipper: "shipper",
+        load.dispatcher: "dispatcher",
+        load.carrier: "carrier",
+        load.consignee: "consignee"
+    }
+    for party, role in party_roles.items():
+        if party.app_user.id == app_user.id:
+            result.append(role)
+    return result
