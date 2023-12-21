@@ -205,9 +205,8 @@ class Claim(models.Model):
         null=False,
         blank=False,
         choices=[
-            ("negotiation", "negotiation"),
+            ("open", "open"),
             ("resolved", "resolved"),
-            ("unresolved", "unresolved"),
         ],
         max_length=11,
     )
