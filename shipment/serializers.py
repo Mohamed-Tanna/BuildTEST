@@ -139,8 +139,8 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         for doc in supporting_docs:
             doc_name = f"supporting_docs_{doc.name}"
             doc.name = doc_name
-            blob_name = upload_claim_supporting_docs_to_gcs(doc)
-            supporting_docs_name.append(blob_name)
+            doc_name = upload_claim_supporting_docs_to_gcs(doc)
+            supporting_docs_name.append(doc_name)
         validated_data["supporting_docs"] = supporting_docs_name
         return super().create(validated_data)
 
