@@ -164,6 +164,7 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
             "username": instance.claimed_on.user.username
 
         }
+        representation['status'] = "open"
 
         return representation
 
