@@ -156,12 +156,15 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
 
         representation['claimant'] = {
             "id": instance.claimant.id,
-            "username": instance.claimant.user.username
+            "username": instance.claimant.user.username,
+            "party_roles": instance.claimant.user_type
+
 
         }
         representation['claimed_on'] = {
             "id": instance.claimed_on.id,
-            "username": instance.claimed_on.user.username
+            "username": instance.claimed_on.user.username,
+            "party_roles": instance.claimed_on.user_type
 
         }
         representation['status'] = "open"
