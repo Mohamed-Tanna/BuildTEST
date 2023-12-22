@@ -233,8 +233,6 @@ class Claim(models.Model):
     )
 
     date_of_loss = models.DateField(null=False)
-   
-
 
 
 class ClaimMessage(models.Model):
