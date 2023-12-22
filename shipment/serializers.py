@@ -157,7 +157,10 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         signed_urls_for_supporting_docs = []
         for doc in instance.supporting_docs:
             signed_urls_for_supporting_docs.append(
-                generate_signed_url_for_claim_supporting_docs(doc)
+                {
+                    "name": doc,
+                    "url": generate_signed_url_for_claim_supporting_docs(doc)
+                }
             )
         representation['supporting_docs'] = signed_urls_for_supporting_docs
 
