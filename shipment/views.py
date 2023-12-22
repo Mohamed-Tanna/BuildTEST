@@ -2477,7 +2477,7 @@ class ClaimedOnLoadPartiesView(APIView):
         )
 
 
-class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin):
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
     lookup_field = 'id'
@@ -2487,7 +2487,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
             return permission_classes
-        elif self.request.method == 'POST':
+        elif self.request.method == 'POST' or self.request.method == 'PUT':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
             return permission_classes
@@ -2498,6 +2498,35 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        claim_object = self.get_object()
+        if app_user != claim_object.claimant:
+            return Response(
+                {"details": "You aren't the one who created the claim"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if "claimed_on" in mutable_request_data:
+            if mutable_request_data["claimed_on"] == app_user.id:
+                return Response(
+                    {"details": "You can't raise claim on yourself"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            claimed_on_user = get_object_or_404(models.AppUser, id=mutable_request_data["claimed_on"])
+            if not utils.is_this_user_valid_to_be_claimed_on(claimed_on_user, claim_object.load):
+                return Response(
+                    {"details": "You can't raise claim on a user who is not a party of the load"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        serializer = self.get_serializer(claim_object, data=mutable_request_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
