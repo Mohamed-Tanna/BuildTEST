@@ -2511,6 +2511,18 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
                 {"details": "You aren't the one who created the claim"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if "claimed_on" in mutable_request_data:
+            if mutable_request_data["claimed_on"] == app_user.id:
+                return Response(
+                    {"details": "You can't raise claim on yourself"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            claimed_on_user = get_object_or_404(models.AppUser, id=mutable_request_data["claimed_on"])
+            if not utils.is_this_user_valid_to_be_claimed_on(claimed_on_user, claim_object.load):
+                return Response(
+                    {"details": "You can't raise claim on a user who is not a party of the load"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         serializer = self.get_serializer(claim_object, data=mutable_request_data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
