@@ -2548,6 +2548,21 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
                 {"details": "Claim on this load already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        claimed_on_id = mutable_request_data.get("claimed_on", None)
+        if claimed_on_id is not None:
+            claimed_on_user = get_object_or_404(models.AppUser, id=claimed_on_id)
+            if claimed_on_id == app_user.id:
+                return Response(
+                    {"details": "You can't raise claim on yourself"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not utils.is_this_user_valid_to_be_claimed_on(claimed_on_user, load):
+                return Response(
+                    {
+                        "details": "You can't raise claim on a user who is not a party of the load"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         mutable_request_data["claimant"] = str(app_user.id)
         mutable_request_data["status"] = CLAIM_NEGOTIATION_STATUS
         del mutable_request_data["load_id"]
