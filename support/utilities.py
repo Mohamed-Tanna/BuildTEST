@@ -1,12 +1,11 @@
 import os
 import re
 
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import get_template
 from rest_framework import status
 
 from document.utilities import get_storage_client
-from django.template.loader import get_template
-from django.core.mail import EmailMultiAlternatives
-
 from support.models import Ticket
 
 if os.getenv("ENV") == "DEV":

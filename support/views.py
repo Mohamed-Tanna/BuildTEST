@@ -4,6 +4,7 @@ import string
 # Module imports
 import manager.models as manager_models
 import support.utilities as utils
+from shipment.models import Claim
 from support.models import Ticket
 import support.serializers as serializers
 import authentication.models as auth_models
@@ -195,17 +196,6 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
     def _create_app_user_from_ticket(self, ticket):
         password = auth_utils.generate_password()
         username = (
-            ticket.email.split("@")[0]
-            + "#"
-            + (
-                "".join(
-                    random.choice(string.ascii_uppercase + string.digits)
-                    for _ in range(5)
-                )
-            )
-        )
-        while auth_models.User.objects.filter(username=username).exists():
-            username = (
                 ticket.email.split("@")[0]
                 + "#"
                 + (
@@ -214,6 +204,17 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
                         for _ in range(5)
                     )
                 )
+        )
+        while auth_models.User.objects.filter(username=username).exists():
+            username = (
+                    ticket.email.split("@")[0]
+                    + "#"
+                    + (
+                        "".join(
+                            random.choice(string.ascii_uppercase + string.digits)
+                            for _ in range(5)
+                        )
+                    )
             )
 
         user = auth_models.User.objects.create(
@@ -240,3 +241,12 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
         )
 
         return app_user, password
+
+
+class ListClaimView(GenericAPIView, ListModelMixin):
+    permission_classes = [IsAuthenticated, permissions.IsSupport]
+    serializer_class = serializers.ListClaimSerializer
+    queryset = Claim.objects.all().order_by("-created_at")
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)

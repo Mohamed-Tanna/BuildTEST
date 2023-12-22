@@ -15,7 +15,10 @@ from rest_framework.response import Response
 # Module imports
 import support.models as models
 import support.utilities as utils
+from authentication.models import AppUser
 from document import utilities as docs_utils
+from shipment.models import Claim, Load
+from shipment.utilities import get_app_user_load_party_rules
 
 if os.getenv("ENV") == "DEV":
     from freightmonster.settings.dev import GS_COMPANY_MANAGER_BUCKET_NAME
@@ -129,7 +132,7 @@ class CreateTicketSerializer(serializers.Serializer):
                     {"details": IPN_validity_result["message"]},
                     status=IPN_validity_result["errorStatus"],
                 )
-        
+
         obj = models.Ticket(
             email=validated_data["email"],
             first_name=validated_data["first_name"],
@@ -203,3 +206,29 @@ class RetrieveTicketSerializer(serializers.ModelSerializer):
             instance.personal_photo, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME
         )
         return rep
+
+
+class ListClaimSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Claim
+        fields = [
+            "claimant",
+            "claimed_on",
+            "load",
+            "created_at",
+            "status",
+        ]
+        read_only_fields = ("id",)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation["claimant"] = {
+            "username": instance.claimant.user.username,
+            "party_roles": get_app_user_load_party_rules(instance.claimant, instance.load)
+        }
+        representation["claimed_on"] = {
+            "username": instance.claimed_on.user.username,
+            "party_roles": get_app_user_load_party_rules(instance.claimed_on, instance.load)
+        }
+        representation["load"] = instance.load.name
+        return representation
