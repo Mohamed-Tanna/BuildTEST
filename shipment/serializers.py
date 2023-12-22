@@ -145,6 +145,13 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         validated_data["supporting_docs"] = supporting_docs_name
         return super().create(validated_data)
 
+    def update(self, instance, validated_data):
+        fields_not_to_update = ["load", "status", "claimant"]
+        for field in fields_not_to_update:
+            if field in validated_data:
+                del validated_data[field]
+        return super().update(instance, validated_data)
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         signed_urls_for_supporting_docs = []
