@@ -42,7 +42,6 @@ import shipment.serializers as serializers
 import shipment.utilities as utils
 from authentication.utilities import create_address
 from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
-from freightmonster.constants import CLAIM_NEGOTIATION_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
 from shipment.utilities import send_notifications_to_load_parties
 
