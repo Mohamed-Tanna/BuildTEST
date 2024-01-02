@@ -348,3 +348,9 @@ def get_app_user_load_party_rules(app_user: auth_models.AppUser, load: models.Lo
         if party.app_user.id == app_user.id:
             result.append(role)
     return result
+
+
+def is_this_user_valid_to_be_claimed_on(app_user: auth_models.AppUser, load: models.Load):
+    if len(get_app_user_load_party_rules(app_user=app_user, load=load)) == 0:
+        return False
+    return True
