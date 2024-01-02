@@ -192,22 +192,13 @@ class Claim(models.Model):
         null=False,
         on_delete=models.CASCADE
     )
-
-    claimed_on = models.ForeignKey(
-        to=AppUser,
-        related_name='claim_claimed_on',
-        null=False,
-        on_delete=models.CASCADE
-    )
-
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         null=False,
         blank=False,
         choices=[
-            ("negotiation", "negotiation"),
+            ("open", "open"),
             ("resolved", "resolved"),
-            ("unresolved", "unresolved"),
         ],
         max_length=11,
     )
@@ -234,8 +225,6 @@ class Claim(models.Model):
     )
 
     date_of_loss = models.DateField(null=False)
-   
-
 
 
 class ClaimMessage(models.Model):

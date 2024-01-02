@@ -305,8 +305,8 @@ def upload_claim_supporting_docs_to_gcs(uploaded_file):
     file_name = get_unique_name_for_supporting_docs(bucket, uploaded_file.name)
     blob = bucket.blob(f"images/{file_name}")
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
-            
-    
+
+
 
 def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
     """Generates a signed URL for downloading an object from a bucket."""
@@ -353,3 +353,24 @@ def can_company_manager_see_claim(load: models.Load, manager: models.AppUser):
         except auth_models.CompanyEmployee.DoesNotExist:
             return False
     return False
+
+
+def get_app_user_load_party_roles(app_user: auth_models.AppUser, load: models.Load):
+    result = []
+    party_roles = {
+        "customer": load.customer,
+        "shipper": load.shipper,
+        "dispatcher": load.dispatcher,
+        "carrier": load.carrier,
+        "consignee": load.consignee,
+    }
+    for role, party in party_roles.items():
+        if party.app_user.id == app_user.id:
+            result.append(role)
+    return result
+
+
+def does_load_have_other_load_parties(app_user: auth_models.AppUser, load: models.Load):
+    if len(get_app_user_load_party_roles(app_user=app_user, load=load)) == 5:
+        return False
+    return True

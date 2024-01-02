@@ -41,6 +41,7 @@ import shipment.models as models
 import shipment.serializers as serializers
 import shipment.utilities as utils
 from authentication.utilities import create_address
+from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from freightmonster.constants import CLAIM_NEGOTIATION_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
 from shipment.utilities import send_notifications_to_load_parties
@@ -2448,36 +2449,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ClaimedOnLoadPartiesView(APIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole]
-
-    @staticmethod
-    def get(request, *args, **kwargs):
-        load_id = request.query_params.get("load_id", None)
-        if load_id is None:
-            return Response(
-                {"details": "Load ID is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        app_user_id = models.AppUser.objects.get(user=request.user.id).id
-        load = get_object_or_404(models.Load, id=load_id)
-        user_load_party = utils.get_load_party_by_id(load, app_user_id)
-        if user_load_party is None:
-            return Response(
-                {"details": "You aren't one of the load parties"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        claimed_on_serializer = serializers.ClaimedOnSerializer(
-            load,
-            context={"app_user_id": app_user_id}
-        )
-        return Response(
-            claimed_on_serializer.data,
-            status=status.HTTP_200_OK,
-        )
-
-
-class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin):
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
     lookup_field = 'id'
@@ -2487,7 +2459,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
             return permission_classes
-        elif self.request.method == 'POST':
+        elif self.request.method == 'POST' or self.request.method == 'PUT':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
             return permission_classes
@@ -2498,6 +2470,23 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        claim_object = self.get_object()
+        if app_user != claim_object.claimant:
+            return Response(
+                {"details": "You aren't the one who created the claim"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = self.get_serializer(claim_object, data=mutable_request_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
@@ -2519,8 +2508,13 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
                 {"details": "Claim on this load already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
+            return Response(
+                {"details": "You can't create a claim on a load where you are all the load parties"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         mutable_request_data["claimant"] = str(app_user.id)
-        mutable_request_data["status"] = CLAIM_NEGOTIATION_STATUS
+        mutable_request_data["status"] = CLAIM_OPEN_STATUS
         del mutable_request_data["load_id"]
         mutable_request_data["load"] = request.data["load_id"]
         serializer = self.get_serializer(data=mutable_request_data)

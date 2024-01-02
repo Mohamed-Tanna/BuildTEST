@@ -3,7 +3,8 @@ import time
 import shipment.models as models
 from rest_framework import serializers
 from authentication.serializers import AppUserSerializer, AddressSerializer
-from shipment.utilities import upload_claim_supporting_docs_to_gcs, generate_signed_url_for_claim_supporting_docs
+from shipment.utilities import upload_claim_supporting_docs_to_gcs, generate_signed_url_for_claim_supporting_docs, \
+    get_app_user_load_party_roles
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -144,26 +145,33 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         validated_data["supporting_docs"] = supporting_docs_name
         return super().create(validated_data)
 
+    def update(self, instance, validated_data):
+        fields_not_to_update = ["load", "status", "claimant"]
+        for field in fields_not_to_update:
+            if field in validated_data:
+                del validated_data[field]
+        return super().update(instance, validated_data)
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         signed_urls_for_supporting_docs = []
         for doc in instance.supporting_docs:
             signed_urls_for_supporting_docs.append(
-                generate_signed_url_for_claim_supporting_docs(doc)
+                {
+                    "name": doc,
+                    "url": generate_signed_url_for_claim_supporting_docs(doc)
+                }
             )
         representation['supporting_docs'] = signed_urls_for_supporting_docs
 
         representation['claimant'] = {
             "id": instance.claimant.id,
-            "username": instance.claimant.user.username
-
+            "username": instance.claimant.user.username,
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.claimant,
+                load=instance.load
+            )
         }
-        representation['claimed_on'] = {
-            "id": instance.claimed_on.id,
-            "username": instance.claimed_on.user.username
-
-        }
-
         return representation
 
 
