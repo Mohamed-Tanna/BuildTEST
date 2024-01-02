@@ -3,7 +3,8 @@ import time
 import shipment.models as models
 from rest_framework import serializers
 from authentication.serializers import AppUserSerializer, AddressSerializer
-from shipment.utilities import upload_claim_supporting_docs_to_gcs, generate_signed_url_for_claim_supporting_docs
+from shipment.utilities import upload_claim_supporting_docs_to_gcs, generate_signed_url_for_claim_supporting_docs, \
+    get_app_user_load_party_roles
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -167,18 +168,11 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         representation['claimant'] = {
             "id": instance.claimant.id,
             "username": instance.claimant.user.username,
-            "party_roles": instance.claimant.user_type
-
-
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.claimant,
+                load=instance.load
+            )
         }
-        representation['claimed_on'] = {
-            "id": instance.claimed_on.id,
-            "username": instance.claimed_on.user.username,
-            "party_roles": instance.claimed_on.user_type
-
-        }
-        representation['status'] = "open"
-
         return representation
 
 

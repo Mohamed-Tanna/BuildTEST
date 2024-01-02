@@ -18,7 +18,7 @@ import support.utilities as utils
 from authentication.models import AppUser
 from document import utilities as docs_utils
 from shipment.models import Claim, Load
-from shipment.utilities import get_app_user_load_party_rules
+from shipment.utilities import get_app_user_load_party_roles
 
 if os.getenv("ENV") == "DEV":
     from freightmonster.settings.dev import GS_COMPANY_MANAGER_BUCKET_NAME
@@ -224,11 +224,11 @@ class ListClaimSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         representation["claimant"] = {
             "username": instance.claimant.user.username,
-            "party_roles": get_app_user_load_party_rules(instance.claimant, instance.load)
+            "party_roles": get_app_user_load_party_roles(instance.claimant, instance.load)
         }
         representation["claimed_on"] = {
             "username": instance.claimed_on.user.username,
-            "party_roles": get_app_user_load_party_rules(instance.claimed_on, instance.load)
+            "party_roles": get_app_user_load_party_roles(instance.claimed_on, instance.load)
         }
         representation["load"] = instance.load.name
         return representation
