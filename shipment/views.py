@@ -41,7 +41,7 @@ import shipment.models as models
 import shipment.serializers as serializers
 import shipment.utilities as utils
 from authentication.utilities import create_address
-from freightmonster.constants import CLAIM_NEGOTIATION_STATUS, MANAGER_USER_TYPE
+from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
 from shipment.utilities import send_notifications_to_load_parties
 
@@ -2564,7 +2564,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         mutable_request_data["claimant"] = str(app_user.id)
-        mutable_request_data["status"] = CLAIM_NEGOTIATION_STATUS
+        mutable_request_data["status"] = CLAIM_OPEN_STATUS
         del mutable_request_data["load_id"]
         mutable_request_data["load"] = request.data["load_id"]
         serializer = self.get_serializer(data=mutable_request_data)
