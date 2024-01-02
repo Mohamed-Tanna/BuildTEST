@@ -192,14 +192,6 @@ class Claim(models.Model):
         null=False,
         on_delete=models.CASCADE
     )
-
-    claimed_on = models.ForeignKey(
-        to=AppUser,
-        related_name='claim_claimed_on',
-        null=False,
-        on_delete=models.CASCADE
-    )
-
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         null=False,
