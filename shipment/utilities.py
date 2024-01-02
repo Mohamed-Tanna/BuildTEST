@@ -350,7 +350,7 @@ def get_app_user_load_party_roles(app_user: auth_models.AppUser, load: models.Lo
     return result
 
 
-def is_this_user_valid_to_be_claimed_on(app_user: auth_models.AppUser, load: models.Load):
-    if len(get_app_user_load_party_roles(app_user=app_user, load=load)) == 0:
+def does_load_have_other_load_parties(app_user: auth_models.AppUser, load: models.Load):
+    if len(get_app_user_load_party_roles(app_user=app_user, load=load)) == 5:
         return False
     return True

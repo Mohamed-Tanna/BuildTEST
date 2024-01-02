@@ -2448,35 +2448,6 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ClaimedOnLoadPartiesView(APIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole]
-
-    @staticmethod
-    def get(request, *args, **kwargs):
-        load_id = request.query_params.get("load_id", None)
-        if load_id is None:
-            return Response(
-                {"details": "Load ID is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        app_user_id = models.AppUser.objects.get(user=request.user.id).id
-        load = get_object_or_404(models.Load, id=load_id)
-        user_load_party = utils.get_load_party_by_id(load, app_user_id)
-        if user_load_party is None:
-            return Response(
-                {"details": "You aren't one of the load parties"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        claimed_on_serializer = serializers.ClaimedOnSerializer(
-            load,
-            context={"app_user_id": app_user_id}
-        )
-        return Response(
-            claimed_on_serializer.data,
-            status=status.HTTP_200_OK,
-        )
-
-
 class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin):
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
@@ -2511,18 +2482,6 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
                 {"details": "You aren't the one who created the claim"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if "claimed_on" in mutable_request_data:
-            if mutable_request_data["claimed_on"] == app_user.id:
-                return Response(
-                    {"details": "You can't raise claim on yourself"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            claimed_on_user = get_object_or_404(models.AppUser, id=mutable_request_data["claimed_on"])
-            if not utils.is_this_user_valid_to_be_claimed_on(claimed_on_user, claim_object.load):
-                return Response(
-                    {"details": "You can't raise claim on a user who is not a party of the load"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
         serializer = self.get_serializer(claim_object, data=mutable_request_data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -2548,21 +2507,11 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
                 {"details": "Claim on this load already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        claimed_on_id = mutable_request_data.get("claimed_on", None)
-        if claimed_on_id is not None:
-            claimed_on_user = get_object_or_404(models.AppUser, id=claimed_on_id)
-            if claimed_on_id == app_user.id:
-                return Response(
-                    {"details": "You can't raise claim on yourself"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if not utils.is_this_user_valid_to_be_claimed_on(claimed_on_user, load):
-                return Response(
-                    {
-                        "details": "You can't raise claim on a user who is not a party of the load"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        if not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
+            return Response(
+                {"details": "You can't create a claim on a load where you are all the load parties"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         mutable_request_data["claimant"] = str(app_user.id)
         mutable_request_data["status"] = CLAIM_OPEN_STATUS
         del mutable_request_data["load_id"]
