@@ -15,7 +15,7 @@ elif os.getenv("ENV") == "STAGING":
 else:
     from freightmonster.settings.local import GS_COMPANY_MANAGER_BUCKET_NAME
 
-
+#TODO: refactor upload_to_gcs so you can use it in different apps
 def upload_to_gcs(uploaded_file, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME):
     """Uploads a file to the bucket."""
     storage_client = get_storage_client()

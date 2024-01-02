@@ -1,4 +1,5 @@
 import string, random
+from datetime import datetime
 from django.db.models import Q
 
 import authentication
@@ -281,11 +282,30 @@ def is_load_status_valid_to_create_claim(status):
     )
 
 
+def get_unique_symbol_algorithm_id(length):
+    symbols = string.ascii_letters + string.digits + "-/*=+_&%$#@!"
+    return ''.join(random.choice(symbols) for _ in range(length))
+
+
+def get_unique_name_for_supporting_docs(bucket, file_name):
+    final_file_name = file_name
+    blob = bucket.blob("images/" + final_file_name)
+    while blob.exists():
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        unique_id = get_unique_symbol_algorithm_id(20)
+        final_file_name = f"{final_file_name}_{timestamp}_{unique_id}"
+        blob = bucket.blob("images/" + final_file_name)
+        final_file_name = file_name
+    return final_file_name
+
+
 def upload_claim_supporting_docs_to_gcs(uploaded_file):
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
-    blob = bucket.blob("images/" + uploaded_file.name)
+    file_name = get_unique_name_for_supporting_docs(bucket, uploaded_file.name)
+    blob = bucket.blob(f"images/{file_name}")
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
+
 
 
 def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
