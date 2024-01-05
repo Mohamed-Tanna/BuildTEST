@@ -307,9 +307,7 @@ def upload_claim_supporting_docs_to_gcs(uploaded_file):
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
 
 
-
 def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
-    """Generates a signed URL for downloading an object from a bucket."""
     bucket_name = GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
     try:
         storage_client = get_storage_client()
@@ -317,7 +315,6 @@ def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
         blob = bucket.blob("images/" + object_name)
         if not blob.exists():
             raise NameError
-
         signing_creds = get_signing_creds(storage_client._credentials)
         url = blob.generate_signed_url(
             version="v4",
@@ -325,13 +322,10 @@ def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
             method="GET",
             credentials=signing_creds,
         )
-
         return url
-
     except NameError:
         print(f"Error: Object {object_name} not found in bucket {bucket_name}")
         return None
-
     except (BaseException) as e:
         print(f"Unexpected {e=}, {type(e)=}")
         return None

@@ -2448,7 +2448,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin):
+class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
     lookup_field = 'id'
@@ -2458,7 +2458,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
             return permission_classes
-        elif self.request.method == 'POST' or self.request.method == 'PUT':
+        elif self.request.method == 'POST':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
             return permission_classes
@@ -2469,23 +2469,6 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateMode
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        mutable_request_data = request.data.copy()
-        app_user = models.AppUser.objects.get(user=request.user)
-        claim_object = self.get_object()
-        if app_user != claim_object.claimant:
-            return Response(
-                {"details": "You aren't the one who created the claim"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        serializer = self.get_serializer(claim_object, data=mutable_request_data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
