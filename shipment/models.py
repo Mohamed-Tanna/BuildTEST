@@ -202,28 +202,8 @@ class Claim(models.Model):
         ],
         max_length=11,
     )
-    description_of_loss = models.TextField(blank=False, null=False)
+    description_of_loss = models.TextField(blank=True, null=False)
     supporting_docs = ArrayField(models.TextField(), null=False, blank=True)
-    commodity_type = models.CharField(
-        null=False,
-        blank=False
-    )
-    commodity_description = models.TextField(
-        blank=True,
-        null=False,
-        default=""
-    )
-    type_of_loss = models.CharField(
-        null=False,
-        blank=False,
-        choices=[
-            ("damaged", "damaged"),
-            ("lost", "lost"),
-            ("delayed", "delayed"),
-        ],
-        max_length=7,
-    )
-
     date_of_loss = models.DateField(null=False)
 
 

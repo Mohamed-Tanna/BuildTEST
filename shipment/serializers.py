@@ -130,7 +130,7 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         model = models.Claim
         fields = "__all__"
         extra_kwargs = {
-            "commodity_description": {"required": False},
+            "description_of_loss": {"required": False},
         }
         read_only_fields = ("id", "created_at")
 
