@@ -28,7 +28,53 @@ class FacilitySerializer(serializers.ModelSerializer):
         return rep
 
 
+class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
+    supporting_docs = serializers.ListField(child=serializers.FileField())
+
+    class Meta:
+        model = models.Claim
+        fields = "__all__"
+        extra_kwargs = {
+            "description_of_loss": {"required": False},
+        }
+        read_only_fields = ("id", "created_at")
+
+    def create(self, validated_data):
+        supporting_docs = validated_data.pop("supporting_docs", [])
+        supporting_docs_name = []
+        for doc in supporting_docs:
+            doc_name = f"supporting_docs_{doc.name}"
+            doc.name = doc_name
+            doc_name = upload_claim_supporting_docs_to_gcs(doc)
+            supporting_docs_name.append(doc_name)
+        validated_data["supporting_docs"] = supporting_docs_name
+        return super().create(validated_data)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        signed_urls_for_supporting_docs = []
+        for doc in instance.supporting_docs:
+            signed_urls_for_supporting_docs.append(
+                {
+                    "name": doc,
+                    "url": generate_signed_url_for_claim_supporting_docs(doc)
+                }
+            )
+        representation['supporting_docs'] = signed_urls_for_supporting_docs
+
+        representation['claimant'] = {
+            "id": instance.claimant.id,
+            "username": instance.claimant.user.username,
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.claimant,
+                load=instance.load
+            )
+        }
+        return representation
+
+
 class LoadListSerializer(serializers.ModelSerializer):
+    has_claim = serializers.SerializerMethodField()
     class Meta:
         model = models.Load
         fields = [
@@ -44,10 +90,12 @@ class LoadListSerializer(serializers.ModelSerializer):
             "pick_up_date",
             "delivery_date",
             "status",
+            "has_claim"
         ]
         read_only_fields = (
             "id",
             "status",
+            "has_claim"
         )
 
     def to_representation(self, instance):
@@ -60,9 +108,13 @@ class LoadListSerializer(serializers.ModelSerializer):
         rep["destination"] = instance.destination.building_name
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
-        except (BaseException):
+        except BaseException:
             rep["carrier"] = None
         return rep
+
+    @staticmethod
+    def get_has_claim(load):
+        return models.Claim.objects.filter(load=load).exists()
 
 
 class ContactListSerializer(serializers.ModelSerializer):
@@ -121,51 +173,6 @@ class ShipmentSerializer(serializers.ModelSerializer):
         rep["created_by"] = instance.created_by.user.username
 
         return rep
-
-
-class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
-    supporting_docs = serializers.ListField(child=serializers.FileField())
-
-    class Meta:
-        model = models.Claim
-        fields = "__all__"
-        extra_kwargs = {
-            "description_of_loss": {"required": False},
-        }
-        read_only_fields = ("id", "created_at")
-
-    def create(self, validated_data):
-        supporting_docs = validated_data.pop("supporting_docs", [])
-        supporting_docs_name = []
-        for doc in supporting_docs:
-            doc_name = f"supporting_docs_{doc.name}"
-            doc.name = doc_name
-            doc_name = upload_claim_supporting_docs_to_gcs(doc)
-            supporting_docs_name.append(doc_name)
-        validated_data["supporting_docs"] = supporting_docs_name
-        return super().create(validated_data)
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        signed_urls_for_supporting_docs = []
-        for doc in instance.supporting_docs:
-            signed_urls_for_supporting_docs.append(
-                {
-                    "name": doc,
-                    "url": generate_signed_url_for_claim_supporting_docs(doc)
-                }
-            )
-        representation['supporting_docs'] = signed_urls_for_supporting_docs
-
-        representation['claimant'] = {
-            "id": instance.claimant.id,
-            "username": instance.claimant.user.username,
-            "party_roles": get_app_user_load_party_roles(
-                app_user=instance.claimant,
-                load=instance.load
-            )
-        }
-        return representation
 
 
 class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
