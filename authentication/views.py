@@ -1,4 +1,6 @@
 # Module imports
+from django.db import IntegrityError
+
 import authentication.models as models
 import shipment.utilities as ship_utils
 import authentication.utilities as utils
@@ -27,7 +29,6 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 from allauth.account.models import EmailAddress
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
-
 
 SHIPMENT_PARTY = "shipment party"
 
@@ -497,7 +498,7 @@ class UserTaxView(GenericAPIView, CreateModelMixin):
                 return self._handle_basic_error(address)
 
     def _handle_first_error(
-        self, app_user: models.AppUser, e
+            self, app_user: models.AppUser, e
     ):
         app_user.delete()
         if isinstance(e, ValidationError):
@@ -721,7 +722,7 @@ class AddRoleView(APIView):
                     app_user=app_user, request=request)
 
             elif (
-                new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type
+                    new_type == SHIPMENT_PARTY and SHIPMENT_PARTY not in app_user.user_type
             ):
                 sort_roles = app_user.user_type.split("-")
                 sort_roles.append("shipment party")
@@ -748,7 +749,15 @@ class AddRoleView(APIView):
                 status=status.HTTP_201_CREATED,
                 data=serializers.AppUserSerializer(app_user).data,
             )
-
+        except IntegrityError as e:
+            return Response(
+                [
+                    {
+                        "details": f"The user you are trying to add already a {new_type}"
+                    }
+                ],
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             raise e
@@ -763,13 +772,16 @@ class AddRoleView(APIView):
         composed_type = "-".join(sort_roles)
 
         utils.check_dot_number(dot_number=request.data["dot_number"])
-
-        carrier = models.Carrier.objects.create(
-            app_user=app_user,
-            DOT_number=request.data["dot_number"],
-            allowed_to_operate=True,
-        )
-        carrier.save()
+        try:
+            carrier = models.Carrier.objects.create(
+                app_user=app_user,
+                DOT_number=request.data["dot_number"],
+                allowed_to_operate=True,
+            )
+            carrier.save()
+        except IntegrityError as e:
+            print(f"Unexpected {e=}, {type(e)=}")
+            raise e
         return composed_type
 
     def _create_dispatcher(self, request, app_user: models.AppUser):
@@ -783,15 +795,17 @@ class AddRoleView(APIView):
 
         try:
             utils.check_mc_number(mc_number=request.data["mc_number"])
-
-            dispatcher = models.Dispatcher.objects.create(
-                app_user=app_user,
-                MC_number=request.data["mc_number"],
-                allowed_to_operate=True,
-            )
-            dispatcher.save()
-            return composed_type
-
+            try:
+                dispatcher = models.Dispatcher.objects.create(
+                    app_user=app_user,
+                    MC_number=request.data["mc_number"],
+                    allowed_to_operate=True,
+                )
+                dispatcher.save()
+                return composed_type
+            except IntegrityError as e:
+                print(f"Unexpected {e=}, {type(e)=}")
+                raise e
         except BaseException as e:
             print(f"Unexpected {e=}, {type(e)=}")
             raise e
