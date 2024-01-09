@@ -305,6 +305,7 @@ def upload_claim_supporting_docs_to_gcs(uploaded_file):
     file_name = get_unique_name_for_supporting_docs(bucket, uploaded_file.name)
     blob = bucket.blob(f"images/{file_name}")
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
+    return file_name
 
 
 def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
