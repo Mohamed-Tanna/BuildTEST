@@ -50,7 +50,10 @@ class LoadListSerializer(serializers.ModelSerializer):
             "status",
         )
 
+
     def to_representation(self, instance):
+
+
         rep = super().to_representation(instance)
         rep["customer"] = instance.customer.app_user.user.username
         rep["shipper"] = instance.shipper.app_user.user.username
@@ -62,6 +65,8 @@ class LoadListSerializer(serializers.ModelSerializer):
             rep["carrier"] = instance.carrier.app_user.user.username
         except (BaseException):
             rep["carrier"] = None
+        rep["has_claim"] = models.Claim.objects.filter(load=instance).exists()
+
         return rep
 
 
