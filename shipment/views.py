@@ -2400,9 +2400,18 @@ class LoadSearchView(APIView):
             search = request.data["search"]
             loads = loads.filter(name__icontains=search)
 
+        if "filter" in request.data:
+            for key, value in request.data["filter"].items():
+                if key == "has_claim":
+                    if value:
+                        loads = loads.filter(claim__isnull=False)
+                    else:
+                        loads = loads.filter(claim__isnull=True)
         paginator = self.pagination_class()
         paginated_loads = paginator.paginate_queryset(
-            loads.order_by("-id"), request)
+            loads.order_by("-id"),
+            request
+        )
         loads = serializers.LoadListSerializer(paginated_loads, many=True).data
 
         return paginator.get_paginated_response(loads)
