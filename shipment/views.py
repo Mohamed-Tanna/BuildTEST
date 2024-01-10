@@ -2403,9 +2403,9 @@ class LoadSearchView(APIView):
         if "filter" in request.data:
             for key, value in request.data["filter"].items():
                 if key == "has_claim":
-                    if value.lower().strip() == "true" or value:
+                    if value is True or value.lower().strip() == "true":
                         loads = loads.filter(claim__isnull=False)
-                    elif value.lower().strip() == "false" or not value:
+                    elif value is False or value.lower().strip() == "false":
                         loads = loads.filter(claim__isnull=True)
         paginator = self.pagination_class()
         paginated_loads = paginator.paginate_queryset(
