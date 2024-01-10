@@ -75,6 +75,7 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
 
 class LoadListSerializer(serializers.ModelSerializer):
     has_claim = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Load
         fields = [
@@ -230,47 +231,3 @@ class ShipmentAdminSerializer(serializers.ModelSerializer):
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
         return rep
-
-
-class ClaimedOnSerializer(serializers.ModelSerializer):
-    claimed_on_parties = serializers.SerializerMethodField()
-
-    class Meta:
-        model = models.Load
-        fields = ['claimed_on_parties']
-
-    @staticmethod
-    def merge_same_parties_with_different_roles(list_of_parties):
-        merged_parties = {}
-        for party in list_of_parties:
-            party_id = party["id"]
-            if party_id not in merged_parties:
-                merged_parties[party_id] = {
-                    "id": party_id,
-                    "name": party["name"],
-                    "party_roles": [party["party_roles"][0]]
-                }
-            else:
-                merged_parties[party_id]["party_roles"].append(party["party_roles"][0])
-        return list(merged_parties.values())
-
-    def get_claimed_on_parties(self, load):
-        result = []
-        app_user_id = self.context.get('app_user_id')
-        party_roles = {
-            load.customer: "customer",
-            load.shipper: "shipper",
-            load.dispatcher: "dispatcher",
-            load.carrier: "carrier",
-            load.consignee: "consignee"
-        }
-        for party, role in party_roles.items():
-            if party.app_user.id != app_user_id:
-                result.append(
-                    {
-                        "id": party.app_user.id,
-                        "name": party.app_user.user.username,
-                        "party_roles": [role]
-                    }
-                )
-        return self.merge_same_parties_with_different_roles(result)

@@ -213,7 +213,6 @@ class ListClaimSerializer(serializers.ModelSerializer):
         model = Claim
         fields = [
             "claimant",
-            "claimed_on",
             "load",
             "created_at",
             "status",
@@ -225,10 +224,6 @@ class ListClaimSerializer(serializers.ModelSerializer):
         representation["claimant"] = {
             "username": instance.claimant.user.username,
             "party_roles": get_app_user_load_party_roles(instance.claimant, instance.load)
-        }
-        representation["claimed_on"] = {
-            "username": instance.claimed_on.user.username,
-            "party_roles": get_app_user_load_party_roles(instance.claimed_on, instance.load)
         }
         representation["load"] = instance.load.name
         return representation
