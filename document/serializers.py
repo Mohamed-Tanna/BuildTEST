@@ -2,11 +2,10 @@ from rest_framework import serializers
 import document.models as models
 import shipment.models as ship_models
 import authentication.models as auth_models
-from rest_framework import status
-from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 import document.utilities as utils
-
+from rest_framework.response import Response
+from rest_framework import status
 
 class UploadFileSerializer(serializers.Serializer):
     uploaded_file = serializers.FileField()
@@ -36,7 +35,7 @@ class UploadFileSerializer(serializers.Serializer):
             conflict = models.UploadedFile.objects.filter(name=name).exists()
             if conflict:
                 return Response(
-                    [{"details": "File with this name already exists."}],
+                    {"details": "File with this name already exists."},
                     status=status.HTTP_409_CONFLICT,
                 )
             else:
@@ -138,6 +137,11 @@ class DispatcherFinalAgreementSerializer(serializers.ModelSerializer):
             "generated_at",
             "verified_at",
         )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'dispatcher_docs'
+        return rep
 
 
 class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
@@ -252,6 +256,11 @@ class CustomerFinalAgreementSerializer(serializers.ModelSerializer):
             "verified_at",
         )
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'customer_docs'
+        return rep
+
 
 class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
     class Meta:
@@ -359,6 +368,11 @@ class CarrierFinalAgreementSerializer(serializers.ModelSerializer):
             "verified_at",
         )
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'carrier_docs'
+        return rep
+
 
 class BOLSerializer(serializers.ModelSerializer):
     class Meta:
@@ -402,7 +416,6 @@ class BOLSerializer(serializers.ModelSerializer):
             "equipment",
             "load_name",
             "shipment_name",
-            "carrier_offer",
             "did_customer_agree",
             "customer_uuid",
             "did_carrier_agree",
@@ -429,6 +442,8 @@ class BOLSerializer(serializers.ModelSerializer):
             "dispatcher_billing_address",
             "dispatcher_billing_phone_number",
             "carrier_billing_name",
+            "carrier_billing_address",
+            "carrier_billing_phone_number",
             "shipper_facility_name",
             "shipper_facility_address",
             "consignee_facility_name",
@@ -454,3 +469,8 @@ class BOLSerializer(serializers.ModelSerializer):
             "generated_at",
             "verified_at",
         )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['doc_type'] = 'bol'
+        return rep

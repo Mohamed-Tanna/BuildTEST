@@ -1,14 +1,16 @@
 from rest_framework import status
 import authentication.models as models
 from google.cloud import secretmanager
-import string, random, os, re, requests
-from django.utils.html import strip_tags
+import string
+import random
+import os
+import re
+import requests
 from rest_framework.response import Response
-from django.template.loader import get_template
-from django.core.mail import EmailMultiAlternatives
+import rest_framework.exceptions as exceptions
 
 
-def create_address(created_by, address, city, state, country, zip_code):
+def create_address(address, city, state, country, zip_code, created_by):
     try:
         address = models.Address.objects.create(
             created_by=created_by,
@@ -23,7 +25,7 @@ def create_address(created_by, address, city, state, country, zip_code):
 
     except (BaseException) as e:
         print((f"Unexpected {e=}, {type(e)=}"))
-        return False
+        raise exceptions.ParseError(detail=f"{e.args[0]}")
 
 
 def generate_company_identiefier():
@@ -45,10 +47,7 @@ def check_dot_number(dot_number):
     dot_pattern = re.compile(r"^\d{5,8}$")
 
     if not dot_pattern.match(dot_number):
-        return Response(
-            {"details": "invalid DOT number"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        raise exceptions.ParseError(detail="invalid DOT number")
 
     URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{dot_number}?webKey={webkey}"
 
@@ -56,15 +55,8 @@ def check_dot_number(dot_number):
     data = res.json()
 
     if data["content"] is None or "allowedToOperate" not in data["content"]["carrier"]:
-        return Response(
-            [
-                {
-                    "details": """This DOT number is not registered in the FMCSA, 
-                                            if you think this is a mistake please double check the number or contact the FMCSA"""
-                },
-            ],
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        raise exceptions.NotFound(detail="""This DOT number is not registered in the FMCSA, 
+                                            if you think this is a mistake please double check the number or contact the FMCSA""")
 
     if "allowedToOperate" in data["content"]["carrier"]:
         allowed_to_operate = data["content"]["carrier"]["allowedToOperate"]
@@ -72,13 +64,8 @@ def check_dot_number(dot_number):
         if allowed_to_operate == "Y":
             return True
         else:
-            return Response(
-                [
-                    {
-                        "details": "Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                    },
-                ],
-                status=status.HTTP_403_FORBIDDEN,
+            raise exceptions.PermissionDenied(
+                detail="""Carrier is not allowed to operate, if you think this is a mistake please contact the FMCSA"""
             )
 
 
@@ -94,23 +81,15 @@ def check_mc_number(mc_number):
     mc_number_pattern = re.compile(r"^\d{5,8}$")
 
     if not mc_number_pattern.match(mc_number):
-        return Response(
-            {"details": "invalid MC number"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        raise exceptions.ParseError(detail="invalid MC number")
 
     URL = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/docket-number/{mc_number}?webKey={webkey}"
     res = requests.get(url=URL)
     data = res.json()
     if len(data["content"]) == 0:
-        return Response(
-            [
-                {
-                    "details": """This MC number is not registered in the FMCSA, 
-                                    if you think this is a mistake please double check the number or contact the FMCSA"""
-                }
-            ],
-            status=status.HTTP_404_NOT_FOUND,
+        raise exceptions.NotFound(
+            detail="""This MC number is not registered in the FMCSA, 
+                        if you think this is a mistake please double check the number or contact the FMCSA"""
         )
 
     if "allowedToOperate" in data["content"][0]["carrier"]:
@@ -119,11 +98,13 @@ def check_mc_number(mc_number):
         if allowed_to_operate.upper() == "Y":
             return True
         else:
-            return Response(
-                [
-                    {
-                        "details": "Dispatcher is not allowed to operate, if you think this is a mistake please contact the FMCSA"
-                    }
-                ],
-                status=status.HTTP_403_FORBIDDEN,
+            raise exceptions.PermissionDenied(
+                detail="""Dispatcher is not allowed to operate, if you think this is a mistake please contact the FMCSA"""
             )
+
+
+def generate_password():
+    password = "".join(
+        random.choice(string.digits + string.ascii_letters + string.punctuation) for _ in range(10)
+    )
+    return password

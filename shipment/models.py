@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
+from django.contrib.postgres.fields import ArrayField
 from authentication.models import (
     User,
     AppUser,
@@ -11,7 +12,6 @@ from authentication.models import (
 
 
 class Facility(models.Model):
-
     owner = models.ForeignKey(
         to=User, null=False, blank=False, on_delete=models.CASCADE
     )
@@ -26,7 +26,6 @@ class Facility(models.Model):
 
 
 class Trailer(models.Model):
-
     model = models.CharField(max_length=50)
     description = models.CharField(max_length=50)
     max_height = models.FloatField()
@@ -90,7 +89,7 @@ class Load(models.Model):
     equipment = models.CharField(max_length=255, null=False, blank=False)
     goods_info = models.CharField(
         choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
-    )
+    )  # Hazardous materials
     load_type = models.CharField(
         choices=[("LTL", "LTL"), ("FTL", "FTL")],
         max_length=3,
@@ -104,7 +103,7 @@ class Load(models.Model):
             ("Assigning Carrier", "Assigning Carrier"),
             ("Awaiting Carrier", "Awaiting Carrier"),
             ("Awaiting Dispatcher", "Awaiting Dispatcher"),
-            ("Ready For Pick Up", "Ready For Pick Up"),
+            ("Ready For Pickup", "Ready For Pickup"),
             ("In Transit", "In Transit"),
             ("Delivered", "Delivered"),
             ("Canceled", "Canceled"),
@@ -113,7 +112,9 @@ class Load(models.Model):
         null=False,
         default="Created",
     )
+
     shipment = models.ForeignKey(to=Shipment, null=False, on_delete=models.CASCADE)
+    actual_delivery_date = models.DateField(null=True)
 
     class Meta:
         constraints = [
@@ -132,7 +133,6 @@ class Load(models.Model):
 
 
 class Contact(models.Model):
-
     origin = models.ForeignKey(
         to=User, null=True, on_delete=models.CASCADE, related_name="main"
     )
@@ -182,3 +182,54 @@ class ShipmentAdmin(models.Model):
 
     class Meta:
         unique_together = (("shipment", "admin"),)
+
+
+class Claim(models.Model):
+    load = models.OneToOneField(to=Load, on_delete=models.CASCADE)
+    claimant = models.ForeignKey(
+        to=AppUser,
+        related_name='claim_claimant',
+        null=False,
+        on_delete=models.CASCADE
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("open", "open"),
+            ("resolved", "resolved"),
+        ],
+        max_length=11,
+    )
+    description_of_loss = models.TextField(blank=True, null=False)
+    supporting_docs = ArrayField(models.TextField(), null=False, blank=True)
+    date_of_loss = models.DateField(null=False)
+
+
+class ClaimMessage(models.Model):
+    claim_id = models.ForeignKey(to=Claim, on_delete=models.CASCADE)
+    claimer = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
+    role = models.CharField(
+        null=False,
+        blank=False,
+        choices=[
+            ("customer", "customer"),
+            ("carrier", "carrier"),
+            ("shipper", "shipper"),
+            ("consignee", "consignee"),
+            ("dispatcher", "dispatcher")
+        ],
+        max_length=10,
+    )
+    message = models.TextField(
+        blank=False,
+        null=False
+    )
+    evidences = models.TextField(
+        null=False,
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ('claim_id', 'claimer', 'role')

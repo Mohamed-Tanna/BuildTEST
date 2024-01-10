@@ -24,6 +24,7 @@ def generate_signed_url(object_name, bucket_name=GS_BUCKET_NAME, expiration=3600
     """Generates a signed URL for downloading an object from a bucket."""
     try:
         storage_client = get_storage_client()
+        print(bucket_name)
         bucket = storage_client.get_bucket(bucket_name)
         blob = bucket.blob("pdfs/" + object_name)
         if not blob.exists():
@@ -59,7 +60,7 @@ def upload_to_gcs(uploaded_file, bucket_name=GS_BUCKET_NAME):
 def get_storage_client():
     if os.getenv("ENV") == "LOCAL":
         env = environ.Env()
-        env.read_env(os.path.join(BASE_DIR, ".local.env"))
+        env.read_env(os.path.join(BASE_DIR, "local.env"))
         service_account_file_path = env("SA_CREDS")
         credentials = service_account.Credentials.from_service_account_file(
             os.path.join(BASE_DIR, service_account_file_path)

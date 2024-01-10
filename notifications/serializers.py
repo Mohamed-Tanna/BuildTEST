@@ -3,11 +3,11 @@ import notifications.models as models
 import authentication.serializers as auth_serializers
 
 
-class Notification(serializers.ModelSerializer):
+class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Notification
         fields = "__all__"
-        extra_kwargs = {"seen": {"required": False}}
+        extra_kwargs = {"seen": {"required": False}, "manager_seen": {"required": False}}
         read_only_fields = (
             "id",
             "created_at",
@@ -16,10 +16,49 @@ class Notification(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["user"] = auth_serializers.AppUserSerializer(instance.user).data
+        rep["sender"] = auth_serializers.AppUserSerializer(instance.sender).data
+        del rep["manager_seen"]
         return rep
 
 
-class NotificationSetting(serializers.ModelSerializer):
+class ManagerNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Notification
+        fields = "__all__"
+        read_only_fields = (
+            "id",
+            "created_at",
+            "user",
+            "sender",
+            "message",
+            "url",
+            "seen",
+            "created_at",
+        )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["user"] = auth_serializers.AppUserSerializer(instance.user).data
+        rep["sender"] = auth_serializers.AppUserSerializer(instance.sender).data
+
+        # handle message for manager
+        new_message = rep["message"]
+        if "has added you" in rep["message"]:
+            new_message = rep["message"].replace("has added you", f"has added your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
+        elif "has sent you" in rep["message"]:
+            new_message = rep["message"].replace("has sent you", f"has sent your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
+        elif "has countered your" in rep["message"]:
+            new_message = rep["message"].replace("has countered your", f"has countered your employee's ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
+        elif "assigned you" in rep["message"]:
+            new_message = rep["message"].replace("assigned you", f"assigned your employee ({instance.user.user.first_name.capitalize()} {instance.user.user.last_name.capitalize()})")
+        rep["message"] = new_message
+
+        rep["seen"] = instance.manager_seen
+        del rep["manager_seen"]
+
+        return rep
+
+class NotificationSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.NotificationSetting
         fields = "__all__"
@@ -31,18 +70,17 @@ class NotificationSetting(serializers.ModelSerializer):
             "got_offer": {"required": False},
             "offer_updated": {"required": False},
             "add_as_shipment_admin": {"required": False},
-            "load_to_ready_to_pickup": {"required": False},
-            "load_to_in_transit": {"required": False},
-            "load_to_delivered": {"required": False},
-            "load_to_canceled": {"required": False},
+            "load_status_changed": {"required": False},
             "RC_approved": {"required": False},
             "updated_at": {"required": False},
         }
         read_only_fields = (
             "id",
             "updated_at",
+            "user",
         )
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["user"] = auth_serializers.AppUserSerializer(instance.user).data
+        return rep

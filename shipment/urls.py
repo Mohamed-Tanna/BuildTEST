@@ -4,6 +4,8 @@ import shipment.views as views
 urlpatterns = [
     path("facility/", views.FacilityView.as_view()),
     path("facility/<id>/", views.FacilityView.as_view()),
+    path("load/claim/", views.ClaimView.as_view()),
+    path("load/claim/<id>", views.ClaimView.as_view()),
     path("load/", views.LoadView.as_view()),
     path("load/<id>/", views.LoadView.as_view()),
     path("list-load/", views.ListLoadView.as_view()),

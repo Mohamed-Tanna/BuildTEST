@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     "corsheaders",
     "notifications",
     "invitation",
+    "manager",
+    "support",
+    'logs',
     "drf_spectacular",
 ]
 
@@ -50,6 +53,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "defender.middleware.FailedLoginMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 PASSWORD_HASHERS = [
@@ -140,25 +144,28 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-REST_AUTH_SERIALIZERS = {
-    "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
-}
-
-REST_AUTH_REGISTER_SERIALIZERS = {
+REST_AUTH = {
+    "USE_JWT": True,
+    "TOKEN_MODEL": None,
+    "TOKEN_CREATOR": None,
+    "SESSION_LOGIN": False,
+    "JWT_AUTH_HTTPONLY": False,
+    "JWT_AUTH_COOKIE": "my-app-auth",
+    "LOGIN_SERIALIZER": "dj_rest_auth.serializers.LoginSerializer",
+    "TOKEN_SERIALIZER": "dj_rest_auth.serializers.TokenSerializer",
     "REGISTER_SERIALIZER": "authentication.serializers.CustomRegisterSerializer",
+    "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-REST_USE_JWT = True
-
 ACCOUNT_ADAPTER = "authentication.adapter.CustomAccountAdapter"
-
-JWT_AUTH_COOKIE = "my-app-auth"
 
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 
 ACCOUNT_AUTHENTICATION_METHOD = "email"
+
+ACCOUNT_UNIQUE_EMAIL = True
 
 ACCOUNT_EMAIL_REQUIRED = True
 
@@ -198,3 +205,7 @@ DEFENDER_LOGIN_FAILURE_LIMIT = 5
 DEFENDER_COOLOFF_TIME = 600
 
 DEFENDER_LOCK_OUT_BY_IP_AND_USERNAME = True
+
+# Twilio settings
+TWILIO_ACCOUNT_SID = "AC5b70bf9a9a982fe3f4c1cea70f86f757"
+TWILIO_PHONE_NUMBER = "+18445071806"

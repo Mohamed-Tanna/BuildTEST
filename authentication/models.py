@@ -6,7 +6,6 @@ SHIPMENT_PARTY = "shipment party"
 
 
 class AppUser(models.Model):
-
     user = models.OneToOneField(
         to=User,
         null=False,
@@ -26,6 +25,8 @@ class AppUser(models.Model):
                 f"carrier-dispatcher-{SHIPMENT_PARTY}",
                 f"carrier-dispatcher-{SHIPMENT_PARTY}",
             ),
+            ("manager", "manager"),
+            ("support", "support")
         ],
         max_length=33,
         null=False,
@@ -35,6 +36,8 @@ class AppUser(models.Model):
             ("carrier", "carrier"),
             ("dispatcher", "dispatcher"),
             (SHIPMENT_PARTY, SHIPMENT_PARTY),
+            ("manager", "manager"),
+            ("support", "support")
         ],
         max_length=14,
         null=False,
@@ -45,7 +48,6 @@ class AppUser(models.Model):
 
 
 class Dispatcher(models.Model):
-
     app_user = models.OneToOneField(
         to=AppUser,
         null=False,
@@ -60,7 +62,6 @@ class Dispatcher(models.Model):
 
 
 class Carrier(models.Model):
-
     app_user = models.OneToOneField(
         to=AppUser,
         null=False,
@@ -75,7 +76,6 @@ class Carrier(models.Model):
 
 
 class ShipmentParty(models.Model):
-
     app_user = models.OneToOneField(
         to=AppUser,
         null=False,
@@ -103,6 +103,7 @@ class Address(models.Model):
 
 class Company(models.Model):
     name = models.CharField(max_length=255, null=False, unique=True)
+    manager = models.OneToOneField(to=AppUser, null=False, on_delete=models.CASCADE)
     identifier = models.CharField(max_length=10, null=False, blank=False, unique=True)
     EIN = models.CharField(
         max_length=9,
@@ -111,11 +112,27 @@ class Company(models.Model):
         unique=True,
         validators=[MinLengthValidator(9)],
     )
+    scac = models.CharField(
+        max_length=4,
+        default="",
+        validators=[MinLengthValidator(2)],
+    )
     address = models.OneToOneField(
         to=Address, null=False, blank=False, on_delete=models.CASCADE
     )
     fax_number = models.CharField(max_length=18, default="N/A")
     phone_number = models.CharField(max_length=18, null=False, blank=False)
+    domain = models.CharField(max_length=255, null=False, blank=False, unique=True)
+    company_size = models.CharField(
+        choices=[
+            ("1-10", "1-10"),
+            ("11-50", "11-50"),
+            ("51-100", "51-100"),
+            (">100", ">100"),
+        ],
+        max_length=6,
+        default="1-10",
+    )
 
     def __str__(self):
         return self.name
