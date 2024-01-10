@@ -1,8 +1,29 @@
+import os
 from django.utils.html import strip_tags
 from django.template.loader import get_template
 from django.core.mail import EmailMultiAlternatives
-from authentication.models import User
+
+from freightmonster.constants import CLAIM_CREATED
 from shipment.models import Load, Shipment
+from twilio.rest import Client
+from authentication.models import AppUser, CompanyEmployee, Company
+import notifications.models as models
+from phonenumbers import parse, format_number, PhoneNumberFormat, NumberParseException
+from freightmonster.settings.base import (
+    TWILIO_ACCOUNT_SID,
+    TWILIO_PHONE_NUMBER,
+)
+
+if os.getenv("ENV") == "DEV":
+    from freightmonster.settings.dev import TWILIO_AUTH_TOKEN
+elif os.getenv("ENV") == "STAGING":
+    from freightmonster.settings.staging import TWILIO_AUTH_TOKEN
+else:
+    from freightmonster.settings.local import TWILIO_AUTH_TOKEN
+
+
+# file deepcode ignore AttributeLoadOnNone: because these fields are not nullable
+# everytime the function is called some of the fields are supposed to be null
 
 
 def trigger_send_email_notification(subject, template, to, message, url):
@@ -31,57 +52,293 @@ def trigger_send_email_notification(subject, template, to, message, url):
     print(res)
 
 
-def trigger_send_sms_notification(user):
+def convert_phone_number_to_e164(phone_number: str):
+    """Convert phone number to e164 format"""
+    try:
+        region = "US"
+        if phone_number.startswith("+52"):
+            region = "MX"
+        phone_number = parse(phone_number, region=region)
+
+        return format_number(phone_number, PhoneNumberFormat.E164)
+
+    except NumberParseException:
+        return None
+
+
+def trigger_send_sms_notification(app_user: AppUser, sid, token, phone_number, message):
     """Trigger sending sms notification to user"""
-    pass
+    client = Client(sid, token)
+    app_user_phone_number = convert_phone_number_to_e164(app_user.phone_number)
+    if app_user_phone_number is None:
+        print("Invalid phone number format.")
+        return False
+
+    try:
+        response = client.messages.create(
+            to=app_user_phone_number,
+            from_=phone_number,
+            body=message,
+            messaging_service_sid="MGfeb0e973e4fc789955bfa78fddbd7fa7",
+        )
+        print(response)
+        return True
+    except Exception as e:
+        print(f"Unexpected {e=}, {type(e)=}")
+        return False
 
 
-def handle_notification(user, message):
-    """Handle the notification to user's prefrences"""
-    pass
-
-
-def get_notification_msg(
-    action,
-    load: Load = None,
-    shipment: Shipment = None,
-    user: User = None,
+# main
+def handle_notification(
+        app_user: AppUser,
+        action,
+        load=None,
+        sender: AppUser = None,
+        shipment=None,
 ):
-    if action == "added as a contact":
-        return f"You have been added as a contact by {user.username}."
-    elif action == "added to a load":
-        roles = find_user_roles_in_a_load(load, user)
-        return f"You have been added to the load {load.name} as a {', '.join(roles)}"
-    elif action == "got an offer":
-        return f"{load.dispatcher} has sent you an offer for the load '{load.name}'."
-    elif action == "got a counter":
-        return f"{user.username} has countered your offer on the load '{load.name}'."
-    elif action == "added as a shipment admin":
-        return f"You have been added as a shipment admin by {user.username} for shipment '{shipment.name}'."
-    elif action == "load is ready for pick up":
-        return f"The load '{load.name}' is now ready for pickup." 
-    elif action == "load is in transit":
-        return f"The load '{load.name}' has been picked up and is now in transit."
-    elif action == "load is delivered":
-        return f"The load '{load.name}' has been delivered successfully."
-    elif action == "RC is approved":
-        return f"{user.username} has approved the rate confirmation for the load '{load.name}'."
-    elif action == "load is canceled":
-        return f"The load '{load.name}' has been canceled."
+    handle_notification_for_manager(app_user, action, load, sender, shipment)
+    """Handle the notification to user's prefrences"""
+    try:
+        notification_setting = models.NotificationSetting.objects.get(user=app_user)
+    except models.NotificationSetting.DoesNotExist:
+        return False
+    if notification_setting.is_allowed:
+        action_to_attr_mapping = {
+            "add_as_contact": "add_as_contact",
+            "add_to_load": "add_to_load",
+            "got_offer": "got_offer",
+            "offer_updated": "offer_updated",
+            "add_as_shipment_admin": "add_as_shipment_admin",
+            "load_status_changed": "load_status_changed",
+            "RC_approved": "RC_approved",
+            "assign_carrier": "load_status_changed",
+            "claim_created": "claim_created"
+        }
+
+        message, url = get_notification_msg_and_url(
+            action, load, shipment, app_user, sender
+        )
+        notification = models.Notification.objects.create(
+            user=app_user, sender=sender, message=message, url=url
+        )
+        notification.save()
+        if action in action_to_attr_mapping and getattr(
+                notification_setting, action_to_attr_mapping[action]
+        ):
+            send_notification(app_user, message, url)
+            return True
+        else:
+            return False
+    else:
+        return False
 
 
-def find_user_roles_in_a_load(load:Load, user:User):
-    username = user.username
+def handle_notification_for_manager(
+        app_user: AppUser,
+        action,
+        load=None,
+        sender: AppUser = None,
+        shipment=None,
+):
+    # Get Company Manager if exists
+    try:
+        company = CompanyEmployee.objects.get(app_user=app_user).company
+        manager = company.manager
+        if manager:
+            try:
+                manager_notification_setting = models.NotificationSetting.objects.get(user=manager)
+            except models.NotificationSetting.DoesNotExist:
+                return
+
+            if manager_notification_setting.is_allowed:
+                action_to_attr_mapping = {
+                    "add_as_contact": "add_as_contact",
+                    "add_to_load": "add_to_load",
+                    "got_offer": "got_offer",
+                    "offer_updated": "offer_updated",
+                    "add_as_shipment_admin": "add_as_shipment_admin",
+                    "load_status_changed": "load_status_changed",
+                    "RC_approved": "RC_approved",
+                    "assign_carrier": "load_status_changed",
+                    "claim_created": "claim_created"
+                }
+
+                message, url = get_notification_msg_and_url_for_manager(
+                    action, load, shipment, app_user, sender
+                )
+                if action in action_to_attr_mapping and getattr(
+                        manager_notification_setting, action_to_attr_mapping[action]
+                ):
+                    send_notification(manager, message, url)
+    except CompanyEmployee.DoesNotExist:
+        return
+
+
+def send_notification(app_user: AppUser, message, url=None):
+    """Send the notification to user's preferred method(s)"""
+    notification_setting = models.NotificationSetting.objects.get(user=app_user)
+
+    if notification_setting.methods == "none":
+        return False
+    elif notification_setting.methods == "email":
+        trigger_send_email_notification(
+            message=message,
+            to=app_user.user.email,
+            subject="FreightSlayer Notification",
+            template="send_notification.html",
+            url=url,
+        )
+    elif notification_setting.methods == "sms":
+        trigger_send_sms_notification(
+            app_user=app_user,
+            sid=TWILIO_ACCOUNT_SID,
+            token=TWILIO_AUTH_TOKEN,
+            phone_number=TWILIO_PHONE_NUMBER,
+            message=f"Hey {app_user.user.username}, " + message,
+        )
+    elif notification_setting.methods == "both":
+        trigger_send_email_notification(
+            message=message,
+            to=app_user.user.email,
+            subject="FreightSlayer Notification",
+            template="send_notification.html",
+            url=url,
+        )
+        trigger_send_sms_notification(
+            app_user=app_user,
+            sid=TWILIO_ACCOUNT_SID,
+            token=TWILIO_AUTH_TOKEN,
+            phone_number=TWILIO_PHONE_NUMBER,
+            message=f"Hey {app_user.user.username}, " + message,
+        )
+
+
+def get_notification_msg_and_url(
+        action,
+        load: Load = None,
+        shipment: Shipment = None,
+        app_user: AppUser = None,
+        sender: AppUser = None,
+):
+    """Get the notification message based on the action"""
+    environment = os.getenv("ENV").lower()
+    if action == "add_as_contact":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added you as a contact.",
+            f"https://{environment}.freightslayer.com/login?redirect=/contact",
+        )
+    elif action == "add_to_load":
+        roles = find_user_roles_in_a_load(load, app_user)
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added you to the load {load.name} as a {', '.join(roles)}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "got_offer":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has sent you an offer for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "offer_updated":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has countered your offer on the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "add_as_shipment_admin":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added you as a shipment admin on shipment '{shipment.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/shipment-details/{shipment.id}",
+        )
+    elif action == "load_status_changed":
+        return (
+            f"Kindly be informed that there has been a recent update regarding the load '{load.name}' status,  and it is now {load.status}.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "RC_approved":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has approved the rate confirmation for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "assign_carrier":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned you as a carrier for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == CLAIM_CREATED:
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has created a claim for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+
+
+def get_notification_msg_and_url_for_manager(
+        action,
+        load: Load = None,
+        shipment: Shipment = None,
+        app_user: AppUser = None,
+        sender: AppUser = None,
+):
+    """Get the notification message based on the action"""
+    environment = os.getenv("ENV").lower()
+    if action == "add_as_contact":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a contact.",
+            f"https://{environment}.freightslayer.com/login?redirect=/contact",
+        )
+    elif action == "add_to_load":
+        roles = find_user_roles_in_a_load(load, app_user)
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) to the load {load.name} as a {', '.join(roles)}",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "got_offer":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has sent your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) an offer for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "offer_updated":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has countered your employee's ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) offer on the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "add_as_shipment_admin":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has added your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a shipment admin on shipment '{shipment.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/shipment-details/{shipment.id}",
+        )
+    elif action == "load_status_changed":
+        return (
+            f"Kindly be informed that there has been a recent update regarding the load '{load.name}' status,  and it is now {load.status}.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "RC_approved":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has approved the rate confirmation for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == "assign_carrier":
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) assigned your employee ({app_user.user.first_name.capitalize()} {app_user.user.last_name.capitalize()}) as a carrier for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+    elif action == CLAIM_CREATED:
+        return (
+            f"{sender.user.first_name.capitalize()} {sender.user.last_name.capitalize()} ({sender.user.username}) has created a claim for the load '{load.name}'.",
+            f"https://{environment}.freightslayer.com/login?redirect=/load-details/{load.id}",
+        )
+
+
+def find_user_roles_in_a_load(load: Load, app_user: AppUser):
+    username = app_user.user.username
     load_parties = {
         "customer": f"{load.customer.app_user.user.username}",
         "shipper": f"{load.shipper.app_user.user.username}",
         "consignee": f"{load.consignee.app_user.user.username}",
         "dispatcher": f"{load.dispatcher.app_user.user.username}",
-        "carrier": f"{load.carrier.app_user.user.username}"
+        "carrier": f"{load.carrier.app_user.user.username}" if load.carrier else None,
     }
     roles = []
     for key, value in load_parties.items():
         if value == username:
             roles.append(key)
-    
+
     return roles

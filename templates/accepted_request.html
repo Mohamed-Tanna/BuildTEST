@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Freight Slayer Invitation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="https://storage.googleapis.com/freight_static_files/freight-icon.png" alt="Freight Slayer Icon" width="200">
+        </div>
+        <h2>Hello {{username}},</h2>
+        <p>We are pleased to inform you that your request for {{company_name}} has been approved, and the company has been created. Additionally, we have appointed you as the company manager.</p>
+        <p>To access your account, please use the password provided below. For security reasons, we strongly recommend changing your password once you have logged in.</p>
+        <p><strong>Password:</strong> {{password_or_reason}}</p>
+        <br>
+        <p>To log in and begin managing your company, please click <a href="{{url}}">here</a>.</p>
+        <p>Thank you for using FreightSlayer!</p>
+        <br>
+        <br>
+        <br>
+        <br>
+        <p>Regards,</p>
+        <p>FreightSlayer</p>
+    </div>
+</body>
+</html>
