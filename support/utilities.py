@@ -79,7 +79,7 @@ def ein_validation(ein):
         result["isValid"] = True
     else:
         result["message"] = "Invalid EIN format. It should be in the form XX-XXXXXXX where X is a digit."
-        result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERRORs
+        result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
     return result
 
 
