@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.core.validators import MinLengthValidator
 
 SHIPMENT_PARTY = "shipment party"
 
@@ -110,12 +109,10 @@ class Company(models.Model):
         null=False,
         blank=False,
         unique=True,
-        validators=[MinLengthValidator(9)],
     )
     scac = models.CharField(
         max_length=4,
         default="",
-        validators=[MinLengthValidator(2)],
     )
     address = models.OneToOneField(
         to=Address, null=False, blank=False, on_delete=models.CASCADE
@@ -159,7 +156,6 @@ class UserTax(models.Model):
         null=False,
         blank=False,
         unique=True,
-        validators=[MinLengthValidator(9)],
     )
     address = models.OneToOneField(
         to=Address, null=False, blank=False, on_delete=models.CASCADE

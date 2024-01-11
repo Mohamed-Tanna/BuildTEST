@@ -3,6 +3,8 @@ import authentication.models as models
 from rest_framework import serializers
 from django.core.validators import MinLengthValidator
 from dj_rest_auth.registration.serializers import RegisterSerializer
+import authentication.validators as valids
+from rest_framework.response import Response
 
 
 class CustomRegisterSerializer(RegisterSerializer):
@@ -109,6 +111,25 @@ class CompanySerializer(serializers.ModelSerializer):
         }
         read_only_fields = ("id",)
 
+    def create(self, validated_data):
+        scac=""
+        if "scac" in validated_data:
+            scac = validated_data["scac"].strip()
+        if len(scac) > 0:
+            scac_validity_result = valids.is_scac_valid(scac)
+            if not scac_validity_result["isValid"]:
+                return Response(
+                    {"details": scac_validity_result["message"]},
+                    status=scac_validity_result["errorStatus"],
+                )
+        if "EIN" in validated_data:
+            ein_validity_result = valids.ein_validation(validated_data["EIN"])
+            if not ein_validity_result["isValid"]:
+                return Response(
+                    {"details": ein_validity_result["message"]},
+                    status=ein_validity_result["errorStatus"],
+                )
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["manager"] = AppUserSerializer(instance.manager).data
@@ -132,6 +153,14 @@ class UserTaxSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserTax
         fields = ["app_user", "TIN", "address"]
+    def create(self, validated_data):
+        if "TIN" in validated_data:
+            TIN_validity_result = valids.min_length_validation(validated_data["TIN"], 9)
+            if not TIN_validity_result["isValid"]:
+                return Response(
+                    {"details": TIN_validity_result["message"]},
+                    status=TIN_validity_result["errorStatus"],
+                )
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
