@@ -60,10 +60,10 @@ def is_scac_valid(scac):
         if not tickets.exists():
             result["isValid"] = True
         else:
-            result["message"] = "scac already exists"
+            result["message"] = "SCAC already exists"
             result["errorStatus"] = status.HTTP_409_CONFLICT
     else:
-        result["message"] = "scac length should be 2-4 characters and contain upper case letters only"
+        result["message"] = "SCAC length should be 2-4 characters and contain upper case letters only"
         result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
     return result
 
@@ -94,6 +94,6 @@ def min_length_validation(value, min_length):
         result["isValid"] = True
     else:
         result["message"] = (
-            f"Invalid format. It should be at least {min_length} characters long and can include letters, digits, and hyphens.")
+            f"Invalid insurance policy format. It should be at least {min_length} characters long and can include letters, digits, and hyphens.")
         result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
     return result
