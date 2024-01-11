@@ -115,21 +115,21 @@ class CreateTicketSerializer(serializers.Serializer):
             scac_validity_result = utils.is_scac_valid(scac)
             if not scac_validity_result["isValid"]:
                 return Response(
-                    {"details": scac_validity_result["message"]},
+                    {"SCAC": scac_validity_result["message"]},
                     status=scac_validity_result["errorStatus"],
                 )
         if "EIN" in validated_data:
             ein_validity_result = utils.ein_validation(validated_data["EIN"])
             if not ein_validity_result["isValid"]:
                 return Response(
-                    {"details": ein_validity_result["message"]},
+                    {"EIN": ein_validity_result["message"]},
                     status=ein_validity_result["errorStatus"],
                 )
         if "insurance_policy_number" in validated_data:
             IPN_validity_result = utils.min_length_validation(validated_data["insurance_policy_number"], 8)
             if not IPN_validity_result["isValid"]:
                 return Response(
-                    {"details": IPN_validity_result["message"]},
+                    {"IPN": IPN_validity_result["message"]},
                     status=IPN_validity_result["errorStatus"],
                 )
 
@@ -167,8 +167,9 @@ class CreateTicketSerializer(serializers.Serializer):
             error_message = str(e)
             match = re.search(r"Key \((.*?)\)=\((.*?)\) already exists", error_message)
             if match:
+                refined_column_name = match.group(1).replace("_", "").title()
                 return Response(
-                    {"details": f"This {match.group(1)} already exists."},
+                    {refined_column_name: f'This {refined_column_name} already exists.'},
                     status=status.HTTP_409_CONFLICT,
                 )
         except Exception as e:
