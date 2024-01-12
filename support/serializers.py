@@ -65,6 +65,7 @@ class CreateTicketSerializer(serializers.Serializer):
     address = serializers.CharField(max_length=255)
     country = serializers.CharField(max_length=255)
     zip_code = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
 
     class Meta:
         model = models.Ticket
@@ -79,6 +80,16 @@ class CreateTicketSerializer(serializers.Serializer):
             "created_at",
             "handled_at",
         )
+
+    def validate_email_unique(self, value):
+        if utils.is_email_already_a_user_in_the_system(value):
+            raise serializers.ValidationError({'email': "User with this email already exists."})
+        return value
+
+    def validate(self, data):
+        email = data.get('email', None)
+        self.validate_email_unique(email)
+        return super().validate(data)
 
     def create(self, validated_data):
         """
