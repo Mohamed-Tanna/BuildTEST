@@ -5,6 +5,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import get_template
 from rest_framework import status
 
+from authentication.models import AppUser
 from document.utilities import get_storage_client
 from support.models import Ticket
 
@@ -15,7 +16,8 @@ elif os.getenv("ENV") == "STAGING":
 else:
     from freightmonster.settings.local import GS_COMPANY_MANAGER_BUCKET_NAME
 
-#TODO: refactor upload_to_gcs so you can use it in different apps
+
+# TODO: refactor upload_to_gcs so you can use it in different apps
 def upload_to_gcs(uploaded_file, bucket_name=GS_COMPANY_MANAGER_BUCKET_NAME):
     """Uploads a file to the bucket."""
     storage_client = get_storage_client()
@@ -97,3 +99,7 @@ def min_length_validation(value, min_length):
             f"Invalid insurance policy format. It should be at least {min_length} characters long and can include letters, digits, and hyphens.")
         result["errorStatus"] = status.HTTP_500_INTERNAL_SERVER_ERROR
     return result
+
+
+def is_email_already_a_user_in_the_system(email: str):
+    return AppUser.objects.filter(user__email__iexact=email).exists()
