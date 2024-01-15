@@ -2544,3 +2544,48 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
             {"details": "Error occurred while getting the claim"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+class ClaimNoteView(GenericAPIView, CreateModelMixin):
+    serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        load = get_object_or_404(models.Claim, id=mutable_request_data["claim_id"])
+        user_load_party = utils.get_load_party_by_id(load, app_user.id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not utils.is_load_status_valid_to_create_claim(load.status):
+            return Response(
+                {"details": "You can't create a claim on the load cause of it's status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if utils.is_there_claim_for_load_id(mutable_request_data["load_id"]):
+            return Response(
+                {"details": "Claim on this load already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
+            return Response(
+                {"details": "You can't create a claim on a load where you are all the load parties"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        mutable_request_data["claimant"] = str(app_user.id)
+        mutable_request_data["status"] = CLAIM_OPEN_STATUS
+        del mutable_request_data["load_id"]
+        mutable_request_data["load"] = request.data["load_id"]
+        serializer = self.get_serializer(data=mutable_request_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
