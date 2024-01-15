@@ -74,6 +74,14 @@ class ClaimAdmin(admin.ModelAdmin):
     ]
 
 
+class ClaimNoteAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "claim",
+        "creator",
+    ]
+
+
 class ShipmentAdminAdmin(admin.ModelAdmin):
     list_display = [
         "id",
@@ -89,4 +97,5 @@ admin.site.register(models.Contact, admin_class=ContactAdmin)
 admin.site.register(models.Offer, admin_class=OfferAdmin)
 admin.site.register(models.Shipment, admin_class=ShipmentAdminSite)
 admin.site.register(models.Claim, admin_class=ClaimAdmin)
+admin.site.register(models.ClaimNote, admin_class=ClaimNoteAdmin)
 admin.site.register(models.ShipmentAdmin, admin_class=ShipmentAdminAdmin)

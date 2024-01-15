@@ -207,29 +207,15 @@ class Claim(models.Model):
     date_of_loss = models.DateField(null=False)
 
 
-class ClaimMessage(models.Model):
-    claim_id = models.ForeignKey(to=Claim, on_delete=models.CASCADE)
-    claimer = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
-    role = models.CharField(
-        null=False,
-        blank=False,
-        choices=[
-            ("customer", "customer"),
-            ("carrier", "carrier"),
-            ("shipper", "shipper"),
-            ("consignee", "consignee"),
-            ("dispatcher", "dispatcher")
-        ],
-        max_length=10,
-    )
+class ClaimNote(models.Model):
+    claim = models.ForeignKey(to=Claim, on_delete=models.CASCADE)
+    creator = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
     message = models.TextField(
         blank=False,
         null=False
     )
-    evidences = models.TextField(
-        null=False,
-        blank=True
-    )
+    supporting_docs = ArrayField(models.TextField(), null=False, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('claim_id', 'claimer', 'role')
+        unique_together = ('claim', 'creator')
