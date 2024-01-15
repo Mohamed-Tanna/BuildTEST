@@ -24,6 +24,8 @@ urlpatterns = [
     path("dashboard/", views.DashboardView.as_view()),
     path("search-loads/", views.LoadSearchView.as_view()),
     path("search-contacts/", views.ContactSearchView.as_view()),
+    path("claim-note/", views.ClaimNoteView.as_view()),
+    path("claim-note/<id>/", views.ClaimNoteView.as_view()),
     # Fixed URL - always insert above
     path("<id>/", views.ShipmentView.as_view()),
     path("", views.ShipmentView.as_view()),

@@ -369,3 +369,11 @@ def does_load_have_other_load_parties(app_user: auth_models.AppUser, load: model
     if len(get_app_user_load_party_roles(app_user=app_user, load=load)) == 5:
         return False
     return True
+
+def is_load_party_created_claim_note_on_claim(app_user: auth_models.AppUser, claim_id):
+    try:
+        claim = models.Claim.objects.get(id=claim_id)
+        existing_claim_note = models.ClaimNote.objects.get(claim=claim, creator=app_user)
+        return True
+    except models.Claim.DoesNotExist:
+        return False

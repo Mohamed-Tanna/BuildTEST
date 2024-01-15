@@ -237,7 +237,7 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
     supporting_docs = serializers.ListField(child=serializers.FileField())
 
     class Meta:
-        model = models.Claim
+        model = models.ClaimNote
         fields = "__all__"
         read_only_fields = ("id", "created_at")
 

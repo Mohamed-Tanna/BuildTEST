@@ -2546,42 +2546,61 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         )
 
 
-class ClaimNoteView(GenericAPIView, CreateModelMixin):
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin
+from rest_framework.response import Response
+from rest_framework import status
+
+class ClaimNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+    lookup_field = 'id'
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        creator = instance.creator
+        app_user = models.AppUser.objects.get(user=request.user)
+
+        if app_user == creator:
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        else:
+            return Response(
+                {"details": "Forbidden: You are not the creator of this Claim Note."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
+        # created_claim_note = False
+        claimant = models.Claim.claimant
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
-        load = get_object_or_404(models.Claim, id=mutable_request_data["claim_id"])
+        load = get_object_or_404(models.Claim, id=mutable_request_data["claim"])
         user_load_party = utils.get_load_party_by_id(load, app_user.id)
         if user_load_party is None:
             return Response(
                 {"details": "You aren't one of the load parties"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if not utils.is_load_status_valid_to_create_claim(load.status):
+        if app_user == claimant:
             return Response(
-                {"details": "You can't create a claim on the load cause of it's status"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"details": "You can't create a claim note on the claim because you created the claim"},
+                status=status.HTTP_403_FORBIDDEN,
             )
-        if utils.is_there_claim_for_load_id(mutable_request_data["load_id"]):
-            return Response(
-                {"details": "Claim on this load already exists"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
-            return Response(
-                {"details": "You can't create a claim on a load where you are all the load parties"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        mutable_request_data["claimant"] = str(app_user.id)
-        mutable_request_data["status"] = CLAIM_OPEN_STATUS
-        del mutable_request_data["load_id"]
-        mutable_request_data["load"] = request.data["load_id"]
+        # if utils.is_load_party_created_claim_note_on_claim(app_user, ):
+        #     return Response(
+        #         {"details": "You have already created a claim note for this claim."},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
+        mutable_request_data["creator"] = str(app_user.id)
+        # del mutable_request_data["load_id"]
+        # mutable_request_data["load"] = request.data["load_id"]
         serializer = self.get_serializer(data=mutable_request_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
