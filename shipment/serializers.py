@@ -247,3 +247,25 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         new_supporting_docs_names = utils.upload_supporting_docs(supporting_docs)
         validated_data["supporting_docs"] = new_supporting_docs_names
         return super().create(validated_data)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        signed_urls_for_supporting_docs = []
+        for doc in instance.supporting_docs:
+            signed_urls_for_supporting_docs.append(
+                {
+                    "name": doc,
+                    "url": generate_signed_url_for_claim_supporting_docs(doc)
+                }
+            )
+        representation['supporting_docs'] = signed_urls_for_supporting_docs
+
+        representation['creator'] = {
+            "id": instance.creator.id,
+            "username": instance.creator.user.username,
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.creator,
+                load=instance.claim.load
+            )
+        }
+        return representation
