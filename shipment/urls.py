@@ -5,7 +5,6 @@ urlpatterns = [
     path("facility/", views.FacilityView.as_view()),
     path("facility/<id>/", views.FacilityView.as_view()),
     path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
-    path("load/claim/claim-note/<id>/", views.ClaimNoteView.as_view()),
     path("load/claim/", views.ClaimView.as_view()),
     path("load/claim/<id>", views.ClaimView.as_view()),
     path("load/", views.LoadView.as_view()),
