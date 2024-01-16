@@ -371,13 +371,24 @@ def does_load_have_other_load_parties(app_user: auth_models.AppUser, load: model
         return False
     return True
 
-def is_load_party_creator_of_claim_note_on_claim(app_user: auth_models.AppUser, claim_id):
+
+def does_user_have_claim_note_on_claim_already(app_user: auth_models.AppUser, claim: models.Claim):
     try:
-        models.ClaimNote.objects.get(claim_id=claim_id, creator=app_user)
+        models.ClaimNote.objects.get(claim=claim, creator=app_user)
         return True
     except models.ClaimNote.DoesNotExist:
         return False
 
 
+def is_user_the_creator_of_the_claim(app_user: auth_models.AppUser, claim: models.Claim):
+    return claim.claimant == app_user
 
 
+def upload_supporting_docs(supporting_docs):
+    new_supporting_docs_name = []
+    for doc in supporting_docs:
+        doc_name = f"supporting_docs_{doc.name}"
+        doc.name = doc_name
+        doc_name = upload_claim_supporting_docs_to_gcs(doc)
+        new_supporting_docs_name.append(doc_name)
+    return new_supporting_docs_name

@@ -2546,13 +2546,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         )
 
 
-from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin
-from rest_framework.response import Response
-from rest_framework import status
-
 class ClaimNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
-
     lookup_field = 'id'
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
@@ -2564,24 +2558,28 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         return self.retrieve(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        claimant = models.Claim.claimant
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
-        load = get_object_or_404(models.Claim, id=mutable_request_data.get("claim_id"))
-        user_load_party = utils.get_load_party_by_id(load, app_user.id)
+        claim = get_object_or_404(models.Claim, id=mutable_request_data.get("claim_id"))
+        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
         if user_load_party is None:
             return Response(
                 {"details": "You aren't one of the load parties"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if utils.is_load_party_creator_of_claim_note_on_claim(app_user, mutable_request_data.get("claim_id")):
+        if utils.is_user_the_creator_of_the_claim(app_user, claim):
             return Response(
-                {"details": "You have already created a claim note for this claim."},
-                status=status.HTTP_403_FORBIDDEN,
+                {"details": "You can't create a claim note because you are the creator of the claim."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if utils.does_user_have_claim_note_on_claim_already(app_user, claim):
+            return Response(
+                {"details": "You have already created a claim note on this claim."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         mutable_request_data["creator"] = str(app_user.id)
-        del mutable_request_data["load_id"]
-        mutable_request_data["load"] = request.data["load_id"]
+        del mutable_request_data["claim_id"]
+        mutable_request_data["claim"] = request.data["claim_id"]
         serializer = self.get_serializer(data=mutable_request_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

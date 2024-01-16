@@ -214,7 +214,7 @@ class ClaimNote(models.Model):
         blank=False,
         null=False
     )
-    supporting_docs = ArrayField(models.TextField(), null=False, blank=True)
+    supporting_docs = ArrayField(models.TextField(), null=False, default=list)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
