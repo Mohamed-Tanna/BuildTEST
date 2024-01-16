@@ -2492,17 +2492,17 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         if not utils.is_load_status_valid_to_create_claim(load.status):
             return Response(
                 {"details": "You can't create a claim on the load cause of it's status"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_403_FORBIDDEN,
             )
         if utils.is_there_claim_for_load_id(mutable_request_data["load_id"]):
             return Response(
                 {"details": "Claim on this load already exists"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_403_FORBIDDEN,
             )
         if not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
             return Response(
                 {"details": "You can't create a claim on a load where you are all the load parties"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_403_FORBIDDEN,
             )
         mutable_request_data["claimant"] = str(app_user.id)
         mutable_request_data["status"] = CLAIM_OPEN_STATUS
