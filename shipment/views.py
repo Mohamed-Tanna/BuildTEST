@@ -2544,3 +2544,60 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
             {"details": "Error occurred while getting the claim"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+class ClaimNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+    lookup_field = 'id'
+    serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        claim = get_object_or_404(models.Claim, id=mutable_request_data.get("claim_id"))
+        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if utils.is_user_the_creator_of_the_claim(app_user, claim):
+            return Response(
+                {"details": "You can't create a claim note because you are the creator of the claim."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if utils.does_user_have_claim_note_on_claim_already(app_user, claim):
+            return Response(
+                {"details": "You have already created a claim note on this claim."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        mutable_request_data["creator"] = str(app_user.id)
+        del mutable_request_data["claim_id"]
+        mutable_request_data["claim"] = request.data["claim_id"]
+        serializer = self.get_serializer(data=mutable_request_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        creator = instance.creator
+        app_user = models.AppUser.objects.get(user=request.user)
+
+        if app_user == creator:
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        else:
+            return Response(
+                {"details": "Forbidden: You are not the creator of this Claim Note."},
+                status=status.HTTP_403_FORBIDDEN,
+            )

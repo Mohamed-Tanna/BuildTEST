@@ -2,6 +2,7 @@ import time
 
 import shipment.models as models
 from rest_framework import serializers
+import shipment.utilities as utils
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from shipment.utilities import upload_claim_supporting_docs_to_gcs, generate_signed_url_for_claim_supporting_docs, \
     get_app_user_load_party_roles
@@ -231,3 +232,18 @@ class ShipmentAdminSerializer(serializers.ModelSerializer):
         rep["shipment"] = ShipmentSerializer(instance.shipment).data
 
         return rep
+
+
+class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
+    supporting_docs = serializers.ListField(child=serializers.FileField(), required=False, default=list)
+
+    class Meta:
+        model = models.ClaimNote
+        fields = "__all__"
+        read_only_fields = ("id", "created_at")
+
+    def create(self, validated_data):
+        supporting_docs = validated_data.pop("supporting_docs", [])
+        new_supporting_docs_names = utils.upload_supporting_docs(supporting_docs)
+        validated_data["supporting_docs"] = new_supporting_docs_names
+        return super().create(validated_data)
