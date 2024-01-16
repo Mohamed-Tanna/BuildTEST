@@ -2550,6 +2550,7 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
     lookup_field = 'id'
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    queryset = models.ClaimNote.objects.all()
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
