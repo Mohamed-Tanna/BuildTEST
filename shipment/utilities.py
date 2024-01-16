@@ -361,7 +361,7 @@ def get_app_user_load_party_roles(app_user: auth_models.AppUser, load: models.Lo
         "consignee": load.consignee,
     }
     for role, party in party_roles.items():
-        if party.app_user.id == app_user.id:
+        if party and party.app_user and party.app_user.id == app_user.id:
             result.append(role)
     return result
 
