@@ -1,5 +1,6 @@
 import string, random
 from datetime import datetime
+
 from django.db.models import Q
 
 import authentication
@@ -370,10 +371,13 @@ def does_load_have_other_load_parties(app_user: auth_models.AppUser, load: model
         return False
     return True
 
-def is_load_party_created_claim_note_on_claim(app_user: auth_models.AppUser, claim_id):
+def is_load_party_creator_of_claim_note_on_claim(app_user: auth_models.AppUser, claim_id):
     try:
-        claim = models.Claim.objects.get(id=claim_id)
-        existing_claim_note = models.ClaimNote.objects.get(claim=claim, creator=app_user)
+        models.ClaimNote.objects.get(claim_id=claim_id, creator=app_user)
         return True
-    except models.Claim.DoesNotExist:
+    except models.ClaimNote.DoesNotExist:
         return False
+
+
+
+
