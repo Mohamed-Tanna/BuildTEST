@@ -2483,25 +2483,10 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
         load = get_object_or_404(models.Load, id=mutable_request_data["load_id"])
-        user_load_party = utils.get_load_party_by_id(load, app_user.id)
-        if user_load_party is None:
+        check_result = self.check_if_user_can_create_claim(app_user, load)
+        if not check_result["isAllowed"]:
             return Response(
-                {"details": "You aren't one of the load parties"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if not utils.is_load_status_valid_to_create_claim(load.status):
-            return Response(
-                {"details": "You can't create a claim on the load cause of it's status"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if utils.is_there_claim_for_load_id(mutable_request_data["load_id"]):
-            return Response(
-                {"details": "Claim on this load already exists"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
-            return Response(
-                {"details": "You can't create a claim on a load where you are all the load parties"},
+                {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
         mutable_request_data["claimant"] = str(app_user.id)
@@ -2517,33 +2502,48 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         )
 
     def retrieve(self, request, *args, **kwargs):
-        claim_object = self.get_object()
+        claim = self.get_object()
         app_user = models.AppUser.objects.get(user=request.user.id)
-        user_can_see_claim = False
+        check_result = self.check_if_user_can_get_claim(app_user, claim)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = self.get_serializer(claim)
+        return Response(serializer.data)
+
+    @staticmethod
+    def check_if_user_can_create_claim(app_user, load):
+        user_load_party = utils.get_load_party_by_id(load, app_user.id)
+        result = {"isAllowed": True, "message": ""}
+        if user_load_party is None:
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif not utils.is_load_status_valid_to_create_claim(load.status):
+            result["isAllowed"] = False
+            result["message"] = "You can't create a claim on the load cause of it's status"
+        elif utils.is_there_claim_for_load_id(load.id):
+            result["isAllowed"] = False
+            result["message"] = "Claim on this load already exists"
+        elif not utils.does_load_have_other_load_parties(app_user=app_user, load=load):
+            result["isAllowed"] = False
+            result["message"] = "You can't create a claim on a load where you are all the load parties"
+        return result
+
+    @staticmethod
+    def check_if_user_can_get_claim(app_user, claim):
+        result = {"isAllowed": True, "message": ""}
         if app_user.user_type == MANAGER_USER_TYPE:
-            if utils.can_company_manager_see_claim(claim_object.load, app_user):
-                user_can_see_claim = True
-            else:
-                return Response(
-                    {"details": "You aren't a manager for one of the load parties"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            if not utils.can_company_manager_see_claim(claim.load, app_user):
+                result["isAllowed"] = False
+                result["message"] = "You aren't a manager for one of the load parties"
         else:
-            app_user_id = app_user.id
-            user_load_party = utils.get_load_party_by_id(claim_object.load, app_user_id)
+            user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
             if user_load_party is None:
-                return Response(
-                    {"details": "You aren't one of the load parties"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            user_can_see_claim = True
-        if user_can_see_claim:
-            serializer = self.get_serializer(claim_object)
-            return Response(serializer.data)
-        return Response(
-            {"details": "Error occurred while getting the claim"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+                result["isAllowed"] = False
+                result["message"] = "You aren't one of the load parties"
+        return result
 
 
 class ClaimNoteView(GenericAPIView, CreateModelMixin):
@@ -2560,20 +2560,10 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
         claim = get_object_or_404(models.Claim, id=mutable_request_data.get("claim_id"))
-        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
-        if user_load_party is None:
+        check_result = self.check_if_user_is_allowed_to_create_claim_note(app_user, claim)
+        if not check_result["isAllowed"]:
             return Response(
-                {"details": "You aren't one of the load parties"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if utils.is_user_the_creator_of_the_claim(app_user, claim):
-            return Response(
-                {"details": "You can't create a claim note because you are the creator of the claim."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if utils.does_user_have_claim_note_on_claim_already(app_user, claim):
-            return Response(
-                {"details": "You have already created a claim note on this claim."},
+                {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
         mutable_request_data["creator"] = str(app_user.id)
@@ -2593,15 +2583,10 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
             try:
                 app_user = models.AppUser.objects.get(user=request.user)
                 claim = models.Claim.objects.get(id=claim_id)
-                user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
-                if user_load_party is None:
+                check_result = self.check_if_user_is_allowed_to_get_claim_note(app_user, claim)
+                if not check_result["isAllowed"]:
                     return Response(
-                        {"details": "You aren't one of the load parties"},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-                if utils.is_user_the_creator_of_the_claim(app_user, claim):
-                    return Response(
-                        {"details": "We don't have a claim note for you because you are the creator of the claim"},
+                        {"details": check_result["message"]},
                         status=status.HTTP_403_FORBIDDEN,
                     )
                 claim_note = models.ClaimNote.objects.get(claim=claim, creator=app_user)
@@ -2619,3 +2604,30 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
             {"details": "Expected claim_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    @staticmethod
+    def check_if_user_is_allowed_to_create_claim_note(app_user, claim):
+        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
+        result = {"isAllowed": True, "message": ""}
+        if user_load_party is None:
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif utils.is_user_the_creator_of_the_claim(app_user, claim):
+            result["isAllowed"] = False
+            result["message"] = "You can't create a claim note because you are the creator of the claim."
+        elif utils.does_user_have_claim_note_on_claim_already(app_user, claim):
+            result["isAllowed"] = False
+            result["message"] = "You have already created a claim note on this claim."
+        return result
+
+    @staticmethod
+    def check_if_user_is_allowed_to_get_claim_note(app_user, claim):
+        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
+        result = {"isAllowed": True, "message": ""}
+        if user_load_party is None:
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif utils.is_user_the_creator_of_the_claim(app_user, claim):
+            result["isAllowed"] = False
+            result["message"] = "We don't have a claim note for you because you are the creator of the claim"
+        return result

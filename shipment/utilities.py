@@ -392,3 +392,15 @@ def upload_supporting_docs(supporting_docs):
         doc_name = upload_claim_supporting_docs_to_gcs(doc)
         new_supporting_docs_name.append(doc_name)
     return new_supporting_docs_name
+
+
+def get_supporting_docs_info(supporting_docs):
+    supporting_docs_info = []
+    for doc in supporting_docs:
+        supporting_docs_info.append(
+            {
+                "name": doc,
+                "url": generate_signed_url_for_claim_supporting_docs(doc)
+            }
+        )
+    return supporting_docs_info
