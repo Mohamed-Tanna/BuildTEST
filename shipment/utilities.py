@@ -11,6 +11,7 @@ import rest_framework.exceptions as exceptions
 from document.utilities import get_storage_client, get_signing_creds
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
     AWAITING_DISPATCHER, CLAIM_CREATED, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
+from freightmonster.thread import ThreadWithReturnValue
 from notifications.utilities import handle_notification
 from datetime import datetime, timedelta
 
@@ -300,20 +301,16 @@ def get_unique_name_for_supporting_docs(bucket, file_name):
     return final_file_name
 
 
-def upload_claim_supporting_docs_to_gcs(uploaded_file):
-    storage_client = get_storage_client()
-    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+def upload_claim_supporting_docs_to_gcs(uploaded_file, bucket):
     file_name = get_unique_name_for_supporting_docs(bucket, uploaded_file.name)
     blob = bucket.blob(f"images/{file_name}")
     blob.upload_from_file(uploaded_file, content_type=uploaded_file.content_type)
     return file_name
 
 
-def generate_signed_url_for_claim_supporting_docs(object_name, expiration=3600):
+def generate_signed_url_for_claim_supporting_docs(object_name, bucket, storage_client, expiration=3600):
     bucket_name = GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
     try:
-        storage_client = get_storage_client()
-        bucket = storage_client.get_bucket(bucket_name)
         blob = bucket.blob("images/" + object_name)
         if not blob.exists():
             raise NameError
@@ -385,22 +382,42 @@ def is_user_the_creator_of_the_claim(app_user: auth_models.AppUser, claim: model
 
 
 def upload_supporting_docs(supporting_docs):
+    storage_client = get_storage_client()
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+    threads = []
     new_supporting_docs_name = []
     for doc in supporting_docs:
         doc_name = f"supporting_docs_{doc.name}"
         doc.name = doc_name
-        doc_name = upload_claim_supporting_docs_to_gcs(doc)
-        new_supporting_docs_name.append(doc_name)
+        thread = ThreadWithReturnValue(
+            target=upload_claim_supporting_docs_to_gcs,
+            args=(doc, bucket,)
+        )
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        new_supporting_docs_name.append(thread.join())
     return new_supporting_docs_name
 
 
 def get_supporting_docs_info(supporting_docs):
+    storage_client = get_storage_client()
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     supporting_docs_info = []
+    threads = []
     for doc in supporting_docs:
+        thread = ThreadWithReturnValue(
+            target=generate_signed_url_for_claim_supporting_docs,
+            args=(doc, bucket, storage_client,)
+        )
+        thread.start()
+        threads.append(thread)
         supporting_docs_info.append(
             {
                 "name": doc,
-                "url": generate_signed_url_for_claim_supporting_docs(doc)
+                "url": ""
             }
         )
+    for i in range(len(threads)):
+        supporting_docs_info[i]["url"] = threads[i].join()
     return supporting_docs_info

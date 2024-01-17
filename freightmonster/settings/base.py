@@ -10,7 +10,7 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_USE_TLS = True
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",
