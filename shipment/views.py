@@ -2631,3 +2631,32 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
             result["isAllowed"] = False
             result["message"] = "We don't have a claim note for you because you are the creator of the claim"
         return result
+
+
+class OtherLoadPartiesView(APIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+
+    @staticmethod
+    def get(request, *args, **kwargs):
+        load_id = request.query_params.get("load_id", None)
+        if load_id is None:
+            return Response(
+                {"details": "Load ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        app_user = models.AppUser.objects.get(user=request.user)
+        load = get_object_or_404(models.Load, id=load_id)
+        user_load_party = utils.get_load_party_by_id(load, app_user.id)
+        if user_load_party is None:
+            return Response(
+                {"details": "You aren't one of the load parties"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        claimed_on_serializer = serializers.OtherLoadPartiesSerializer(
+            load,
+            context={"app_user_id": app_user.id}
+        )
+        return Response(
+            claimed_on_serializer.data,
+            status=status.HTTP_200_OK,
+        )
