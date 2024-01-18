@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
 from django.contrib.postgres.fields import ArrayField
@@ -219,3 +220,19 @@ class ClaimNote(models.Model):
 
     class Meta:
         unique_together = ('claim', 'creator')
+
+
+class LoadNote(models.Model):
+    load = models.ForeignKey(to= Load, on_delete=models.CASCADE)
+    creator = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
+    message = models.TextField(blank=True, null=True)
+    attachments = ArrayField(models.TextField(), blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('load', 'creator')
+
+    def clean(self):
+        super().clean()
+        if not self.message and not self.attachments:
+            raise ValidationError("At least one of 'message' or 'attachments' must be present.")
