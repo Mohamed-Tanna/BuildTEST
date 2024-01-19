@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 import shipment.models as models
 import shipment.utilities as utils
+from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from shipment.utilities import get_app_user_load_party_roles
 
@@ -290,3 +291,15 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
                     }
                 )
         return self.merge_same_parties_with_different_roles(result)
+
+
+class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LoadNote
+        fields = '__all__'
+
+    visible_to = serializers.PrimaryKeyRelatedField(
+        queryset=AppUser.objects.all(),
+        many=True,
+        required=False
+    )

@@ -90,6 +90,15 @@ class ShipmentAdminAdmin(admin.ModelAdmin):
     ]
 
 
+class LoadNoteAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "load",
+        "creator",
+        "created_at"
+    ]
+
+
 admin.site.register(models.Facility, admin_class=FacilityAdmin)
 admin.site.register(models.Trailer, admin_class=TrailerAdmin)
 admin.site.register(models.Load, admin_class=LoadAdmin)
@@ -99,3 +108,4 @@ admin.site.register(models.Shipment, admin_class=ShipmentAdminSite)
 admin.site.register(models.Claim, admin_class=ClaimAdmin)
 admin.site.register(models.ClaimNote, admin_class=ClaimNoteAdmin)
 admin.site.register(models.ShipmentAdmin, admin_class=ShipmentAdminAdmin)
+admin.site.register(models.LoadNote, admin_class=LoadNoteAdmin)

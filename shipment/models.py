@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import CheckConstraint, Q, F
 from django.contrib.postgres.fields import ArrayField
@@ -219,3 +220,22 @@ class ClaimNote(models.Model):
 
     class Meta:
         unique_together = ('claim', 'creator')
+
+
+class LoadNote(models.Model):
+    load = models.ForeignKey(to=Load, on_delete=models.CASCADE)
+    creator = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
+    message = models.TextField(default="")
+    attachments = ArrayField(models.TextField(), default=list)
+    visible_to = models.ManyToManyField('authentication.AppUser',
+                                        related_name='visible_to')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('load', 'creator')
+        constraints = [
+            CheckConstraint(
+                check=~Q(message="") | ~Q(attachments__len=0),
+                name='message_or_attachments_not_default'
+            )
+        ]
