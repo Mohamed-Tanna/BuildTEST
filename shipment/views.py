@@ -2660,3 +2660,40 @@ class OtherLoadPartiesView(APIView):
             claimed_on_serializer.data,
             status=status.HTTP_200_OK,
         )
+
+
+class LoadNoteView(GenericAPIView, CreateModelMixin):
+    serializer_class = serializers.LoadNoteCreateRetrieveSerializer
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        load = get_object_or_404(models.Load, id=mutable_request_data.get("load_id"))
+        check_result = self.check_if_user_is_allowed_to_create_load_note(app_user, load)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        mutable_request_data["creator"] = str(app_user.id)
+        del mutable_request_data["load_id"]
+        mutable_request_data["load"] = request.data["load_id"]
+        serializer = self.get_serializer(data=mutable_request_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+    @staticmethod
+    def check_if_user_is_allowed_to_create_load_note(app_user, load):
+        user_load_party = utils.get_load_party_by_id(load, app_user.id)
+        result = {"isAllowed": True, "message": ""}
+        if user_load_party is None:
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        return result

@@ -303,3 +303,25 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         many=True,
         required=False
     )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['creator'] = {
+            "id": instance.creator.id,
+            "username": instance.creator.user.username,
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.creator,
+                load=instance.load
+            )
+        }
+        rep['visible_to'] = {
+            "id": instance.visible_to.id,
+            "username": instance.visible_to.user.username,
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.visible_to,
+                load=instance.load
+            )
+        }
+        return rep
+
+
