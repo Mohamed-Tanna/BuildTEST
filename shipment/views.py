@@ -2535,7 +2535,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
     def check_if_user_can_get_claim(app_user, claim):
         result = {"isAllowed": True, "message": ""}
         if app_user.user_type == MANAGER_USER_TYPE:
-            if not utils.can_company_manager_see_claim(claim.load, app_user):
+            if not utils.can_company_manager_see_load(claim.load, app_user):
                 result["isAllowed"] = False
                 result["message"] = "You aren't a manager for one of the load parties"
         else:
@@ -2662,16 +2662,67 @@ class OtherLoadPartiesView(APIView):
         )
 
 
-class LoadNoteView(GenericAPIView, CreateModelMixin):
+class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin):
     serializer_class = serializers.LoadNoteCreateRetrieveSerializer
-    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    pagination_class = PageNumberPagination
+
+    def get_permissions(self):
+        permission_classes = [IsAuthenticated()]
+        if self.request.method == 'GET':
+            permission_classes.append(permissions.HasRoleOrIsCompanyManager())
+        elif self.request.method == 'POSt':
+            permission_classes.append(permissions.HasRole())
+            permission_classes.append(permissions.IsNotCompanyManager())
+        return permission_classes
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
+    def get(self, request, *args, **kwargs):
+        load_id = request.query_params.get("load_id", None)
+        if load_id is None:
+            return Response(
+                {"details": "load_id is missing"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        load = get_object_or_404(models.Load, id=load_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_can_get_load_notes(app_user, load)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        filter_query = Q(creator__id=app_user.id) | Q(visible_to__id=app_user.id)
+        if app_user.user_type == MANAGER_USER_TYPE:
+            load_parties_under_company_manager = utils.get_load_parties_under_company_manager(
+                load,
+                app_user
+            )
+            load_parties_ids = [party.id for party in load_parties_under_company_manager]
+            filter_query = Q(creator__id__in=load_parties_ids)
+        load_notes = models.LoadNote.objects.filter(filter_query)
+        if load_notes.exists() is False:
+            return Response(
+                data={"detail": "No loads notes found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        paginator = self.pagination_class()
+        paginated_loads = paginator.paginate_queryset(
+            load_notes.order_by("-created_at"),
+            request
+        )
+        load_notes_data = serializers.LoadNoteCreateRetrieveSerializer(paginated_loads, many=True).data
+        return paginator.get_paginated_response(load_notes_data)
+
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
+        load_id = mutable_request_data.get("load_id", None)
+        if load_id is None:
+            return Response(
+                {"details": "load_id is missing"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         load = get_object_or_404(models.Load, id=mutable_request_data.get("load_id"))
         check_result = self.check_if_user_is_allowed_to_create_load_note(app_user, load)
         if not check_result["isAllowed"]:
@@ -2689,6 +2740,7 @@ class LoadNoteView(GenericAPIView, CreateModelMixin):
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
     @staticmethod
     def check_if_user_is_allowed_to_create_load_note(app_user, load):
         user_load_party = utils.get_load_party_by_id(load, app_user.id)
@@ -2696,4 +2748,18 @@ class LoadNoteView(GenericAPIView, CreateModelMixin):
         if user_load_party is None:
             result["isAllowed"] = False
             result["message"] = "You aren't one of the load parties"
+        return result
+
+    @staticmethod
+    def check_if_user_can_get_load_notes(app_user, load):
+        result = {"isAllowed": True, "message": ""}
+        if app_user.user_type == MANAGER_USER_TYPE:
+            if not utils.can_company_manager_see_load(load, app_user):
+                result["isAllowed"] = False
+                result["message"] = "You aren't a manager for one of the load parties"
+        else:
+            user_load_party = utils.get_load_party_by_id(load, app_user.id)
+            if user_load_party is None:
+                result["isAllowed"] = False
+                result["message"] = "You aren't one of the load parties"
         return result

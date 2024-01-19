@@ -294,15 +294,16 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
 
 
 class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.LoadNote
-        fields = '__all__'
-
     visible_to = serializers.PrimaryKeyRelatedField(
         queryset=AppUser.objects.all(),
         many=True,
         required=False
     )
+
+    class Meta:
+        model = models.LoadNote
+        fields = '__all__'
+        read_only_fields = ("id", "created_at")
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -314,14 +315,16 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 load=instance.load
             )
         }
-        rep['visible_to'] = {
-            "id": instance.visible_to.id,
-            "username": instance.visible_to.user.username,
-            "party_roles": get_app_user_load_party_roles(
-                app_user=instance.visible_to,
-                load=instance.load
-            )
-        }
+        visible_to_parties = instance.visible_to.all()
+        visible_to_representation = []
+        for app_user in visible_to_parties:
+            visible_to_representation.append({
+                "id": app_user.id,
+                "username": app_user.user.username,
+                "party_roles": get_app_user_load_party_roles(
+                    app_user=app_user,
+                    load=instance.load
+                )
+            })
+        rep["visible_to"] = visible_to_representation
         return rep
-
-
