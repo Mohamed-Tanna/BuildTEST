@@ -223,16 +223,19 @@ class ClaimNote(models.Model):
 
 
 class LoadNote(models.Model):
-    load = models.ForeignKey(to= Load, on_delete=models.CASCADE)
+    load = models.ForeignKey(to=Load, on_delete=models.CASCADE)
     creator = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
-    message = models.TextField(blank=True, null=True)
-    attachments = ArrayField(models.TextField(), blank=True, null=True)
+    message = models.TextField(default="")
+    attachments = ArrayField(models.TextField(), default=list)
+    visible_to = models.ManyToManyField('authentication.AppUser',
+                                        related_name='visible_to')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('load', 'creator')
-
-    def clean(self):
-        super().clean()
-        if not self.message and not self.attachments:
-            raise ValidationError("At least one of 'message' or 'attachments' must be present.")
+        constraints = [
+            CheckConstraint(
+                check=~Q(message="") | ~Q(attachments__len=0),
+                name='message_or_attachments_not_default'
+            )
+        ]
