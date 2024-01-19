@@ -303,7 +303,20 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.LoadNote
         fields = '__all__'
+        extra_kwargs = {
+            "message": {"required": False},
+            "attachments": {"required": False},
+        }
         read_only_fields = ("id", "created_at")
+
+    def validate(self, data):
+        message = data.get('message', '')
+        attachments = data.get('attachments', [])
+        if message == '' and attachments == []:
+            raise serializers.ValidationError(
+                {"IntegrityError": "You should provide at least one message or one attachment"}
+            )
+        return data
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -327,4 +340,5 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 )
             })
         rep["visible_to"] = visible_to_representation
+
         return rep
