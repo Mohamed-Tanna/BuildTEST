@@ -294,12 +294,51 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
 
 
 class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.LoadNote
-        fields = '__all__'
-
     visible_to = serializers.PrimaryKeyRelatedField(
         queryset=AppUser.objects.all(),
         many=True,
         required=False
     )
+
+    class Meta:
+        model = models.LoadNote
+        fields = '__all__'
+        extra_kwargs = {
+            "message": {"required": False},
+            "attachments": {"required": False},
+        }
+        read_only_fields = ("id", "created_at")
+
+    def validate(self, data):
+        message = data.get('message', '')
+        attachments = data.get('attachments', [])
+        if message == '' and attachments == []:
+            raise serializers.ValidationError(
+                {"IntegrityError": "You should provide at least one message or one attachment"}
+            )
+        return data
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['creator'] = {
+            "id": instance.creator.id,
+            "username": instance.creator.user.username,
+            "party_roles": get_app_user_load_party_roles(
+                app_user=instance.creator,
+                load=instance.load
+            )
+        }
+        visible_to_parties = instance.visible_to.all()
+        visible_to_representation = []
+        for app_user in visible_to_parties:
+            visible_to_representation.append({
+                "id": app_user.id,
+                "username": app_user.user.username,
+                "party_roles": get_app_user_load_party_roles(
+                    app_user=app_user,
+                    load=instance.load
+                )
+            })
+        rep["visible_to"] = visible_to_representation
+
+        return rep

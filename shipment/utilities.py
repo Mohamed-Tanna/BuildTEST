@@ -330,7 +330,7 @@ def generate_signed_url_for_claim_supporting_docs(object_name, bucket, storage_c
         return None
 
 
-def can_company_manager_see_claim(load: models.Load, manager: models.AppUser):
+def can_company_manager_see_load(load: models.Load, manager: models.AppUser):
     load_parties = [
         load.customer,
         load.shipper,
@@ -346,6 +346,26 @@ def can_company_manager_see_claim(load: models.Load, manager: models.AppUser):
         except auth_models.CompanyEmployee.DoesNotExist:
             return False
     return False
+
+
+def get_load_parties_under_company_manager(load: models.Load, manager: models.AppUser):
+    load_parties = [
+        load.customer,
+        load.shipper,
+        load.dispatcher,
+        load.consignee,
+        load.carrier
+    ]
+    manager_company = auth_models.Company.objects.get(manager=manager)
+    result = []
+    for party in load_parties:
+        try:
+            auth_models.CompanyEmployee(app_user=party.app_user, company=manager_company)
+            if result.index(party.app_user) == -1:
+                result.append(party.app_user)
+        except auth_models.CompanyEmployee.DoesNotExist:
+            continue
+    return result
 
 
 def get_app_user_load_party_roles(app_user: auth_models.AppUser, load: models.Load):
