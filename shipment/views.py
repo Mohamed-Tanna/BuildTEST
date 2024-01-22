@@ -2733,7 +2733,19 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin):
         mutable_request_data["creator"] = str(app_user.id)
         del mutable_request_data["load_id"]
         mutable_request_data["load"] = request.data["load_id"]
-        serializer = self.get_serializer(data=mutable_request_data)
+        attachments_names = []
+        attachments_content_type = []
+        for attachment in request.data.get("attachments", []):
+            attachments_names.append(attachment["name"])
+            attachments_content_type.append(attachment["content_type"])
+        mutable_request_data["attachments"] = attachments_names
+        serializer = self.get_serializer(
+            data=mutable_request_data,
+            context={
+                "request": request,
+                "attachments_content_type": attachments_content_type
+            }
+        )
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
