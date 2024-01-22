@@ -473,3 +473,19 @@ def generate_put_signed_url_for_file(
     )
     return url
 
+
+def generate_get_signed_url_for_file(
+        blob,
+        storage_client=None,
+        expiration_time=3600
+):
+    if storage_client is None:
+        storage_client = get_storage_client()
+    signing_creds = get_signing_creds(storage_client._credentials)
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
+        method="GET",
+        credentials=signing_creds,
+    )
+    return url
