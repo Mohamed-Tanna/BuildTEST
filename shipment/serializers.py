@@ -4,6 +4,8 @@ import shipment.models as models
 import shipment.utilities as utils
 from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
+from document.utilities import get_storage_client
+from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
 from shipment.utilities import get_app_user_load_party_roles
 
 
@@ -294,6 +296,9 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
 
 
 class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
+    storage_client = get_storage_client()
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+    blob_path = "load_notes_files/"
     visible_to = serializers.PrimaryKeyRelatedField(
         queryset=AppUser.objects.all(),
         many=True,
@@ -309,6 +314,26 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         }
         read_only_fields = ("id", "created_at")
 
+    def create(self, validated_data):
+        attachments_names = validated_data.get("attachments", [])
+        new_attachments_names = []
+
+        for attachment_name in attachments_names:
+            new_unique_attachment_name = utils.generate_new_unique_file_name(
+                file_name=attachment_name,
+            )
+            blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
+            if blob.exists():
+                blob = utils.get_unique_blob(
+                    bucket=self.bucket,
+                    blob=blob,
+                    file_name=attachment_name,
+                    path_name=self.blob_path
+                )
+            new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
+        validated_data["attachments"] = new_attachments_names
+        return super().create(validated_data)
+
     def validate(self, data):
         message = data.get('message', '')
         attachments = data.get('attachments', [])
@@ -319,8 +344,9 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        rep['creator'] = {
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        representation['creator'] = {
             "id": instance.creator.id,
             "username": instance.creator.user.username,
             "party_roles": get_app_user_load_party_roles(
@@ -339,6 +365,29 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                     load=instance.load
                 )
             })
-        rep["visible_to"] = visible_to_representation
+        representation["visible_to"] = visible_to_representation
+        attachments_info = []
+        for attachment_name in representation["attachments"]:
+            attachments_info.append(
+                {
+                    "name": attachment_name,
+                    "url": ""
+                }
+            )
+        if request and request.method == 'POST':
+            attachments_content_type = self.context.get('attachments_content_type')
+            signed_urls = []
+            for i in range(len(representation["attachments"])):
+                attachment_name = representation["attachments"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
+                url = utils.generate_put_signed_url_for_file(
+                    blob=blob,
+                    content_type=attachments_content_type[i],
+                    storage_client=self.storage_client,
+                )
+                signed_urls.append(url)
+            for i in range(len(attachments_info)):
+                attachments_info[i]["url"] = signed_urls[i]
+        representation["attachments"] = attachments_info
 
-        return rep
+        return representation

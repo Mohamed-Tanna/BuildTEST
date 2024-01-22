@@ -1,19 +1,17 @@
-import string, random
-from datetime import datetime
+import random
+import string
+from datetime import datetime, timedelta
 
+import rest_framework.exceptions as exceptions
 from django.db.models import Q
 
-import authentication
-import shipment.models as models
 import authentication.models as auth_models
-import rest_framework.exceptions as exceptions
-
+import shipment.models as models
 from document.utilities import get_storage_client, get_signing_creds
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
     AWAITING_DISPATCHER, CLAIM_CREATED, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
 from freightmonster.thread import ThreadWithReturnValue
 from notifications.utilities import handle_notification
-from datetime import datetime, timedelta
 
 
 def get_shipment_party_by_username(username):
@@ -441,3 +439,37 @@ def get_supporting_docs_info(supporting_docs):
     for i in range(len(threads)):
         supporting_docs_info[i]["url"] = threads[i].join()
     return supporting_docs_info
+
+
+def generate_new_unique_file_name(file_name, prefix=""):
+    return f'{prefix}{file_name}_{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}'
+
+
+def get_unique_blob(bucket, blob, file_name, path_name=""):
+    while blob.exists():
+        new_unique_attachment_name = generate_new_unique_file_name(
+            file_name=file_name,
+            prefix="load_note_attachment_"
+        )
+        blob = bucket.blob(f"{path_name}{new_unique_attachment_name}")
+    return blob
+
+
+def generate_put_signed_url_for_file(
+        blob,
+        content_type,
+        storage_client=None,
+        expiration_time=900
+):
+    if storage_client is None:
+        storage_client = get_storage_client()
+    signing_creds = get_signing_creds(storage_client._credentials)
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
+        method="PUT",
+        content_type=content_type,
+        credentials=signing_creds,
+    )
+    return url
+
