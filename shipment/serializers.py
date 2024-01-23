@@ -341,28 +341,29 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 del validated_data[field]
         attachments_names = validated_data.get("attachments", [])
         new_attachments_names = []
-        for attachment in instance.attachments:
-            if attachment not in attachments_names:
-                blob = self.bucket.blob(f"{self.blob_path}{attachment}")
-                if blob.exists():
-                    blob.delete()
-        for attachment_name in attachments_names:
-            if attachment_name not in instance.attachments:
-                new_unique_attachment_name = utils.generate_new_unique_file_name(
-                    file_name=attachment_name,
-                )
-                blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
-                if blob.exists():
-                    blob = utils.get_unique_blob(
-                        bucket=self.bucket,
-                        blob=blob,
+        if 'attachments' in validated_data:
+            for attachment in instance.attachments:
+                if attachment not in attachments_names:
+                    blob = self.bucket.blob(f"{self.blob_path}{attachment}")
+                    if blob.exists():
+                        blob.delete()
+            for attachment_name in attachments_names:
+                if attachment_name not in instance.attachments:
+                    new_unique_attachment_name = utils.generate_new_unique_file_name(
                         file_name=attachment_name,
-                        path_name=self.blob_path
                     )
-                new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
-            else:
-                new_attachments_names.append(attachment_name)
-        validated_data["attachments"] = new_attachments_names
+                    blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
+                    if blob.exists():
+                        blob = utils.get_unique_blob(
+                            bucket=self.bucket,
+                            blob=blob,
+                            file_name=attachment_name,
+                            path_name=self.blob_path
+                        )
+                    new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
+                else:
+                    new_attachments_names.append(attachment_name)
+            validated_data["attachments"] = new_attachments_names
         return super().update(instance, validated_data)
 
     def validate(self, data):

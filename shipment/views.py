@@ -2770,10 +2770,11 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
             )
         attachments_names = []
         attachments_content_type = []
-        for attachment in request.data.get("attachments", []):
-            attachments_names.append(attachment["name"])
-            attachments_content_type.append(attachment["content_type"])
-        mutable_request_data["attachments"] = attachments_names
+        if 'attachments' in request.data:
+            for attachment in request.data.get("attachments", []):
+                attachments_names.append(attachment["name"])
+                attachments_content_type.append(attachment["content_type"])
+            mutable_request_data["attachments"] = attachments_names
         serializer = self.get_serializer(
             load_note,
             data=mutable_request_data,
