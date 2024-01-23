@@ -2670,7 +2670,7 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin):
         permission_classes = [IsAuthenticated()]
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
-        elif self.request.method == 'POSt':
+        elif self.request.method == 'POST':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
         return permission_classes
