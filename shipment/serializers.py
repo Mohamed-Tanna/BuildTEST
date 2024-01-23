@@ -334,13 +334,59 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         validated_data["attachments"] = new_attachments_names
         return super().create(validated_data)
 
+    def update(self, instance, validated_data):
+        fields_not_to_update = ["load", "creator"]
+        for field in fields_not_to_update:
+            if field in validated_data:
+                del validated_data[field]
+        attachments_names = validated_data.get("attachments", [])
+        new_attachments_names = []
+        for attachment in instance.attachments:
+            if attachment not in attachments_names:
+                blob = self.bucket.blob(f"{self.blob_path}{attachment}")
+                if blob.exists():
+                    blob.delete()
+        for attachment_name in attachments_names:
+            if attachment_name not in instance.attachments:
+                new_unique_attachment_name = utils.generate_new_unique_file_name(
+                    file_name=attachment_name,
+                )
+                blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
+                if blob.exists():
+                    blob = utils.get_unique_blob(
+                        bucket=self.bucket,
+                        blob=blob,
+                        file_name=attachment_name,
+                        path_name=self.blob_path
+                    )
+                new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
+            else:
+                new_attachments_names.append(attachment_name)
+        validated_data["attachments"] = new_attachments_names
+        return super().update(instance, validated_data)
+
     def validate(self, data):
         message = data.get('message', '')
         attachments = data.get('attachments', [])
-        if message == '' and attachments == []:
+        if self.instance is None and message == '' and attachments == []:
             raise serializers.ValidationError(
                 {"IntegrityError": "You should provide at least one message or one attachment"}
             )
+        elif self.instance is not None:
+            if (
+                    'message' in data and
+                    data.get('message').strip() == "" and
+                    self.instance.attachments == [] and
+                    data.get('attachments', []) == []
+            ) or (
+                    'attachments' in data and
+                    data.get('attachments') == [] and
+                    self.instance.message == "" and
+                    data.get('message', '').strip() == ""
+            ):
+                raise serializers.ValidationError(
+                    {"IntegrityError": "You should provide at least one message or one attachment"}
+                )
         return data
 
     def to_representation(self, instance):
@@ -385,6 +431,27 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                     content_type=attachments_content_type[i],
                     storage_client=self.storage_client,
                 )
+                signed_urls.append(url)
+            for i in range(len(attachments_info)):
+                attachments_info[i]["url"] = signed_urls[i]
+        elif request and request.method == 'PUT':
+            attachments_content_type = self.context.get('attachments_content_type')
+            signed_urls = []
+            for i in range(len(representation["attachments"])):
+                attachment_name = representation["attachments"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
+                url = ""
+                if blob.exists():
+                    url = utils.generate_get_signed_url_for_file(
+                        blob=blob,
+                        storage_client=self.storage_client,
+                    )
+                else:
+                    url = utils.generate_put_signed_url_for_file(
+                        blob=blob,
+                        content_type=attachments_content_type[i],
+                        storage_client=self.storage_client,
+                    )
                 signed_urls.append(url)
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
