@@ -2662,21 +2662,26 @@ class OtherLoadPartiesView(APIView):
         )
 
 
-class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
     serializer_class = serializers.LoadNoteCreateRetrieveSerializer
     pagination_class = PageNumberPagination
+    queryset = models.LoadNote.objects.all()
+    lookup_field = "id"
 
     def get_permissions(self):
         permission_classes = [IsAuthenticated()]
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
-        elif self.request.method == 'POST':
+        elif self.request.method == 'POST' or self.request.method == 'PUT':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
         return permission_classes
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         load_id = request.query_params.get("load_id", None)
@@ -2753,6 +2758,36 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    def update(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        load_note = self.get_object()
+        check_result = self.check_if_user_is_allowed_to_update_load_note(app_user, load_note)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        attachments_names = []
+        attachments_content_type = []
+        if 'attachments' in request.data:
+            for attachment in request.data.get("attachments", []):
+                attachments_names.append(attachment["name"])
+                attachments_content_type.append(attachment["content_type"])
+            mutable_request_data["attachments"] = attachments_names
+        serializer = self.get_serializer(
+            load_note,
+            data=mutable_request_data,
+            context={
+                "request": request,
+                "attachments_content_type": attachments_content_type
+            },
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
     @staticmethod
     def check_if_user_is_allowed_to_create_load_note(app_user, load):
         user_load_party = utils.get_load_party_by_id(load, app_user.id)
@@ -2774,4 +2809,15 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin):
             if user_load_party is None:
                 result["isAllowed"] = False
                 result["message"] = "You aren't one of the load parties"
+        return result
+
+    @staticmethod
+    def check_if_user_is_allowed_to_update_load_note(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if not utils.is_user_one_of_load_parties(app_user, load_note.load):
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
         return result

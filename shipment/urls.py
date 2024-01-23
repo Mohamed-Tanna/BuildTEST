@@ -8,6 +8,7 @@ urlpatterns = [
     path("load/claim/", views.ClaimView.as_view()),
     path("load/claim/<id>", views.ClaimView.as_view()),
     path("load/other-load-parties/", views.OtherLoadPartiesView.as_view()),
+    path("load/notes/<id>/", views.LoadNoteView.as_view()),
     path("load/notes/", views.LoadNoteView.as_view()),
     path("load/", views.LoadView.as_view()),
     path("load/<id>/", views.LoadView.as_view()),
