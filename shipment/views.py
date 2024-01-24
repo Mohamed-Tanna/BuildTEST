@@ -2,6 +2,7 @@
 from datetime import datetime
 
 import rest_framework.exceptions as exceptions
+from rest_framework.decorators import action
 from django.db import IntegrityError
 # Django imports
 from django.db.models import Q
@@ -20,7 +21,7 @@ from drf_spectacular.utils import (
 from rest_framework import serializers as drf_serializers
 # DRF imports
 from rest_framework import status
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, DestroyAPIView
 from rest_framework.mixins import (
     CreateModelMixin,
     UpdateModelMixin,
@@ -2663,7 +2664,7 @@ class OtherLoadPartiesView(APIView):
 
 
 class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
-    serializer_class = serializers.LoadNoteCreateRetrieveSerializer
+    serializer_class = serializers.LoadNoteCreateRetrieveDeleteSerializer
     pagination_class = PageNumberPagination
     queryset = models.LoadNote.objects.all()
     lookup_field = "id"
@@ -2716,7 +2717,7 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
             load_notes.order_by("-created_at"),
             request
         )
-        load_notes_data = serializers.LoadNoteCreateRetrieveSerializer(paginated_loads, many=True).data
+        load_notes_data = serializers.LoadNoteCreateRetrieveDeleteSerializer(paginated_loads, many=True).data
         return paginator.get_paginated_response(load_notes_data)
 
     def create(self, request, *args, **kwargs):
@@ -2821,3 +2822,65 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
             result["isAllowed"] = False
             result["message"] = "You aren't the creator of the load note"
         return result
+
+class LoadNodeDeletionView(GenericAPIView, DestroyModelMixin, CreateModelMixin, ListModelMixin):
+    serializer_class = serializers.LoadNoteCreateRetrieveDeleteSerializer
+    queryset = models.LoadNote.objects.all()
+    lookup_field = "id"
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+    def destroy(self, request, *args, **kwargs):
+        load_note = self.get_object()
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_is_allowed_to_delete_load_note(
+            app_user, load_note
+        )
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        load_note.is_deleted = True
+        load_note.save()
+
+        return Response(data={"Load note deleted successfuly"},
+                         status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def check_if_user_is_allowed_to_undo_delete_load_note(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if not utils.is_user_one_of_load_parties(app_user, load_note.load):
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
+        return result
+
+    @staticmethod
+    def check_if_user_is_allowed_to_delete_load_note(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if not utils.is_user_one_of_load_parties(app_user, load_note.load):
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
+        return result
+
+    @action(detail=False, methods=['get'])
+    def deleted_notes(self, request):
+        deleted_notes = models.LoadNote.objects.filter(is_deleted=True)
+        serializer = serializers.LoadNoteCreateRetrieveDeleteSerializer(deleted_notes, many=True)
+        return Response(serializer.data)
+
+

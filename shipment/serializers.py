@@ -295,7 +295,7 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
         return self.merge_same_parties_with_different_roles(result)
 
 
-class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
+class LoadNoteCreateRetrieveDeleteSerializer(serializers.ModelSerializer):
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     blob_path = "load_notes_files/"
@@ -311,8 +311,9 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "message": {"required": False},
             "attachments": {"required": False},
+            "is_deleted": {"required": False},
         }
-        read_only_fields = ("id", "created_at")
+        read_only_fields = ("id", "created_at", "is_deleted")
 
     def create(self, validated_data):
         attachments_names = validated_data.get("attachments", [])
@@ -335,6 +336,13 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        is_deleted = validated_data.get("is_deleted", False)
+
+        if is_deleted:
+            instance.is_deleted = True
+            instance.save()
+            return instance
+
         fields_not_to_update = ["load", "creator"]
         for field in fields_not_to_update:
             if field in validated_data:
@@ -470,3 +478,5 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         representation["attachments"] = attachments_info
 
         return representation
+
+
