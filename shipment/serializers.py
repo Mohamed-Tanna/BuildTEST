@@ -442,12 +442,7 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 attachment_name = representation["attachments"][i]
                 blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
                 url = ""
-                if blob.exists():
-                    url = utils.generate_get_signed_url_for_file(
-                        blob=blob,
-                        storage_client=self.storage_client,
-                    )
-                else:
+                if not blob.exists():
                     url = utils.generate_put_signed_url_for_file(
                         blob=blob,
                         content_type=attachments_content_type[i],
@@ -456,6 +451,7 @@ class LoadNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 signed_urls.append(url)
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
+            attachments_info = [item for item in attachments_info if item["url"]]
         else:
             for i in range(len(representation["attachments"])):
                 attachment_name = representation["attachments"][i]
