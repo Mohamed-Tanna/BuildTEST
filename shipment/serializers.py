@@ -295,7 +295,7 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
         return self.merge_same_parties_with_different_roles(result)
 
 
-class LoadNoteCreateRetrieveDeleteSerializer(serializers.ModelSerializer):
+class LoadNoteSerializer(serializers.ModelSerializer):
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     blob_path = "load_notes_files/"
@@ -336,13 +336,6 @@ class LoadNoteCreateRetrieveDeleteSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        is_deleted = validated_data.get("is_deleted", False)
-
-        if is_deleted:
-            instance.is_deleted = True
-            instance.save()
-            return instance
-
         fields_not_to_update = ["load", "creator"]
         for field in fields_not_to_update:
             if field in validated_data:

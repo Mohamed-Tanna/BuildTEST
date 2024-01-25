@@ -2664,7 +2664,7 @@ class OtherLoadPartiesView(APIView):
 
 
 class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
-    serializer_class = serializers.LoadNoteCreateRetrieveDeleteSerializer
+    serializer_class = serializers.LoadNoteSerializer
     pagination_class = PageNumberPagination
     queryset = models.LoadNote.objects.all()
     lookup_field = "id"
@@ -2683,6 +2683,9 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
 
     def put(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         load_id = request.query_params.get("load_id", None)
@@ -2717,7 +2720,7 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
             load_notes.order_by("-created_at"),
             request
         )
-        load_notes_data = serializers.LoadNoteCreateRetrieveDeleteSerializer(paginated_loads, many=True).data
+        load_notes_data = serializers.LoadNoteSerializer(paginated_loads, many=True).data
         return paginator.get_paginated_response(load_notes_data)
 
     def create(self, request, *args, **kwargs):
@@ -2769,6 +2772,11 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
                 {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if load_note.instance.is_deleted:
+            return Response(
+                {"details": "You can't update a deleted load note"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         attachments_names = []
         attachments_content_type = []
         if 'attachments' in request.data:
@@ -2788,6 +2796,22 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        load_note = self.get_object()
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_is_allowed_to_delete_load_note(
+            app_user, load_note
+        )
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        load_note.is_deleted = True
+        load_note.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @staticmethod
     def check_if_user_is_allowed_to_create_load_note(app_user, load):
@@ -2823,49 +2847,6 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
             result["message"] = "You aren't the creator of the load note"
         return result
 
-class LoadNodeDeletionView(GenericAPIView, DestroyModelMixin, CreateModelMixin, ListModelMixin):
-    serializer_class = serializers.LoadNoteCreateRetrieveDeleteSerializer
-    queryset = models.LoadNote.objects.all()
-    lookup_field = "id"
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-    def destroy(self, request, *args, **kwargs):
-        load_note = self.get_object()
-        app_user = models.AppUser.objects.get(user=request.user.id)
-        check_result = self.check_if_user_is_allowed_to_delete_load_note(
-            app_user, load_note
-        )
-        if not check_result["isAllowed"]:
-            return Response(
-                {"details": check_result["message"]},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        load_note.is_deleted = True
-        load_note.save()
-
-        return Response(data={"Load note deleted successfuly"},
-                         status=status.HTTP_204_NO_CONTENT)
-
-    @staticmethod
-    def check_if_user_is_allowed_to_undo_delete_load_note(app_user, load_note):
-        result = {"isAllowed": True, "message": ""}
-        if not utils.is_user_one_of_load_parties(app_user, load_note.load):
-            result["isAllowed"] = False
-            result["message"] = "You aren't one of the load parties"
-        elif load_note.creator != app_user:
-            result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the load note"
-        return result
-
     @staticmethod
     def check_if_user_is_allowed_to_delete_load_note(app_user, load_note):
         result = {"isAllowed": True, "message": ""}
@@ -2877,10 +2858,79 @@ class LoadNodeDeletionView(GenericAPIView, DestroyModelMixin, CreateModelMixin, 
             result["message"] = "You aren't the creator of the load note"
         return result
 
-    @action(detail=False, methods=['get'])
-    def deleted_notes(self, request):
-        deleted_notes = models.LoadNote.objects.filter(is_deleted=True)
-        serializer = serializers.LoadNoteCreateRetrieveDeleteSerializer(deleted_notes, many=True)
+
+class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin):
+    serializer_class = serializers.LoadNoteSerializer
+    queryset = models.LoadNote.objects.all()
+    lookup_field = "id"
+
+    def post(self, request, *args, **kwargs):
+        load_note = self.get_object()
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_is_allowed_to_undo_delete_load_note(
+            app_user, load_note
+        )
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        load_note.is_deleted = False
+        load_note.save()
+
+        serializer = serializers.LoadNoteSerializer(load_note)
+        return Response({"load_note_details": serializer.data}, status=status.HTTP_200_OK)
+
+
+    def get(self, request, *args, **kwargs):
+        load_id = request.query_params.get("load_id", None)
+        if load_id is None:
+            return Response(
+                {"details": "load_id is missing"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        load = get_object_or_404(models.Load, id=load_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_allowed_to_list_load_notes(app_user, load)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        filter_query = Q(creator__id=app_user.id) & Q(load__id=load_id) & Q(is__deleted=True)
+        if app_user.user_type == MANAGER_USER_TYPE:
+            load_parties_under_company_manager = utils.get_load_parties_under_company_manager(
+                load,
+                app_user
+            )
+            load_parties_ids = [party.id for party in load_parties_under_company_manager]
+            filter_query = Q(creator__id__in=load_parties_ids)
+        load_notes = models.LoadNote.objects.filter(filter_query)
+        if load_notes.exists() is False:
+            return Response(
+                data={"detail": "No loads notes found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = serializers.LoadNoteSerializer(load_notes, many=True)
         return Response(serializer.data)
 
+    @staticmethod
+    def check_if_user_is_allowed_to_undo_delete_load_note(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
+        return result
 
+    @staticmethod
+    def check_if_user_allowed_to_list_load_notes(app_user, load):
+        result = {"isAllowed": True, "message": ""}
+        if app_user.user_type == MANAGER_USER_TYPE:
+            if not utils.can_company_manager_see_load(load, app_user):
+                result["isAllowed"] = False
+                result["message"] = "You aren't a manager for one of the load parties"
+        else:
+            user_load_party = utils.get_load_party_by_id(load, app_user.id)
+            if user_load_party is None:
+                result["isAllowed"] = False
+                result["message"] = "You aren't one of the load parties"
+        return result
