@@ -2904,13 +2904,13 @@ class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 app_user
             )
             load_parties_ids = [party.id for party in load_parties_under_company_manager]
-            filter_query = Q(creator__id__in=load_parties_ids)
-        load_notes = models.LoadNote.objects.filter(filter_query)
-        if load_notes.exists() is False:
+            filter_query = Q(creator__id__in=load_parties_ids) & Q(is__deleted=True)
+        deleted_notes = models.LoadNote.objects.filter(filter_query)
+        if deleted_notes.exists() is False:
             return Response(
-                data={"detail": "No loads notes found."}, status=status.HTTP_404_NOT_FOUND
+                data={"detail": "No deleted notes found."}, status=status.HTTP_404_NOT_FOUND
             )
-        serializer = serializers.LoadNoteSerializer(load_notes, many=True)
+        serializer = serializers.LoadNoteSerializer(deleted_notes)
         return Response(serializer.data)
 
     @staticmethod
