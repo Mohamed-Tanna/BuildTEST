@@ -2663,7 +2663,7 @@ class OtherLoadPartiesView(APIView):
         )
 
 
-class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
+class LoadNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin):
     serializer_class = serializers.LoadNoteSerializer
     pagination_class = PageNumberPagination
     queryset = models.LoadNote.objects.all()
@@ -2866,7 +2866,7 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModel
 
 
 class LoadNoteListView(GenericAPIView):
-    serializer_class = serializers.LoadNoteCreateRetrieveSerializer
+    serializer_class = serializers.LoadNoteSerializer
     pagination_class = PageNumberPagination
     queryset = models.LoadNote.objects.all()
     permission_classes = [IsAuthenticated, permissions.HasRoleOrIsCompanyManager]
@@ -2904,7 +2904,7 @@ class LoadNoteListView(GenericAPIView):
             load_notes.order_by("-created_at"),
             request
         )
-        load_notes_data = serializers.LoadNoteCreateRetrieveSerializer(paginated_loads, many=True).data
+        load_notes_data = serializers.LoadNoteSerializer(paginated_loads, many=True).data
         return paginator.get_paginated_response(load_notes_data)
 
     @staticmethod
@@ -2933,12 +2933,16 @@ class LoadNoteListView(GenericAPIView):
         return result
 
 
-class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
     serializer_class = serializers.LoadNoteSerializer
     queryset = models.LoadNote.objects.all()
     lookup_field = "id"
+    permission_classes = [IsAuthenticated, permissions.HasRole]
 
-    def post(self, request, *args, **kwargs):
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
         load_note = self.get_object()
         app_user = models.AppUser.objects.get(user=request.user.id)
         check_result = self.check_if_user_is_allowed_to_undo_delete_load_note(
@@ -2949,12 +2953,21 @@ class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        load_note.is_deleted = False
-        load_note.save()
-
-        serializer = serializers.LoadNoteSerializer(load_note)
-        return Response({"load_note_details": serializer.data}, status=status.HTTP_200_OK)
-
+        if not load_note.is_deleted:
+            return Response(
+                {"details": "This load note is not deleted"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = self.get_serializer(
+            load_note,
+            data={"is_deleted": False},
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
 
     def get(self, request, *args, **kwargs):
         load_id = request.query_params.get("load_id", None)
@@ -2971,21 +2984,21 @@ class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin):
                 {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        filter_query = Q(creator__id=app_user.id) & Q(load__id=load_id) & Q(is__deleted=True)
+        filter_query = Q(load__id=load_id) & Q(creator__id=app_user.id) & Q(is_deleted=True)
         if app_user.user_type == MANAGER_USER_TYPE:
             load_parties_under_company_manager = utils.get_load_parties_under_company_manager(
                 load,
                 app_user
             )
             load_parties_ids = [party.id for party in load_parties_under_company_manager]
-            filter_query = Q(creator__id__in=load_parties_ids) & Q(is__deleted=True)
+            filter_query = Q(creator__id__in=load_parties_ids) & Q(is_deleted=True)
         deleted_notes = models.LoadNote.objects.filter(filter_query)
         if deleted_notes.exists() is False:
             return Response(
                 data={"detail": "No deleted notes found."}, status=status.HTTP_404_NOT_FOUND
             )
-        serializer = serializers.LoadNoteSerializer(deleted_notes)
-        return Response(serializer.data)
+        data = serializers.LoadNoteSerializer(deleted_notes, many=True).data
+        return Response(data)
 
     @staticmethod
     def check_if_user_is_allowed_to_undo_delete_load_note(app_user, load_note):
