@@ -293,7 +293,7 @@ def get_unique_name_for_supporting_docs(bucket, file_name):
     while blob.exists():
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         unique_id = get_unique_symbol_algorithm_id(20)
-        final_file_name = f"{final_file_name}_{timestamp}_{unique_id}"
+        final_file_name = f"{timestamp}_{unique_id}_{final_file_name}"
         blob = bucket.blob("images/" + final_file_name)
         final_file_name = file_name
     return final_file_name
@@ -442,7 +442,7 @@ def get_supporting_docs_info(supporting_docs):
 
 
 def generate_new_unique_file_name(file_name, prefix=""):
-    return f'{prefix}{file_name}_{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}'
+    return f'{prefix}{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}_{file_name}'
 
 
 def get_unique_blob(bucket, blob, file_name, path_name=""):
