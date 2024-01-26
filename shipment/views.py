@@ -2875,6 +2875,20 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateM
             result["message"] = "You aren't the creator of the load note"
         return result
 
+    @staticmethod
+    def check_if_user_can_get_load_notes(app_user, load):
+        result = {"isAllowed": True, "message": ""}
+        if app_user.user_type == MANAGER_USER_TYPE:
+            if not utils.can_company_manager_see_load(load, app_user):
+                result["isAllowed"] = False
+                result["message"] = "You aren't a manager for one of the load parties"
+        else:
+            user_load_party = utils.get_load_party_by_id(load, app_user.id)
+            if user_load_party is None:
+                result["isAllowed"] = False
+                result["message"] = "You aren't one of the load parties"
+        return result
+
 
 class LoadNoteListView(GenericAPIView):
     serializer_class = serializers.LoadNoteSerializer
