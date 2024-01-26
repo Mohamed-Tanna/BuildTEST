@@ -458,14 +458,16 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                 attachment_name = representation["attachments"][i]
                 blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
                 url = ""
+                content_type = ""
                 if blob.exists():
                     url = utils.generate_get_signed_url_for_file(
                         blob=blob,
                         storage_client=self.storage_client,
                     )
+                    blob.reload()
+                    content_type = blob.content_type
                 attachments_info[i]["url"] = url
+                attachments_info[i]["content_type"] = content_type
         representation["attachments"] = attachments_info
 
         return representation
-
-

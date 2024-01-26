@@ -2876,7 +2876,7 @@ class LoadNoteListView(GenericAPIView):
         load_notes = models.LoadNote.objects.filter(filter_query)
         if load_notes.exists() is False:
             return Response(
-                data={"detail": "No loads notes found."}, status=status.HTTP_404_NOT_FOUND
+                data=[], status=status.HTTP_200_OK
             )
         paginator = self.pagination_class()
         paginated_loads = paginator.paginate_queryset(
