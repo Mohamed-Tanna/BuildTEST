@@ -2864,6 +2864,17 @@ class LoadNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin, UpdateM
                 result["message"] = "You aren't the creator of the load note or this note is not visible to you"
         return result
 
+    @staticmethod
+    def check_if_user_is_allowed_to_delete_load_note(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if not utils.is_user_one_of_load_parties(app_user, load_note.load):
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
+        return result
+
 
 class LoadNoteListView(GenericAPIView):
     serializer_class = serializers.LoadNoteSerializer
@@ -2921,19 +2932,8 @@ class LoadNoteListView(GenericAPIView):
                 result["message"] = "You aren't one of the load parties"
         return result
 
-    @staticmethod
-    def check_if_user_is_allowed_to_delete_load_note(app_user, load_note):
-        result = {"isAllowed": True, "message": ""}
-        if not utils.is_user_one_of_load_parties(app_user, load_note.load):
-            result["isAllowed"] = False
-            result["message"] = "You aren't one of the load parties"
-        elif load_note.creator != app_user:
-            result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the load note"
-        return result
 
-
-class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin, UpdateModelMixin):
+class LoadNoteDeletionView(GenericAPIView, ListModelMixin, UpdateModelMixin):
     serializer_class = serializers.LoadNoteSerializer
     queryset = models.LoadNote.objects.all()
     lookup_field = "id"
@@ -2958,16 +2958,10 @@ class LoadNoteDeletionView(GenericAPIView, CreateModelMixin, ListModelMixin, Upd
                 {"details": "This load note is not deleted"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = self.get_serializer(
-            load_note,
-            data={"is_deleted": False},
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
-        )
+        load_note.is_deleted = False
+        load_note.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get(self, request, *args, **kwargs):
         load_id = request.query_params.get("load_id", None)
