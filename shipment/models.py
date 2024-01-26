@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import CheckConstraint, Q, F
+from django.db.models import CheckConstraint, Q, F, BooleanField
 from django.contrib.postgres.fields import ArrayField
 from authentication.models import (
     User,
@@ -229,6 +229,7 @@ class LoadNote(models.Model):
     attachments = ArrayField(models.TextField(), default=list, blank=True)
     visible_to = models.ManyToManyField('authentication.AppUser',
                                         related_name='visible_to')
+    is_deleted = BooleanField(default=False, verbose_name="is Deleted")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
