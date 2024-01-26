@@ -1,5 +1,10 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 import shipment.views as views
+
+router = DefaultRouter()
+router.register(r'notes', views.LoadNoteView, basename='LoadNote')
 
 urlpatterns = [
     path("facility/", views.FacilityView.as_view()),
@@ -10,10 +15,7 @@ urlpatterns = [
     path("load/other-load-parties/", views.OtherLoadPartiesView.as_view()),
     path("load/notes/deleted-notes/undo/<id>/", views.LoadNoteDeletionView.as_view()),
     path("load/notes/deleted-notes/", views.LoadNoteDeletionView.as_view()),
-    path("load/notes/delete/<id>/", views.LoadNoteView.as_view()),
-    path("load/notes/list/", views.LoadNoteListView.as_view()),
-    path("load/notes/<id>/", views.LoadNoteView.as_view()),
-    path("load/notes/", views.LoadNoteView.as_view()),
+    path('load/', include(router.urls)),
     path("load/", views.LoadView.as_view()),
     path("load/<id>/", views.LoadView.as_view()),
     path("list-load/", views.ListLoadView.as_view()),
