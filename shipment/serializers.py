@@ -5,7 +5,7 @@ import shipment.utilities as utils
 from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from document.utilities import get_storage_client
-from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
+from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH
 from shipment.utilities import get_app_user_load_party_roles
 
 
@@ -298,7 +298,7 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
 class LoadNoteSerializer(serializers.ModelSerializer):
     storage_client = get_storage_client()
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
-    blob_path = "load_notes_files/"
+    blob_path = LOAD_NOTES_FILES_PATH
     visible_to = serializers.PrimaryKeyRelatedField(
         queryset=AppUser.objects.all(),
         many=True,
@@ -471,3 +471,13 @@ class LoadNoteSerializer(serializers.ModelSerializer):
         representation["attachments"] = attachments_info
 
         return representation
+
+
+class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
+    load_note_id = serializers.IntegerField()
+    uploaded = serializers.BooleanField()
+    attachment_name = serializers.CharField(max_length=255)
+
+
+class LoadNoteAttachmentsSyncWithStorageBucketSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
