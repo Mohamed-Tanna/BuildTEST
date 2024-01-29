@@ -2459,7 +2459,7 @@ class ContactSearchView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
+class ClaimView(ModelViewSet):
     serializer_class = serializers.ClaimCreateRetrieveSerializer
     queryset = models.Claim.objects.all()
     lookup_field = 'id'
@@ -2474,12 +2474,6 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
             permission_classes.append(permissions.IsNotCompanyManager())
             return permission_classes
         return permission_classes
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()

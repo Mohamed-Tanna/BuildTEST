@@ -5,13 +5,12 @@ import shipment.views as views
 
 router = DefaultRouter()
 router.register(r'notes', views.LoadNoteView, basename='LoadNote')
+router.register(r'claims', views.ClaimView, basename='LoadClaim')
 
 urlpatterns = [
     path("facility/", views.FacilityView.as_view()),
     path("facility/<id>/", views.FacilityView.as_view()),
     path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
-    path("load/claim/", views.ClaimView.as_view()),
-    path("load/claim/<id>", views.ClaimView.as_view()),
     path("load/other-load-parties/", views.OtherLoadPartiesView.as_view()),
     path("load/notes/deleted-notes/undo/<id>/", views.LoadNoteDeletionView.as_view()),
     path("load/notes/deleted-notes/", views.LoadNoteDeletionView.as_view()),
