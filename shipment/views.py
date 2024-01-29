@@ -2,7 +2,6 @@
 from datetime import datetime
 
 import rest_framework.exceptions as exceptions
-from rest_framework.decorators import action
 from django.db import IntegrityError
 # Django imports
 from django.db.models import Q
@@ -21,7 +20,7 @@ from drf_spectacular.utils import (
 from rest_framework import serializers as drf_serializers
 # DRF imports
 from rest_framework import status
-from rest_framework.generics import GenericAPIView, DestroyAPIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import (
     CreateModelMixin,
     UpdateModelMixin,
@@ -43,7 +42,9 @@ import shipment.models as models
 import shipment.serializers as serializers
 import shipment.utilities as utils
 from authentication.utilities import create_address
-from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
+from document.utilities import get_storage_client
+from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, \
+    LOAD_NOTES_FILES_PATH
 from notifications.utilities import handle_notification
 from shipment.utilities import send_notifications_to_load_parties
 
@@ -2971,4 +2972,84 @@ class LoadNoteDeletionView(GenericAPIView, ListModelMixin, UpdateModelMixin):
             if user_load_party is None:
                 result["isAllowed"] = False
                 result["message"] = "You aren't one of the load parties"
+        return result
+
+
+class LoadNoteAttachmentConfirmationView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    serializer_class = serializers.LoadNoteAttachmentConfirmationSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        load_note_id = request.data.get("load_note_id")
+        uploaded = request.data.get("uploaded")
+        attachment_name = request.data.get("attachment_name")
+        load_note = get_object_or_404(models.LoadNote, id=load_note_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_can_manipulate_load_attachments(app_user, load_note)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if uploaded == 'false' or uploaded is False:
+            load_note_attachments = load_note.attachments
+            if attachment_name not in load_note_attachments:
+                return Response(
+                    {"details": f"There is no attachment named {attachment_name} to remove"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            load_note_attachments.remove(attachment_name)
+            load_note.attachments = load_note_attachments
+            load_note.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def check_if_user_can_manipulate_load_attachments(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
+        return result
+
+
+class LoadNoteSyncWithStorageBucketView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    serializer_class = serializers.LoadNoteAttachmentsSyncWithStorageBucketSerializer
+    lookup_url_kwarg = 'id'
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=self.kwargs)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        load_note_id = self.kwargs.get('id')
+        load_note = get_object_or_404(models.LoadNote, id=load_note_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_can_sync_load_attachments(app_user, load_note)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        storage_client = get_storage_client()
+        bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+        blob_path = LOAD_NOTES_FILES_PATH
+        load_note_attachments = load_note.attachments
+        new_load_note_attachments = []
+        for attachment in load_note_attachments:
+            blob = bucket.blob(f"{blob_path}{attachment}")
+            if blob.exists():
+                new_load_note_attachments.append(attachment)
+        load_note.attachments = new_load_note_attachments
+        load_note.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def check_if_user_can_sync_load_attachments(app_user, load_note):
+        result = {"isAllowed": True, "message": ""}
+        if load_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the load note"
         return result
