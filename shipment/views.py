@@ -2548,7 +2548,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         return result
 
 
-class ClaimNoteView(GenericAPIView, CreateModelMixin):
+class ClaimNoteView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
 
@@ -2571,13 +2571,26 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
         mutable_request_data["creator"] = str(app_user.id)
         del mutable_request_data["claim_id"]
         mutable_request_data["claim"] = request.data["claim_id"]
-        serializer = self.get_serializer(data=mutable_request_data)
+        supporting_docs_names = []
+        supporting_docs_content_type = []
+        for supporting_doc in request.data.get("supporting_docs", []):
+            supporting_docs_names.append(supporting_doc["name"])
+            supporting_docs_content_type.append(supporting_doc["content_type"])
+        mutable_request_data["supporting_docs"] = supporting_docs_names
+        serializer = self.get_serializer(
+            data=mutable_request_data,
+            context={
+                "request": request,
+                "attachments_content_type": supporting_docs_content_type
+            }
+        )
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
 
     def retrieve_claim_note(self, request):
         claim_id = request.query_params.get("claim_id", None)

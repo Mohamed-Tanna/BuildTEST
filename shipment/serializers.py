@@ -223,23 +223,42 @@ class ShipmentAdminSerializer(serializers.ModelSerializer):
 
 
 class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
-    supporting_docs = serializers.ListField(child=serializers.FileField(), required=False, default=list)
+    storage_client = get_storage_client()
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+    blob_path = "claim_notes_files/"
 
     class Meta:
         model = models.ClaimNote
         fields = "__all__"
+        extra_kwargs = {
+            "supporting_docs": {"required": False},
+        }
         read_only_fields = ("id", "created_at")
 
     def create(self, validated_data):
-        supporting_docs = validated_data.pop("supporting_docs", [])
-        new_supporting_docs_names = utils.upload_supporting_docs(supporting_docs)
-        validated_data["supporting_docs"] = new_supporting_docs_names
+        supporting_docs_names = validated_data.get("supporting_docs", [])
+        new_supporting_docs_names = []
+
+        for supporting_doc_name in supporting_docs_names:
+            new_unique_supporting_doc_name = utils.generate_new_unique_file_name(
+                file_name=supporting_doc_name,
+            )
+            blob = self.bucket.blob(f"{self.blob_path}{new_unique_supporting_doc_name}")
+            if blob.exists():
+                blob = utils.get_unique_blob(
+                    bucket=self.bucket,
+                    blob=blob,
+                    file_name=supporting_doc_name,
+                    path_name=self.blob_path
+                )
+            new_supporting_docs_names.append(blob.name.replace(self.blob_path, "").strip())
+        validated_data["attachments"] = new_supporting_docs_names
         return super().create(validated_data)
+
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        supporting_docs_info = utils.get_supporting_docs_info(instance.supporting_docs)
-        representation['supporting_docs'] = supporting_docs_info
+        request = self.context.get('request')
         representation['creator'] = {
             "id": instance.creator.id,
             "username": instance.creator.user.username,
@@ -248,6 +267,45 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 load=instance.claim.load
             )
         }
+        supporting_docs_info = []
+        for supporting_docs_name in representation["supporting_docs"]:
+            supporting_docs_info.append(
+                {
+                    "name": supporting_docs_name,
+                    "url": ""
+                }
+            )
+        if request and request.method == 'POST':
+            supporting_docs_content_type = self.context.get('supporting_docs_content_type')
+            signed_urls = []
+            for i in range(len(representation["supporting_docs"])):
+                supporting_docs_name = representation["supporting_docs"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{supporting_docs_name}")
+                url = utils.generate_put_signed_url_for_file(
+                    blob=blob,
+                    content_type=supporting_docs_content_type[i],
+                    storage_client=self.storage_client,
+                )
+                signed_urls.append(url)
+            for i in range(len(supporting_docs_info)):
+                supporting_docs_info[i]["url"] = signed_urls[i]
+        else:
+            for i in range(len(representation["supporting_docs"])):
+                supporting_docs_name = representation["supporting_docs"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{supporting_docs_name}")
+                url = ""
+                content_type = ""
+                if blob.exists():
+                    url = utils.generate_get_signed_url_for_file(
+                        blob=blob,
+                        storage_client=self.storage_client,
+                    )
+                    blob.reload()
+                    content_type = blob.content_type
+                supporting_docs_info[i]["url"] = url
+                supporting_docs_info[i]["content_type"] = content_type
+        representation["supporting_docs"] = supporting_docs_info
+
         return representation
 
 
@@ -366,6 +424,7 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                     new_attachments_names.append(attachment_name)
             validated_data["attachments"] = new_attachments_names
         return super().update(instance, validated_data)
+
 
     def validate(self, data):
         message = data.get('message', '')
