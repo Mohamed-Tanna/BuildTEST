@@ -487,7 +487,7 @@ def generate_get_signed_url_for_file(
         version="v4",
         expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
         method="GET",
-        # credentials=signing_creds,
+        credentials=signing_creds,
     )
     return url
 
