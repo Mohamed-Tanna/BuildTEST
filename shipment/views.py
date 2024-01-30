@@ -2675,7 +2675,7 @@ class LoadNoteView(ModelViewSet):
         permission_classes = [IsAuthenticated()]
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
-        elif self.request.method == 'POST' or self.request.method == 'PUT' or self.request.method == 'DELETE':
+        elif self.request.method == 'POST' or self.request.method == 'PATCH' or self.request.method == 'DELETE':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
         return permission_classes
@@ -2805,6 +2805,12 @@ class LoadNoteView(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def destroy(self, request, *args, **kwargs):
         load_note = self.get_object()
