@@ -5,6 +5,7 @@ import shipment.utilities as utils
 from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from document.utilities import get_storage_client
+from freightmonster.classes import StorageClient
 from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH
 from shipment.utilities import get_app_user_load_party_roles
 
@@ -296,7 +297,7 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
 
 
 class LoadNoteSerializer(serializers.ModelSerializer):
-    storage_client = get_storage_client()
+    storage_client = StorageClient().storage_client
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     blob_path = LOAD_NOTES_FILES_PATH
     visible_to = serializers.PrimaryKeyRelatedField(

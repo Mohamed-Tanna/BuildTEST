@@ -7,7 +7,8 @@ from django.db.models import Q
 
 import authentication.models as auth_models
 import shipment.models as models
-from document.utilities import get_storage_client, get_signing_creds
+from document.utilities import get_signing_creds
+from freightmonster.classes import StorageClient
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
     AWAITING_DISPATCHER, CLAIM_CREATED, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
 from freightmonster.thread import ThreadWithReturnValue
@@ -400,7 +401,7 @@ def is_user_the_creator_of_the_claim(app_user: auth_models.AppUser, claim: model
 
 
 def upload_supporting_docs(supporting_docs):
-    storage_client = get_storage_client()
+    storage_client = StorageClient().storage_client
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     threads = []
     new_supporting_docs_name = []
@@ -419,7 +420,7 @@ def upload_supporting_docs(supporting_docs):
 
 
 def get_supporting_docs_info(supporting_docs):
-    storage_client = get_storage_client()
+    storage_client = StorageClient().storage_client
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     supporting_docs_info = []
     threads = []
@@ -462,7 +463,7 @@ def generate_put_signed_url_for_file(
         expiration_time=900
 ):
     if storage_client is None:
-        storage_client = get_storage_client()
+        storage_client = StorageClient().storage_client
     signing_creds = get_signing_creds(storage_client._credentials)
     url = blob.generate_signed_url(
         version="v4",
@@ -480,13 +481,13 @@ def generate_get_signed_url_for_file(
         expiration_time=3600
 ):
     if storage_client is None:
-        storage_client = get_storage_client()
+        storage_client = StorageClient().storage_client
     signing_creds = get_signing_creds(storage_client._credentials)
     url = blob.generate_signed_url(
         version="v4",
         expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
         method="GET",
-        credentials=signing_creds,
+        # credentials=signing_creds,
     )
     return url
 
