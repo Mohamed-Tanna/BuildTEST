@@ -497,3 +497,17 @@ def is_user_one_of_load_parties(app_user, load):
     if user_load_party is None:
         return False
     return True
+
+
+def process_attachments(request_data):
+    attachments_names = []
+    attachments_content_type = []
+
+    for attachment in request_data.get("attachments", []):
+        attachments_names.append(attachment["name"])
+        attachments_content_type.append(attachment["content_type"])
+
+    processed_data = request_data.copy()
+    processed_data["attachments"] = attachments_names
+
+    return processed_data, attachments_content_type

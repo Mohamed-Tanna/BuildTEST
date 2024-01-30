@@ -2706,12 +2706,7 @@ class LoadNoteView(
         mutable_request_data["creator"] = str(app_user.id)
         del mutable_request_data["load_id"]
         mutable_request_data["load"] = request.data["load_id"]
-        attachments_names = []
-        attachments_content_type = []
-        for attachment in request.data.get("attachments", []):
-            attachments_names.append(attachment["name"])
-            attachments_content_type.append(attachment["content_type"])
-        mutable_request_data["attachments"] = attachments_names
+        processed_data, attachments_content_type = utils.process_attachments(mutable_request_data)
         serializer = self.get_serializer(
             data=mutable_request_data,
             context={
