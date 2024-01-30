@@ -2721,9 +2721,13 @@ class LoadNoteView(
         )
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        data = serializer.data
+        headers = self.get_success_headers(data)
+        load_note = models.LoadNote.objects.get(id=data["id"])
+        load_note.attachments = []
+        load_note.save()
         return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            data, status=status.HTTP_201_CREATED, headers=headers
         )
 
     def retrieve(self, request, *args, **kwargs):
@@ -2756,7 +2760,8 @@ class LoadNoteView(
         filter_query = (
                 Q(load__id=load_id) &
                 (Q(creator__id=app_user.id) | Q(visible_to__id=app_user.id)) &
-                Q(is_deleted=False)
+                Q(is_deleted=False) &
+                Q(is_created=True)
         )
         if app_user.user_type == MANAGER_USER_TYPE:
             load_parties_under_company_manager = utils.get_load_parties_under_company_manager(
@@ -2764,7 +2769,12 @@ class LoadNoteView(
                 app_user
             )
             load_parties_ids = [party.id for party in load_parties_under_company_manager]
-            filter_query = Q(load__id=load_id) & Q(creator__id__in=load_parties_ids) & Q(is_deleted=False)
+            filter_query = (
+                    Q(load__id=load_id) &
+                    Q(creator__id__in=load_parties_ids) &
+                    Q(is_deleted=False) &
+                    Q(is_created=True)
+            )
         load_notes = models.LoadNote.objects.filter(filter_query)
         if load_notes.exists() is False:
             return Response(
@@ -3053,3 +3063,18 @@ class LoadNoteSyncWithStorageBucketView(GenericAPIView):
             result["isAllowed"] = False
             result["message"] = "You aren't the creator of the load note"
         return result
+
+
+class LoadNoteAttachmentInStorageBucketView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.IsCloudFunction]
+
+    def post(self, request, *args, **kwargs):
+        load_note_id = self.request.data.get('load_note_id')
+        load_note = get_object_or_404(models.LoadNote, id=load_note_id)
+        load_note_attachments = load_note.attachments
+        load_note_attachments.append(request.data.get('attachment_name'))
+        load_note.attachments = load_note_attachments
+        if not load_note.is_created:
+            load_note.is_created = True
+        load_note.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)

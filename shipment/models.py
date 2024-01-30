@@ -231,11 +231,15 @@ class LoadNote(models.Model):
                                         related_name='visible_to')
     is_deleted = BooleanField(default=False, verbose_name="is Deleted")
     created_at = models.DateTimeField(auto_now_add=True)
+    is_created = BooleanField(default=False, verbose_name="is created")
 
     class Meta:
         constraints = [
             CheckConstraint(
-                check=~Q(message="") | ~Q(attachments__len=0),
+                check=(
+                        (Q(is_created=True) & (~Q(message="") | ~Q(attachments__len=0))) |
+                        (Q(is_created=False) & Q(message=""))
+                ),
                 name='message_or_attachments_not_default'
             )
         ]

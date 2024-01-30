@@ -284,7 +284,7 @@ def is_load_status_valid_to_create_claim(status):
 
 
 def get_unique_symbol_algorithm_id(length):
-    symbols = string.ascii_letters + string.digits + "-/*=+_&%$#@!"
+    symbols = string.ascii_letters + string.digits + "-*=+_&%$#@!"
     return ''.join(random.choice(symbols) for _ in range(length))
 
 
@@ -461,7 +461,8 @@ def generate_put_signed_url_for_file(
         blob,
         content_type,
         storage_client=None,
-        expiration_time=900
+        expiration_time=900,
+        headers=None
 ):
     if storage_client is None:
         storage_client = StorageClient().storage_client
@@ -471,7 +472,8 @@ def generate_put_signed_url_for_file(
         expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
         method="PUT",
         content_type=content_type,
-        credentials=signing_creds,
+        headers=headers,
+        # credentials=signing_creds,
     )
     return url
 
@@ -488,7 +490,7 @@ def generate_get_signed_url_for_file(
         version="v4",
         expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
         method="GET",
-        credentials=signing_creds,
+        # credentials=signing_creds,
     )
     return url
 

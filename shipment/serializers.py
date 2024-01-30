@@ -313,8 +313,9 @@ class LoadNoteSerializer(serializers.ModelSerializer):
             "message": {"required": False},
             "attachments": {"required": False},
             "is_deleted": {"required": False},
+            "is_created": {"required": False},
         }
-        read_only_fields = ("id", "created_at", "is_deleted")
+        read_only_fields = ("id", "created_at", "is_deleted", "is_created")
 
     def create(self, validated_data):
         attachments_names = validated_data.get("attachments", [])
@@ -334,6 +335,8 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                 )
             new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
         validated_data["attachments"] = new_attachments_names
+        if "message" in validated_data and validated_data["message"].strip() != "":
+            validated_data["is_created"] = True
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
@@ -434,6 +437,9 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                     blob=blob,
                     content_type=attachments_content_type[i],
                     storage_client=self.storage_client,
+                    headers={
+                        "x-goog-meta-load_note_id": f'{instance.id}'
+                    }
                 )
                 content_types.append(attachments_content_type[i])
                 signed_urls.append(url)
