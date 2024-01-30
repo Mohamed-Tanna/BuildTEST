@@ -443,7 +443,8 @@ def get_supporting_docs_info(supporting_docs):
 
 
 def generate_new_unique_file_name(file_name, prefix=""):
-    return f'{prefix}{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}_{file_name}'
+    splited_file_name = file_name.split(".")
+    return f'{splited_file_name[0]}_{prefix}{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}.{splited_file_name[-1]}'
 
 
 def get_unique_blob(bucket, blob, file_name, path_name=""):
