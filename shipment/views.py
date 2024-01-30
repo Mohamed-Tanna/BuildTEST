@@ -2665,14 +2665,7 @@ class OtherLoadPartiesView(APIView):
         )
 
 
-class LoadNoteView(
-    ModelViewSet,
-    CreateModelMixin,
-    RetrieveModelMixin,
-    UpdateModelMixin,
-    DestroyModelMixin,
-    ListModelMixin
-):
+class LoadNoteView(ModelViewSet):
     serializer_class = serializers.LoadNoteSerializer
     pagination_class = PageNumberPagination
     queryset = models.LoadNote.objects.all()
@@ -2778,7 +2771,7 @@ class LoadNoteView(
         load_notes_data = serializers.LoadNoteSerializer(paginated_loads, many=True).data
         return paginator.get_paginated_response(load_notes_data)
 
-    def update(self, request, *args, **kwargs):
+    def partial_update(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
         load_note = self.get_object()
