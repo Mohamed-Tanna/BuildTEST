@@ -426,6 +426,7 @@ class LoadNoteSerializer(serializers.ModelSerializer):
         if request and request.method == 'POST':
             attachments_content_type = self.context.get('attachments_content_type')
             signed_urls = []
+            content_types = []
             for i in range(len(representation["attachments"])):
                 attachment_name = representation["attachments"][i]
                 blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
@@ -434,25 +435,32 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                     content_type=attachments_content_type[i],
                     storage_client=self.storage_client,
                 )
+                content_types.append(attachments_content_type[i])
                 signed_urls.append(url)
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
+                attachments_info[i]["content_type"] = content_types[i]
         elif request and request.method == 'PUT':
             attachments_content_type = self.context.get('attachments_content_type')
             signed_urls = []
+            content_types = []
             for i in range(len(representation["attachments"])):
                 attachment_name = representation["attachments"][i]
                 blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
                 url = ""
+                content_type = ""
                 if not blob.exists():
                     url = utils.generate_put_signed_url_for_file(
                         blob=blob,
                         content_type=attachments_content_type[i],
                         storage_client=self.storage_client,
                     )
+                    content_type = attachments_content_type[i]
                 signed_urls.append(url)
+                content_types.append(content_type)
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
+                attachments_info[i]["content_type"] = content_types[i]
             attachments_info = [item for item in attachments_info if item["url"]]
         else:
             for i in range(len(representation["attachments"])):
