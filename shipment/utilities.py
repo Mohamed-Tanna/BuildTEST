@@ -475,7 +475,7 @@ def generate_put_signed_url_for_file(
         method="PUT",
         content_type=content_type,
         headers=headers,
-        # credentials=signing_creds,
+        credentials=signing_creds,
     )
     return url
 
@@ -492,7 +492,7 @@ def generate_get_signed_url_for_file(
         version="v4",
         expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
         method="GET",
-        # credentials=signing_creds,
+        credentials=signing_creds,
     )
     return url
 

@@ -1,12 +1,14 @@
 from rest_framework import permissions
+
 import authentication.models as models
+from authentication.utilities import get_cloud_function_email
 
 
 class IsCloudFunction(permissions.BasePermission):
     message = "Can't access this"
 
     def has_permission(self, request, view):
-        return request.user.email == "cloud-function-listen-to-stora@freightmonster-dev.iam.gserviceaccount.com"
+        return request.user.email == get_cloud_function_email()
 
 
 class IsAppUser(permissions.BasePermission):
