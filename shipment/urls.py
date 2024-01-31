@@ -16,7 +16,6 @@ urlpatterns = [
     path("load/notes/deleted-notes/undo/<id>/", views.LoadNoteDeletionView.as_view()),
     path("load/notes/deleted-notes/", views.LoadNoteDeletionView.as_view()),
     path("load/notes/attachments/confirmation/", views.LoadNoteAttachmentConfirmationView.as_view()),
-    path("load/notes/attachments/sync/<int:id>/", views.LoadNoteSyncWithStorageBucketView.as_view()),
     path('load/', include(router.urls)),
     path("load/", views.LoadView.as_view()),
     path("load/<id>/", views.LoadView.as_view()),

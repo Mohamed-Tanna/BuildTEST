@@ -284,7 +284,7 @@ def is_load_status_valid_to_create_claim(status):
 
 
 def get_unique_symbol_algorithm_id(length):
-    symbols = string.ascii_letters + string.digits + "-/*=+_&%$#@!"
+    symbols = string.ascii_letters + string.digits + "-*=+_&%$#@!"
     return ''.join(random.choice(symbols) for _ in range(length))
 
 
@@ -443,16 +443,19 @@ def get_supporting_docs_info(supporting_docs):
 
 
 def generate_new_unique_file_name(file_name, prefix=""):
-    return f'{prefix}{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}_{file_name}'
+    splited_file_name = file_name.split(".")
+    return f'{splited_file_name[0]}_{prefix}{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}.{splited_file_name[-1]}'
 
 
-def get_unique_blob(bucket, blob, file_name, path_name=""):
-    while blob.exists():
+def get_unique_blob(bucket, file_name, list_of_names_to_compare=list, path_name=""):
+    while True:
         new_unique_attachment_name = generate_new_unique_file_name(
             file_name=file_name,
             prefix="load_note_attachment_"
         )
         blob = bucket.blob(f"{path_name}{new_unique_attachment_name}")
+        if not blob.exists() and new_unique_attachment_name not in list_of_names_to_compare:
+            break
     return blob
 
 
@@ -460,7 +463,8 @@ def generate_put_signed_url_for_file(
         blob,
         content_type,
         storage_client=None,
-        expiration_time=900
+        expiration_time=900,
+        headers=None
 ):
     if storage_client is None:
         storage_client = StorageClient().storage_client
@@ -470,7 +474,8 @@ def generate_put_signed_url_for_file(
         expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
         method="PUT",
         content_type=content_type,
-        credentials=signing_creds,
+        headers=headers,
+        # credentials=signing_creds,
     )
     return url
 

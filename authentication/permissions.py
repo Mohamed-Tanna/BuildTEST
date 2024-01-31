@@ -2,6 +2,13 @@ from rest_framework import permissions
 import authentication.models as models
 
 
+class IsCloudFunction(permissions.BasePermission):
+    message = "Can't access this"
+
+    def has_permission(self, request, view):
+        return request.user.email == "cloud-function-listen-to-stora@freightmonster-dev.iam.gserviceaccount.com"
+
+
 class IsAppUser(permissions.BasePermission):
     message = "User profile incomplete, fill out all of the profile's necessary information before trying again."
 

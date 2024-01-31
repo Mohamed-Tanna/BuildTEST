@@ -310,7 +310,6 @@ class LoadNoteSerializer(serializers.ModelSerializer):
         model = models.LoadNote
         fields = '__all__'
         extra_kwargs = {
-            "message": {"required": False},
             "attachments": {"required": False},
             "is_deleted": {"required": False},
         }
@@ -325,11 +324,11 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                 file_name=attachment_name,
             )
             blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
-            if blob.exists():
+            if blob.exists() or new_unique_attachment_name in new_attachments_names:
                 blob = utils.get_unique_blob(
                     bucket=self.bucket,
-                    blob=blob,
                     file_name=attachment_name,
+                    list_of_names_to_compare=new_attachments_names,
                     path_name=self.blob_path
                 )
             new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
@@ -355,10 +354,10 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                         file_name=attachment_name,
                     )
                     blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
-                    if blob.exists():
+                    if blob.exists() or new_unique_attachment_name in new_attachments_names:
                         blob = utils.get_unique_blob(
                             bucket=self.bucket,
-                            blob=blob,
+                            list_of_names_to_compare=new_attachments_names,
                             file_name=attachment_name,
                             path_name=self.blob_path
                         )
@@ -370,26 +369,10 @@ class LoadNoteSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         message = data.get('message', '')
-        attachments = data.get('attachments', [])
-        if self.instance is None and message == '' and attachments == []:
+        if self.instance is None and message == '':
             raise serializers.ValidationError(
-                {"IntegrityError": "You should provide at least one message or one attachment"}
+                {"IntegrityError": "You should provide a message with load note"}
             )
-        elif self.instance is not None:
-            if (
-                    'message' in data and
-                    data.get('message').strip() == "" and
-                    self.instance.attachments == [] and
-                    data.get('attachments', []) == []
-            ) or (
-                    'attachments' in data and
-                    data.get('attachments') == [] and
-                    self.instance.message == "" and
-                    data.get('message', '').strip() == ""
-            ):
-                raise serializers.ValidationError(
-                    {"IntegrityError": "You should provide at least one message or one attachment"}
-                )
         return data
 
     def to_representation(self, instance):
@@ -426,6 +409,7 @@ class LoadNoteSerializer(serializers.ModelSerializer):
         if request and request.method == 'POST':
             attachments_content_type = self.context.get('attachments_content_type')
             signed_urls = []
+            content_types = []
             for i in range(len(representation["attachments"])):
                 attachment_name = representation["attachments"][i]
                 blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
@@ -433,26 +417,36 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                     blob=blob,
                     content_type=attachments_content_type[i],
                     storage_client=self.storage_client,
+                    headers={
+                        "x-goog-meta-load_note_id": f'{instance.id}'
+                    }
                 )
+                content_types.append(attachments_content_type[i])
                 signed_urls.append(url)
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
+                attachments_info[i]["content_type"] = content_types[i]
         elif request and request.method == 'PUT':
             attachments_content_type = self.context.get('attachments_content_type')
             signed_urls = []
+            content_types = []
             for i in range(len(representation["attachments"])):
                 attachment_name = representation["attachments"][i]
                 blob = self.bucket.blob(f"{self.blob_path}{attachment_name}")
                 url = ""
+                content_type = ""
                 if not blob.exists():
                     url = utils.generate_put_signed_url_for_file(
                         blob=blob,
                         content_type=attachments_content_type[i],
                         storage_client=self.storage_client,
                     )
+                    content_type = attachments_content_type[i]
                 signed_urls.append(url)
+                content_types.append(content_type)
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
+                attachments_info[i]["content_type"] = content_types[i]
             attachments_info = [item for item in attachments_info if item["url"]]
         else:
             for i in range(len(representation["attachments"])):
@@ -476,9 +470,4 @@ class LoadNoteSerializer(serializers.ModelSerializer):
 
 class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
     load_note_id = serializers.IntegerField()
-    uploaded = serializers.BooleanField()
     attachment_name = serializers.CharField(max_length=255)
-
-
-class LoadNoteAttachmentsSyncWithStorageBucketSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
