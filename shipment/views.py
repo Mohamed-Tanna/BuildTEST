@@ -2665,14 +2665,7 @@ class OtherLoadPartiesView(APIView):
         )
 
 
-class LoadNoteView(
-    ModelViewSet,
-    CreateModelMixin,
-    RetrieveModelMixin,
-    UpdateModelMixin,
-    DestroyModelMixin,
-    ListModelMixin
-):
+class LoadNoteView(ModelViewSet):
     serializer_class = serializers.LoadNoteSerializer
     pagination_class = PageNumberPagination
     queryset = models.LoadNote.objects.all()
@@ -2682,7 +2675,7 @@ class LoadNoteView(
         permission_classes = [IsAuthenticated()]
         if self.request.method == 'GET':
             permission_classes.append(permissions.HasRoleOrIsCompanyManager())
-        elif self.request.method == 'POST' or self.request.method == 'PUT' or self.request.method == 'DELETE':
+        elif self.request.method == 'POST' or self.request.method == 'PATCH' or self.request.method == 'DELETE':
             permission_classes.append(permissions.HasRole())
             permission_classes.append(permissions.IsNotCompanyManager())
         return permission_classes
@@ -2721,9 +2714,13 @@ class LoadNoteView(
         )
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        data = serializer.data
+        headers = self.get_success_headers(data)
+        load_note = models.LoadNote.objects.get(id=data["id"])
+        load_note.attachments = []
+        load_note.save()
         return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            data, status=status.HTTP_201_CREATED, headers=headers
         )
 
     def retrieve(self, request, *args, **kwargs):
@@ -2764,7 +2761,11 @@ class LoadNoteView(
                 app_user
             )
             load_parties_ids = [party.id for party in load_parties_under_company_manager]
-            filter_query = Q(load__id=load_id) & Q(creator__id__in=load_parties_ids) & Q(is_deleted=False)
+            filter_query = (
+                    Q(load__id=load_id) &
+                    Q(creator__id__in=load_parties_ids) &
+                    Q(is_deleted=False)
+            )
         load_notes = models.LoadNote.objects.filter(filter_query)
         if load_notes.exists() is False:
             return Response(
@@ -2778,7 +2779,7 @@ class LoadNoteView(
         load_notes_data = serializers.LoadNoteSerializer(paginated_loads, many=True).data
         return paginator.get_paginated_response(load_notes_data)
 
-    def update(self, request, *args, **kwargs):
+    def partial_update(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
         load_note = self.get_object()
@@ -2812,6 +2813,12 @@ class LoadNoteView(
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def destroy(self, request, *args, **kwargs):
         load_note = self.get_object()
@@ -2976,80 +2983,17 @@ class LoadNoteDeletionView(GenericAPIView, ListModelMixin, UpdateModelMixin):
 
 
 class LoadNoteAttachmentConfirmationView(GenericAPIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    permission_classes = [IsAuthenticated, permissions.IsCloudFunction]
     serializer_class = serializers.LoadNoteAttachmentConfirmationSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=self.request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        load_note_id = request.data.get("load_note_id")
-        uploaded = request.data.get("uploaded")
-        attachment_name = request.data.get("attachment_name")
+        load_note_id = self.request.data.get('load_note_id')
         load_note = get_object_or_404(models.LoadNote, id=load_note_id)
-        app_user = models.AppUser.objects.get(user=request.user.id)
-        check_result = self.check_if_user_can_manipulate_load_attachments(app_user, load_note)
-        if not check_result["isAllowed"]:
-            return Response(
-                {"details": check_result["message"]},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if uploaded == 'false' or uploaded is False:
-            load_note_attachments = load_note.attachments
-            if attachment_name not in load_note_attachments:
-                return Response(
-                    {"details": f"There is no attachment named {attachment_name} to remove"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            load_note_attachments.remove(attachment_name)
-            load_note.attachments = load_note_attachments
-            load_note.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @staticmethod
-    def check_if_user_can_manipulate_load_attachments(app_user, load_note):
-        result = {"isAllowed": True, "message": ""}
-        if load_note.creator != app_user:
-            result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the load note"
-        return result
-
-
-class LoadNoteSyncWithStorageBucketView(GenericAPIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
-    serializer_class = serializers.LoadNoteAttachmentsSyncWithStorageBucketSerializer
-    lookup_url_kwarg = 'id'
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=self.kwargs)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        load_note_id = self.kwargs.get('id')
-        load_note = get_object_or_404(models.LoadNote, id=load_note_id)
-        app_user = models.AppUser.objects.get(user=request.user.id)
-        check_result = self.check_if_user_can_sync_load_attachments(app_user, load_note)
-        if not check_result["isAllowed"]:
-            return Response(
-                {"details": check_result["message"]},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        storage_client = get_storage_client()
-        bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
-        blob_path = LOAD_NOTES_FILES_PATH
         load_note_attachments = load_note.attachments
-        new_load_note_attachments = []
-        for attachment in load_note_attachments:
-            blob = bucket.blob(f"{blob_path}{attachment}")
-            if blob.exists():
-                new_load_note_attachments.append(attachment)
-        load_note.attachments = new_load_note_attachments
+        load_note_attachments.append(request.data.get('attachment_name'))
+        load_note.attachments = load_note_attachments
         load_note.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @staticmethod
-    def check_if_user_can_sync_load_attachments(app_user, load_note):
-        result = {"isAllowed": True, "message": ""}
-        if load_note.creator != app_user:
-            result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the load note"
-        return result

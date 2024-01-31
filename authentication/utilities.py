@@ -1,13 +1,16 @@
-from rest_framework import status
-import authentication.models as models
-from google.cloud import secretmanager
-import string
-import random
 import os
+import random
 import re
+import string
+
+import environ
 import requests
-from rest_framework.response import Response
 import rest_framework.exceptions as exceptions
+from google.cloud import secretmanager
+
+import authentication.models as models
+from freightmonster.classes import SecreteManagerClient
+from freightmonster.settings.base import BASE_DIR
 
 
 def create_address(address, city, state, country, zip_code, created_by):
@@ -36,7 +39,6 @@ def generate_company_identiefier():
 
 
 def check_dot_number(dot_number):
-
     client = secretmanager.SecretManagerServiceClient()
     webkey = client.access_secret_version(
         request={
@@ -70,7 +72,6 @@ def check_dot_number(dot_number):
 
 
 def check_mc_number(mc_number):
-
     client = secretmanager.SecretManagerServiceClient()
     webkey = client.access_secret_version(
         request={
@@ -108,3 +109,12 @@ def generate_password():
         random.choice(string.digits + string.ascii_letters + string.punctuation) for _ in range(10)
     )
     return password
+
+
+def get_cloud_function_email():
+    if os.getenv("ENV") == "LOCAL":
+        env = environ.Env()
+        env.read_env(os.path.join(BASE_DIR, "local.env"))
+        return env("CLOUD_FUNCTION_EMAIL")
+    else:
+        return SecreteManagerClient().get_secret_value("dev_function_email")
