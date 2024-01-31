@@ -440,6 +440,9 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                         blob=blob,
                         content_type=attachments_content_type[i],
                         storage_client=self.storage_client,
+                        headers={
+                            "x-goog-meta-load_note_id": f'{instance.id}'
+                        }
                     )
                     content_type = attachments_content_type[i]
                 signed_urls.append(url)
