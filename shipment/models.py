@@ -225,21 +225,9 @@ class ClaimNote(models.Model):
 class LoadNote(models.Model):
     load = models.ForeignKey(to=Load, on_delete=models.CASCADE)
     creator = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
-    message = models.TextField(default="", blank=True)
+    message = models.TextField()
     attachments = ArrayField(models.TextField(), default=list, blank=True)
     visible_to = models.ManyToManyField('authentication.AppUser',
                                         related_name='visible_to')
     is_deleted = BooleanField(default=False, verbose_name="is Deleted")
     created_at = models.DateTimeField(auto_now_add=True)
-    is_created = BooleanField(default=False, verbose_name="is created")
-
-    class Meta:
-        constraints = [
-            CheckConstraint(
-                check=(
-                        (Q(is_created=True) & (~Q(message="") | ~Q(attachments__len=0))) |
-                        (Q(is_created=False) & Q(message=""))
-                ),
-                name='message_or_attachments_not_default'
-            )
-        ]

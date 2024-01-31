@@ -310,12 +310,10 @@ class LoadNoteSerializer(serializers.ModelSerializer):
         model = models.LoadNote
         fields = '__all__'
         extra_kwargs = {
-            "message": {"required": False},
             "attachments": {"required": False},
             "is_deleted": {"required": False},
-            "is_created": {"required": False},
         }
-        read_only_fields = ("id", "created_at", "is_deleted", "is_created")
+        read_only_fields = ("id", "created_at", "is_deleted")
 
     def create(self, validated_data):
         attachments_names = validated_data.get("attachments", [])
@@ -326,17 +324,15 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                 file_name=attachment_name,
             )
             blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
-            if blob.exists():
+            if blob.exists() or new_unique_attachment_name in new_attachments_names:
                 blob = utils.get_unique_blob(
                     bucket=self.bucket,
-                    blob=blob,
                     file_name=attachment_name,
+                    list_of_names_to_compare=new_attachments_names,
                     path_name=self.blob_path
                 )
             new_attachments_names.append(blob.name.replace(self.blob_path, "").strip())
         validated_data["attachments"] = new_attachments_names
-        if "message" in validated_data and validated_data["message"].strip() != "":
-            validated_data["is_created"] = True
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
@@ -358,10 +354,10 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                         file_name=attachment_name,
                     )
                     blob = self.bucket.blob(f"{self.blob_path}{new_unique_attachment_name}")
-                    if blob.exists():
+                    if blob.exists() or new_unique_attachment_name in new_attachments_names:
                         blob = utils.get_unique_blob(
                             bucket=self.bucket,
-                            blob=blob,
+                            list_of_names_to_compare=new_attachments_names,
                             file_name=attachment_name,
                             path_name=self.blob_path
                         )
@@ -373,26 +369,10 @@ class LoadNoteSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         message = data.get('message', '')
-        attachments = data.get('attachments', [])
-        if self.instance is None and message == '' and attachments == []:
+        if self.instance is None and message == '':
             raise serializers.ValidationError(
-                {"IntegrityError": "You should provide at least one message or one attachment"}
+                {"IntegrityError": "You should provide a message with load note"}
             )
-        elif self.instance is not None:
-            if (
-                    'message' in data and
-                    data.get('message').strip() == "" and
-                    self.instance.attachments == [] and
-                    data.get('attachments', []) == []
-            ) or (
-                    'attachments' in data and
-                    data.get('attachments') == [] and
-                    self.instance.message == "" and
-                    data.get('message', '').strip() == ""
-            ):
-                raise serializers.ValidationError(
-                    {"IntegrityError": "You should provide at least one message or one attachment"}
-                )
         return data
 
     def to_representation(self, instance):
@@ -490,9 +470,4 @@ class LoadNoteSerializer(serializers.ModelSerializer):
 
 class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
     load_note_id = serializers.IntegerField()
-    uploaded = serializers.BooleanField()
     attachment_name = serializers.CharField(max_length=255)
-
-
-class LoadNoteAttachmentsSyncWithStorageBucketSerializer(serializers.Serializer):
-    id = serializers.IntegerField()

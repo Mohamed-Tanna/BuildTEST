@@ -447,13 +447,15 @@ def generate_new_unique_file_name(file_name, prefix=""):
     return f'{splited_file_name[0]}_{prefix}{datetime.now().strftime("%Y%m%d%H%M%S")}_{get_unique_symbol_algorithm_id(20)}.{splited_file_name[-1]}'
 
 
-def get_unique_blob(bucket, blob, file_name, path_name=""):
-    while blob.exists():
+def get_unique_blob(bucket, file_name, list_of_names_to_compare=list, path_name=""):
+    while True:
         new_unique_attachment_name = generate_new_unique_file_name(
             file_name=file_name,
             prefix="load_note_attachment_"
         )
         blob = bucket.blob(f"{path_name}{new_unique_attachment_name}")
+        if not blob.exists() and new_unique_attachment_name not in list_of_names_to_compare:
+            break
     return blob
 
 
