@@ -267,7 +267,7 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
             if party_id not in merged_parties:
                 merged_parties[party_id] = {
                     "id": party_id,
-                    "name": party["name"],
+                    "username": party["username"],
                     "party_roles": [party["party_roles"][0]]
                 }
             else:
@@ -285,11 +285,11 @@ class OtherLoadPartiesSerializer(serializers.ModelSerializer):
             "consignee": load.consignee
         }
         for role, party in party_roles.items():
-            if party.app_user.id != app_user_id:
+            if party is not None and party.app_user.id != app_user_id:
                 result.append(
                     {
                         "id": party.app_user.id,
-                        "name": party.app_user.user.username,
+                        "username": party.app_user.user.username,
                         "party_roles": [role]
                     }
                 )
