@@ -426,7 +426,7 @@ class LoadNoteSerializer(serializers.ModelSerializer):
             for i in range(len(attachments_info)):
                 attachments_info[i]["url"] = signed_urls[i]
                 attachments_info[i]["content_type"] = content_types[i]
-        elif request and request.method == 'PUT':
+        elif request and request.method == 'PATCH':
             attachments_content_type = self.context.get('attachments_content_type')
             signed_urls = []
             content_types = []
@@ -440,6 +440,9 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                         blob=blob,
                         content_type=attachments_content_type[i],
                         storage_client=self.storage_client,
+                        headers={
+                            "x-goog-meta-load_note_id": f'{instance.id}'
+                        }
                     )
                     content_type = attachments_content_type[i]
                 signed_urls.append(url)
