@@ -4,6 +4,18 @@ import shipment.models as models
 from freightmonster.constants import CLAIM_CREATED
 from shipment.utilities import send_notifications_to_load_parties
 from notifications.utilities import handle_notification
+from django.db.models.signals import Signal
+
+load_note_attachment_confirmed = Signal()
+
+
+@receiver(load_note_attachment_confirmed)
+def handle_load_note_attachment_confirmed(sender, load_note: models.LoadNote, **kwargs):
+    load_note.refresh_from_db()
+    new_attachments = list(set(load_note.attachments))
+    if len(new_attachments) != len(load_note.attachments):
+        load_note.attachments = new_attachments
+        load_note.save()
 
 
 @receiver(post_save, sender=models.Load)
