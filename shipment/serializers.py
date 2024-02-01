@@ -474,3 +474,8 @@ class LoadNoteSerializer(serializers.ModelSerializer):
 class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
     load_note_id = serializers.IntegerField()
     attachment_name = serializers.CharField(max_length=255)
+
+
+class LoadNoteAttachmentConfirmationClientSideSerializer(serializers.Serializer):
+    load_note_id = serializers.IntegerField()
+    attachments_names = serializers.ListField(child=serializers.CharField(max_length=255))

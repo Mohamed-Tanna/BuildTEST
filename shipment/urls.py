@@ -15,6 +15,10 @@ urlpatterns = [
     path("load/other-load-parties/", views.OtherLoadPartiesView.as_view()),
     path("load/notes/deleted-notes/undo/<id>/", views.LoadNoteDeletionView.as_view()),
     path("load/notes/deleted-notes/", views.LoadNoteDeletionView.as_view()),
+    path(
+        "load/notes/attachments/confirmation/client-side/",
+        views.LoadNoteAttachmentConfirmationClientSideView.as_view()
+    ),
     path("load/notes/attachments/confirmation/", views.LoadNoteAttachmentConfirmationView.as_view()),
     path('load/', include(router.urls)),
     path("load/", views.LoadView.as_view()),
