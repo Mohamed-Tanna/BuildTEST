@@ -1,6 +1,7 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import CheckConstraint, Q, F, BooleanField
+from django.utils import timezone
 
 from authentication.models import (
     User,
@@ -21,6 +22,11 @@ class Facility(models.Model):
         to=Address, null=False, blank=False, on_delete=models.CASCADE
     )
     extra_info = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
 
     def __str__(self):
         return f"{self.owner.username} => {self.building_name}"

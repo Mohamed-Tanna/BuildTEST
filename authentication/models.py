@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinLengthValidator
+from django.utils import timezone
 
 SHIPMENT_PARTY = "shipment party"
 
@@ -96,6 +97,11 @@ class Address(models.Model):
     state = models.CharField(max_length=100, null=False, blank=False)
     zip_code = models.CharField(max_length=100, null=False, blank=False)
     country = models.CharField(max_length=100, null=False, blank=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
 
     def __str__(self):
         return f"{self.address}, {self.city}, {self.country}"

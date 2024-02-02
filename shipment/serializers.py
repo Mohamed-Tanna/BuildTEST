@@ -22,7 +22,7 @@ class FacilitySerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "extra_info": {"required": False},
         }
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "created_at", "updated_at")
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
