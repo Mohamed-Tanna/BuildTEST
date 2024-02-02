@@ -1,10 +1,11 @@
+from django.db.models.signals import Signal
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
 import shipment.models as models
 from freightmonster.constants import CLAIM_CREATED
-from shipment.utilities import send_notifications_to_load_parties
 from notifications.utilities import handle_notification
-from django.db.models.signals import Signal
+from shipment.utilities import send_notifications_to_load_parties
 
 load_note_attachment_confirmed = Signal()
 

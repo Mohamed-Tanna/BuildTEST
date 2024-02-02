@@ -1,7 +1,7 @@
-from django.core.exceptions import ValidationError
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import CheckConstraint, Q, F, BooleanField
-from django.contrib.postgres.fields import ArrayField
+
 from authentication.models import (
     User,
     AppUser,
