@@ -6,4 +6,4 @@ class ShipmentConfig(AppConfig):
     name = "shipment"
 
     def ready(self):
-        import shipment.signals
+        pass

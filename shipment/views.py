@@ -42,9 +42,7 @@ import shipment.models as models
 import shipment.serializers as serializers
 import shipment.utilities as utils
 from authentication.utilities import create_address
-from document.utilities import get_storage_client
-from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, \
-    LOAD_NOTES_FILES_PATH
+from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
 from shipment.signals import load_note_attachment_confirmed
 from shipment.utilities import send_notifications_to_load_parties
@@ -3021,7 +3019,7 @@ class LoadNoteAttachmentConfirmationClientSideView(GenericAPIView):
                 {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        load_note.attachments = attachments_names
+        load_note.attachments = list(set(attachments_names + load_note.attachments))
         load_note.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
