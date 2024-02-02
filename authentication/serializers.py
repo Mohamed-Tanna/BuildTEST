@@ -93,7 +93,7 @@ class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Address
         fields = ["id", "created_by", "address", "city", "state", "zip_code", "country"]
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "created_at", "updated_at")
 
     def update(self, instance, validated_data):
         if "created_by" in validated_data:
