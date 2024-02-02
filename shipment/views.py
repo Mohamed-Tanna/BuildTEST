@@ -41,6 +41,7 @@ import logs.utilities as log_utils
 import shipment.models as models
 import shipment.serializers as serializers
 import shipment.utilities as utils
+from authentication.serializers import AddressSerializer
 from authentication.utilities import create_address
 from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
@@ -59,7 +60,7 @@ ERR_SECOND_PART = "or override the `get_queryset()` method."
 
 
 class FacilityView(
-    GenericAPIView, CreateModelMixin, ListModelMixin, RetrieveModelMixin
+    ModelViewSet
 ):
     permission_classes = [
         IsAuthenticated,
@@ -132,18 +133,6 @@ class FacilityView(
             ),
         ],
     )
-    def post(self, request, *args, **kwargs):
-        """
-        Create a Facility
-
-            Create a **Facility** with an existing **Shipment Party** as its owner
-
-            **Example**
-                >>> facility: {facility: facility_object}
-        """
-
-        return self.create(request, *args, **kwargs)
-
     @extend_schema(
         request=serializers.FacilitySerializer,
         responses={200: serializers.FacilitySerializer},
@@ -207,15 +196,17 @@ class FacilityView(
             ),
         ],
     )
-    def get(self, request, *args, **kwargs):
-        """
-        List all facilities the belong to the authenticated user.
-        """
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-        if self.kwargs:
-            return self.retrieve(request, *args, **kwargs)
-        else:
-            return self.list(request, *args, **kwargs)
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {"details": "Method DESTROY not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def get_queryset(self):
         assert self.queryset is not None, (
@@ -246,7 +237,7 @@ class FacilityView(
             return Response(
                 [
                     {
-                        "details": "Address creation failed. Please try again; if the issue persists please contact us ."
+                        "details": "Address creation failed. Please try again; if the issue persists please contact us."
                     },
                 ],
                 status=status.HTTP_400_BAD_REQUEST,
@@ -276,6 +267,47 @@ class FacilityView(
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
+
+    def partial_update(self, request, *args, **kwargs):
+        mutable_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        facility = self.get_object()
+        check_result = self.check_if_user_can_update_facility(app_user, facility)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"detail": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        address = self.get_address_dictionary(request.data)
+        utils.delete_keys_from_dictionary(mutable_data, list(address.keys()))
+        facility_serializer = self.get_serializer(
+            facility,
+            data=mutable_data,
+            context={"address": address},
+            partial=True
+        )
+        facility_serializer.is_valid(raise_exception=True)
+        self.perform_update(facility_serializer)
+        return Response(facility_serializer.data)
+
+    @staticmethod
+    def get_address_dictionary(data):
+        address = {}
+        for key, value in data.items():
+            if hasattr(models.Address, key):
+                address[key] = value
+        return address
+
+    @staticmethod
+    def check_if_user_can_update_facility(app_user: models.AppUser, facility: models.Facility):
+        result = {"isAllowed": True, "message": ""}
+        if facility.owner != app_user.user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the owner of the facility"
+        if facility.address.created_by != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the facility address"
+        return result
 
 
 class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):

@@ -502,3 +502,9 @@ def is_user_one_of_load_parties(app_user, load):
     if user_load_party is None:
         return False
     return True
+
+
+def delete_keys_from_dictionary(dictionary, keys):
+    for key in keys:
+        if key in dictionary:
+            del dictionary[key]

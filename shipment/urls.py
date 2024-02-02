@@ -5,10 +5,9 @@ import shipment.views as views
 
 router = DefaultRouter()
 router.register(r'notes', views.LoadNoteView, basename='LoadNote')
+router.register(r'facility', views.FacilityView, basename='Facility')
 
 urlpatterns = [
-    path("facility/", views.FacilityView.as_view()),
-    path("facility/<id>/", views.FacilityView.as_view()),
     path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
     path("load/claim/", views.ClaimView.as_view()),
     path("load/claim/<id>", views.ClaimView.as_view()),
@@ -39,6 +38,7 @@ urlpatterns = [
     path("dashboard/", views.DashboardView.as_view()),
     path("search-loads/", views.LoadSearchView.as_view()),
     path("search-contacts/", views.ContactSearchView.as_view()),
+    path('', include(router.urls)),
     # Fixed URL - always insert above
     path("<id>/", views.ShipmentView.as_view()),
     path("", views.ShipmentView.as_view()),
