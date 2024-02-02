@@ -95,6 +95,11 @@ class AddressSerializer(serializers.ModelSerializer):
         fields = ["id", "created_by", "address", "city", "state", "zip_code", "country"]
         read_only_fields = ("id",)
 
+    def update(self, instance, validated_data):
+        if "created_by" in validated_data:
+            del validated_data["created_by"]
+        return super().update(instance, validated_data)
+
 
 class CompanySerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(validators=[validate_phone_number])

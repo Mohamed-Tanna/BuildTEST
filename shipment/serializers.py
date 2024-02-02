@@ -29,6 +29,11 @@ class FacilitySerializer(serializers.ModelSerializer):
         rep["address"] = AddressSerializer(instance.address).data
         return rep
 
+    def update(self, instance, validated_data):
+        if "owner" in validated_data:
+            del validated_data["owner"]
+        return super().update(instance, validated_data)
+
 
 class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
     supporting_docs = serializers.ListField(child=serializers.FileField())
