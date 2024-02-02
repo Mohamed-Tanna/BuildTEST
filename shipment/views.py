@@ -269,6 +269,7 @@ class FacilityView(
         )
 
     def partial_update(self, request, *args, **kwargs):
+        mutable_data = request.data.copy()
         app_user = models.AppUser.objects.get(user=request.user)
         facility = self.get_object()
         check_result = self.check_if_user_can_update_facility(app_user, facility)
@@ -277,21 +278,25 @@ class FacilityView(
                 {"detail": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN
             )
-        address_serializer = AddressSerializer(
-            facility.address,
-            data=request.data,
-            partial=True
-        )
-        address_serializer.is_valid(raise_exception=True)
-        self.perform_update(address_serializer)
+        address = self.get_address_dictionary(request.data)
+        utils.delete_keys_from_dictionary(mutable_data, list(address.keys()))
         facility_serializer = self.get_serializer(
             facility,
-            data=request.data,
+            data=mutable_data,
+            context={"address": address},
             partial=True
         )
         facility_serializer.is_valid(raise_exception=True)
         self.perform_update(facility_serializer)
         return Response(facility_serializer.data)
+
+    @staticmethod
+    def get_address_dictionary(data):
+        address = {}
+        for key, value in data.items():
+            if hasattr(models.Address, key):
+                address[key] = value
+        return address
 
     @staticmethod
     def check_if_user_can_update_facility(app_user: models.AppUser, facility: models.Facility):

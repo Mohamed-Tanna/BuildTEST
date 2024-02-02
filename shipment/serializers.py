@@ -32,6 +32,13 @@ class FacilitySerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         if "owner" in validated_data:
             del validated_data["owner"]
+        address_serializer = AddressSerializer(
+            instance.address,
+            data=self.context["address"],
+            partial=True
+        )
+        address_serializer.is_valid(raise_exception=True)
+        address_serializer.save()
         return super().update(instance, validated_data)
 
 
