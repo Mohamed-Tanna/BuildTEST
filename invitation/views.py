@@ -2,6 +2,7 @@ import os
 
 # Django imports
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 # ThirdParty imports
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -270,6 +271,14 @@ class ResendInvitationView(GenericAPIView):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
+        time_difference = timezone.now() - invitation.last_time_sent
+        if time_difference > 24 * 3600:
+            invitation.invitations_resent_count = 0
+        if invitation.invitations_resent_count >= 3:
+            return Response(
+                {"details": "You exceeded the daily limit of resending an invitation please try again later"},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         utils.send_invite(
             subject="Invitation to Join Freight Slayer",
             template="send_invite.html",
@@ -277,6 +286,8 @@ class ResendInvitationView(GenericAPIView):
             inviter_email=invitation.inviter.user.email,
             url=INVITATION_URL,
         )
+        invitation.invitations_resent_count = invitation.invitations_resent_count + 1
+        invitation.save()
         return Response(
             data={"details": "Invitation successfully resent."},
             status=status.HTTP_200_OK,

@@ -16,6 +16,8 @@ class Invitation(models.Model):
         default=InvitationStatusEnum.PENDING,
         max_length=8,
     )
+    invitations_resent_count = models.IntegerField(default=0)
+    last_time_sent = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.inviter} invited {self.invitee} at {self.created_at}"
