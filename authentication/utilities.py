@@ -9,7 +9,7 @@ import rest_framework.exceptions as exceptions
 from google.cloud import secretmanager
 
 import authentication.models as models
-from freightmonster.classes import SecreteManagerClient
+from freightmonster.classes import SecretManagerClient
 from freightmonster.settings.base import BASE_DIR
 
 
@@ -117,4 +117,4 @@ def get_cloud_function_email():
         env.read_env(os.path.join(BASE_DIR, "local.env"))
         return env("CLOUD_FUNCTION_EMAIL")
     else:
-        return SecreteManagerClient().get_secret_value("dev_function_email")
+        return SecretManagerClient().get_secret_value("dev_function_email")

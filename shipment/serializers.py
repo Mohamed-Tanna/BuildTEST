@@ -490,3 +490,13 @@ class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
 class LoadNoteAttachmentConfirmationClientSideSerializer(serializers.Serializer):
     load_note_id = serializers.IntegerField()
     attachments_names = serializers.ListField(child=serializers.CharField(max_length=255))
+
+
+class ClaimNoteAttachmentConfirmationSerializer(serializers.Serializer):
+    claim_note_id = serializers.IntegerField()
+    supporting_doc = serializers.CharField(max_length=255)
+
+
+class ClaimNoteAttachmentConfirmationClientSideSerializer(serializers.Serializer):
+    claim_note_id = serializers.IntegerField()
+    supporting_docs = serializers.ListField(child=serializers.CharField(max_length=255))
