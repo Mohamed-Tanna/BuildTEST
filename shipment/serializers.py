@@ -184,9 +184,24 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         model = models.Load
         fields = "__all__"
         extra_kwargs = {
-            "carrier": {"required": False},
-            "quantity": {"required": False},
-            "equipment": {"required": False},
+            'created_by': {'required': True},
+            'customer': {'required': True},
+            'shipper': {'required': True},
+            'consignee': {'required': True},
+            'dispatcher': {'required': True},
+            'pick_up_date': {'required': True},
+            'delivery_date': {'required': True},
+            'pick_up_location': {'required': True},
+            'destination': {'required': True},
+            'length': {'required': True},
+            'width': {'required': True},
+            'height': {'required': True},
+            'weight': {'required': True},
+            'commodity': {'required': True},
+            'goods_info': {'required': True},
+            'load_type': {'required': True},
+            'status': {'required': True},
+            'shipment': {'required': True},
         }
         read_only_fields = ("id", "status", "created_at")
 
