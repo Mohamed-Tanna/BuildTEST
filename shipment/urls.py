@@ -1,13 +1,7 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
 
 import shipment.views as views
-
-router = DefaultRouter()
-
-router.register(r'notes', views.LoadNoteView, basename='LoadNote')
-router.register(r'facility', views.FacilityView, basename='Facility')
-router.register(r'', views.LoadView, basename='Load')
+from shipment.routers import load_router, shipment_router
 
 urlpatterns = [
     path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
@@ -21,7 +15,7 @@ urlpatterns = [
         views.LoadNoteAttachmentConfirmationClientSideView.as_view()
     ),
     path("load/notes/attachments/confirmation/", views.LoadNoteAttachmentConfirmationView.as_view()),
-    path('load/', include(router.urls)),
+    path('load/', include(load_router.urls)),
     path("list-load/", views.ListLoadView.as_view()),
     path("load-details/<id>/", views.RetrieveLoadView.as_view()),
     path("contact/", views.ContactView.as_view()),
@@ -38,7 +32,7 @@ urlpatterns = [
     path("dashboard/", views.DashboardView.as_view()),
     path("search-loads/", views.LoadSearchView.as_view()),
     path("search-contacts/", views.ContactSearchView.as_view()),
-    path('', include(router.urls)),
+    path('', include(shipment_router.urls)),
     # Fixed URL - always insert above
     path("<id>/", views.ShipmentView.as_view()),
     path("", views.ShipmentView.as_view()),

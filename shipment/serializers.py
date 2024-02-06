@@ -513,3 +513,53 @@ class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
 class LoadNoteAttachmentConfirmationClientSideSerializer(serializers.Serializer):
     load_note_id = serializers.IntegerField()
     attachments_names = serializers.ListField(child=serializers.CharField(max_length=255))
+
+
+class LoadDraftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Load
+        fields = "__all__"
+        read_only_fields = ("id", "status", "created_at")
+        extra_kwargs = {
+            "is_draft": {"default": True}
+        }
+
+    @staticmethod
+    def get_load_parties_usernames(load: models.Load):
+        load_parties = {
+            "customer": load.customer,
+            "shipper": load.shipper,
+            "dispatcher": load.dispatcher,
+            "carrier": load.carrier,
+            "consignee": load.consignee,
+        }
+        result = {}
+        for key, value in load_parties.items():
+            result[key] = None
+            if value is not None:
+                result[key] = value.app_user.user.username
+        return result
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["created_by"] = instance.created_by.user.username
+        load_parties_usernames = self.get_load_parties_usernames(instance)
+        for role, username in load_parties_usernames.items():
+            rep[role] = username
+        if instance.pick_up_location is not None:
+            rep["pick_up_location"] = {
+                "id": instance.pick_up_location.id,
+                "building_name": instance.pick_up_location.building_name,
+                "city": instance.pick_up_location.address.city,
+                "state": instance.pick_up_location.address.state,
+            }
+        if instance.destination is not None:
+            rep["destination"] = {
+                "id": instance.destination.id,
+                "building_name": instance.destination.building_name,
+                "city": instance.destination.address.city,
+                "state": instance.destination.address.state,
+            }
+        if instance.shipment is not None:
+            rep["shipment"] = ShipmentSerializer(instance.shipment).data
+        return rep

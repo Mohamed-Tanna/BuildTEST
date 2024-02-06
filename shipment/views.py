@@ -3060,3 +3060,25 @@ class LoadNoteAttachmentConfirmationClientSideView(GenericAPIView):
             result["isAllowed"] = False
             result["message"] = "You aren't the creator of the load note"
         return result
+
+
+class LoadDraftView(ModelViewSet):
+    permission_classes = [IsAuthenticated, permissions.IsShipmentPartyOrDispatcher, permissions.IsNotCompanyManager]
+    serializer_class = serializers.LoadDraftSerializer
+    queryset = models.Load.objects.all()
+    lookup_field = "id"
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        mutable_request_data["created_by"] = str(app_user.id)
+        mutable_request_data["name"] = utils.generate_load_name()
+        serializer = self.get_serializer(data=mutable_request_data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
