@@ -205,6 +205,13 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         }
         read_only_fields = ("id", "status", "created_at")
 
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+        if self.context['request'].method in ['PATCH']:
+            extra_kwargs['name'] = {'required': False}
+            extra_kwargs['created_by'] = {'required': False}
+        return extra_kwargs
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["created_by"] = instance.created_by.user.username

@@ -316,6 +316,7 @@ class LoadView(ModelViewSet):
         permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.LoadCreateRetrieveSerializer
+    queryset = models.Load.objects.all()
     lookup_field = "id"
 
     @extend_schema(
