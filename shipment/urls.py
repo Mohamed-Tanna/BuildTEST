@@ -4,8 +4,10 @@ from rest_framework.routers import DefaultRouter
 import shipment.views as views
 
 router = DefaultRouter()
+
 router.register(r'notes', views.LoadNoteView, basename='LoadNote')
 router.register(r'facility', views.FacilityView, basename='Facility')
+router.register(r'', views.LoadView, basename='Load')
 
 urlpatterns = [
     path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
@@ -20,8 +22,6 @@ urlpatterns = [
     ),
     path("load/notes/attachments/confirmation/", views.LoadNoteAttachmentConfirmationView.as_view()),
     path('load/', include(router.urls)),
-    path("load/", views.LoadView.as_view()),
-    path("load/<id>/", views.LoadView.as_view()),
     path("list-load/", views.ListLoadView.as_view()),
     path("load-details/<id>/", views.RetrieveLoadView.as_view()),
     path("contact/", views.ContactView.as_view()),

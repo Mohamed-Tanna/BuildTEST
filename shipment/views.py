@@ -310,31 +310,18 @@ class FacilityView(
         return result
 
 
-class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
+class LoadView(ModelViewSet):
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.LoadCreateRetrieveSerializer
-    queryset = models.Load.objects.all()
     lookup_field = "id"
 
     @extend_schema(
         request=serializers.LoadCreateRetrieveSerializer,
         responses={200: serializers.LoadCreateRetrieveSerializer},
     )
-    def post(self, request, *args, **kwargs):
-        """
-        Create a Load
-
-            Create a **Load** as its owner if your role is **Shipment Party** or **Dispatcher**
-
-            **Example**
-                >>> load: {load: load_object}
-        """
-
-        return self.create(request, *args, **kwargs)
-
     @extend_schema(
         request=serializers.LoadCreateRetrieveSerializer,
         responses={200: serializers.LoadCreateRetrieveSerializer},
@@ -449,22 +436,27 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             ),
         ],
     )
-    def put(self, request, *args, **kwargs):
-        """
-        Update load's shipper, consignee, dispatcher, carrier, pick up location, destination, pick up date, delivery date
+    @staticmethod
+    def put(request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-            Update the base user **shipper**, **consignee**, **dispatcher**, **carrier**, **pick up location**, **destination**
-            **pick up date** and **delivery date** either separately or all coupled together
+    @staticmethod
+    def get(request, *args, **kwargs):
+        return Response(
+            {"details": "Method GET not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-            **Example**
+    @staticmethod
+    def delete(request, *args, **kwargs):
+        return Response(
+            {"details": "Method DELETE not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-                >>> carrier: carrier_id
-                >>> dispatcher: dispatcher_id
-        """
-
-        return self.partial_update(request, *args, **kwargs)
-
-    # override
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -502,7 +494,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request.data["dispatcher"] = str(dispatcher.id)
 
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         while True:
             try:
                 self.perform_create(serializer)
@@ -529,8 +522,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
-    # override
-    def update(self, request, *args, **kwargs):
+    def partial_update(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -661,7 +653,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 original_instance=original_instance)
         return Response(serializer.data)
 
-    def _handle_shipment_parties(self, request, party_types):
+    @staticmethod
+    def _handle_shipment_parties(request, party_types):
         for party_type in party_types:
             if party_type in request.data:
                 party = utils.get_shipment_party_by_username(
@@ -679,7 +672,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return request
 
-    def _check_for_any_missing_load_parties(self, request):
+    @staticmethod
+    def _check_for_any_missing_load_parties(request):
         missing_fields = [
             field
             for field in ["dispatcher", "customer", "shipper", "consignee"]
@@ -691,7 +685,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
         return None
 
-    def _handle_exception_errors(self, e):
+    @staticmethod
+    def _handle_exception_errors(e):
         if "delivery_date_check" in str(e.__cause__):
             return Response(
                 {
@@ -717,8 +712,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    @staticmethod
     def _check_facility_belongs_to_shipment_parties(
-            self, pick_up_location_id, destination_id, shipper_username, consignee_username
+            pick_up_location_id, destination_id, shipper_username, consignee_username
     ):
         pick_up_location = get_object_or_404(
             models.Facility, id=pick_up_location_id)
@@ -742,7 +738,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return None
 
-    def _check_mutual_contact(self, origin_id, contact_username):
+    @staticmethod
+    def _check_mutual_contact(origin_id, contact_username):
         contact_app_user = utils.get_app_user_by_username(
             username=contact_username)
         # if you are adding yourself then we would not need to check for mutual contact

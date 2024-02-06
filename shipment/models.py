@@ -55,52 +55,51 @@ class Shipment(models.Model):
 
 class Load(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(to=AppUser, null=False, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, unique=True, null=False, blank=False)
+    created_by = models.ForeignKey(to=AppUser, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, unique=True, blank=False)
     customer = models.ForeignKey(
         to=ShipmentParty,
-        null=False,
+        null=True,
         on_delete=models.CASCADE,
         related_name="customer",
     )
     shipper = models.ForeignKey(
         to=ShipmentParty,
-        null=False,
+        null=True,
         on_delete=models.CASCADE,
         related_name="shipper",
     )
     consignee = models.ForeignKey(
         to=ShipmentParty,
-        null=False,
+        null=True,
         on_delete=models.CASCADE,
         related_name="consignee",
     )
     dispatcher = models.ForeignKey(
-        to=Dispatcher, null=False, blank=False, on_delete=models.CASCADE
+        to=Dispatcher, null=True, on_delete=models.CASCADE
     )
     carrier = models.ForeignKey(to=Carrier, null=True, on_delete=models.CASCADE)
-    pick_up_date = models.DateField(null=False)
-    delivery_date = models.DateField(null=False)
+    pick_up_date = models.DateField(null=True)
+    delivery_date = models.DateField(null=True)
     pick_up_location = models.ForeignKey(
-        to=Facility, on_delete=models.CASCADE, related_name="pick_up"
+        to=Facility, on_delete=models.CASCADE, related_name="pick_up", null=True
     )
     destination = models.ForeignKey(
-        to=Facility, on_delete=models.CASCADE, related_name="destination"
+        to=Facility, on_delete=models.CASCADE, related_name="destination", null=True
     )
-    length = models.DecimalField(max_digits=12, decimal_places=2, null=False)
-    width = models.DecimalField(max_digits=12, decimal_places=2, null=False)
-    height = models.DecimalField(max_digits=12, decimal_places=2, null=False)
-    weight = models.DecimalField(max_digits=12, decimal_places=2, null=False)
-    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=1)
-    commodity = models.CharField(max_length=255, null=False, blank=False)
-    equipment = models.CharField(max_length=255, blank=True)
+    length = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    width = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    height = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    weight = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    commodity = models.CharField(max_length=255, default='')
+    equipment = models.CharField(max_length=255, default='')
     goods_info = models.CharField(
-        choices=[("Yes", "Yes"), ("No", "No")], max_length=3, null=False, default="No"
+        choices=[("Yes", "Yes"), ("No", "No")], max_length=3, default="No"
     )  # Hazardous materials
     load_type = models.CharField(
         choices=[("LTL", "LTL"), ("FTL", "FTL")],
         max_length=3,
-        null=False,
         default="FTL",
     )
     status = models.CharField(
@@ -116,21 +115,22 @@ class Load(models.Model):
             ("Canceled", "Canceled"),
         ],
         max_length=20,
-        null=False,
         default="Created",
     )
 
-    shipment = models.ForeignKey(to=Shipment, null=False, on_delete=models.CASCADE)
-    actual_delivery_date = models.DateField(null=True)
+    shipment = models.ForeignKey(to=Shipment, null=True, on_delete=models.CASCADE)
+    actual_delivery_date = models.DateField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
+    is_draft = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
             CheckConstraint(
-                check=Q(delivery_date__gt=F("pick_up_date")),
+                check=Q(delivery_date__gt=F("pick_up_date")) | Q(delivery_date=None),
                 name="delivery_date_check",
             ),
             CheckConstraint(
-                check=~Q(pick_up_location=F("destination")),
+                check=~Q(pick_up_location=F("destination")) | Q(pick_up_location=None),
                 name="pick up location and drop off location cannot be equal",
             ),
         ]
