@@ -21,7 +21,7 @@ def handle_load_note_attachment_confirmed(sender, load_note: models.LoadNote, **
 
 @receiver(post_save, sender=models.Load)
 def add_to_load_notification_handler(sender, instance: models.Load, created, **kwargs):
-    if created:
+    if created and not instance.is_draft:
         send_notifications_to_load_parties(
             load=instance, action="add_to_load", event="load_created"
         )
