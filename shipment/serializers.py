@@ -186,6 +186,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "carrier": {"required": False},
             "quantity": {"required": False},
+            "equipment": {"required": False},
         }
         read_only_fields = ("id", "status", "created_at")
 
