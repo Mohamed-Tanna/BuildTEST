@@ -5,7 +5,7 @@ import shipment.utilities as utils
 from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from freightmonster.classes import StorageClient
-from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH
+from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH, CLAIM_NOTES_FILES_PATH
 from shipment.utilities import get_app_user_load_party_roles
 
 
@@ -236,7 +236,10 @@ class ShipmentAdminSerializer(serializers.ModelSerializer):
 
 
 class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
-    supporting_docs = serializers.ListField(child=serializers.FileField(), required=False, default=list)
+    storage_client = StorageClient().storage_client
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+    blob_path = CLAIM_NOTES_FILES_PATH
+
 
     class Meta:
         model = models.ClaimNote
@@ -244,15 +247,28 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at")
 
     def create(self, validated_data):
-        supporting_docs = validated_data.pop("supporting_docs", [])
-        new_supporting_docs_names = utils.upload_supporting_docs(supporting_docs)
+        supporting_docs_names = validated_data.get("supporting_docs", [])
+        new_supporting_docs_names = []
+
+        for supporting_doc_name in supporting_docs_names:
+            new_unique_supporting_doc_name = utils.generate_new_unique_file_name(
+                file_name=supporting_doc_name,
+            )
+            blob = self.bucket.blob(f"{self.blob_path}{new_unique_supporting_doc_name}")
+            if blob.exists() or new_unique_supporting_doc_name in new_supporting_docs_names:
+                blob = utils.get_unique_blob(
+                    bucket=self.bucket,
+                    file_name=supporting_doc_name,
+                    list_of_names_to_compare=new_supporting_docs_names,
+                    path_name=self.blob_path
+                )
+            new_supporting_docs_names.append(blob.name.replace(self.blob_path, "").strip())
         validated_data["supporting_docs"] = new_supporting_docs_names
         return super().create(validated_data)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        supporting_docs_info = utils.get_supporting_docs_info(instance.supporting_docs)
-        representation['supporting_docs'] = supporting_docs_info
+        request = self.context.get('request')
         representation['creator'] = {
             "id": instance.creator.id,
             "username": instance.creator.user.username,
@@ -261,6 +277,50 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                 load=instance.claim.load
             )
         }
+        supporting_docs_info = []
+        for supporting_doc_name in representation["supporting_docs"]:
+            supporting_docs_info.append(
+                {
+                    "name": supporting_doc_name,
+                    "url": ""
+                }
+            )
+        if request and request.method == 'POST':
+            supporting_docs_content_type = self.context.get('supporting_docs_content_type')
+            signed_urls = []
+            content_types = []
+            for i in range(len(representation["supporting_docs"])):
+                supporting_doc_name = representation["supporting_docs"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{supporting_doc_name}")
+                url = utils.generate_put_signed_url_for_file(
+                    blob=blob,
+                    content_type=supporting_docs_content_type[i],
+                    storage_client=self.storage_client,
+                    headers={
+                        "x-goog-meta-load_note_id": f'{instance.id}'
+                    }
+                )
+                content_types.append(supporting_docs_content_type[i])
+                signed_urls.append(url)
+            for i in range(len(supporting_docs_info)):
+                supporting_docs_info[i]["url"] = signed_urls[i]
+                supporting_docs_info[i]["content_type"] = content_types[i]
+        else:
+            for i in range(len(representation["supporting_docs"])):
+                supporting_doc_name = representation["supporting_docs"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{supporting_doc_name}")
+                url = ""
+                content_type = ""
+                if blob.exists():
+                    url = utils.generate_get_signed_url_for_file(
+                        blob=blob,
+                        storage_client=self.storage_client,
+                    )
+                    blob.reload()
+                    content_type = blob.content_type
+                supporting_docs_info[i]["url"] = url
+                supporting_docs_info[i]["content_type"] = content_type
+        representation["supporting_docs"] = supporting_docs_info
         return representation
 
 

@@ -2583,6 +2583,8 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
 class ClaimNoteView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    pagination_class = PageNumberPagination
+    lookup_field = "id"
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
