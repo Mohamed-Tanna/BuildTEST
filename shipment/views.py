@@ -3065,8 +3065,14 @@ class LoadNoteAttachmentConfirmationClientSideView(GenericAPIView):
 class LoadDraftView(ModelViewSet):
     permission_classes = [IsAuthenticated, permissions.IsShipmentPartyOrDispatcher, permissions.IsNotCompanyManager]
     serializer_class = serializers.LoadDraftSerializer
-    queryset = models.Load.objects.all()
     lookup_field = "id"
+
+    @staticmethod
+    def put(request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
@@ -3082,3 +3088,8 @@ class LoadDraftView(ModelViewSet):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    def get_queryset(self):
+        app_user = models.AppUser.objects.get(user=self.request.user)
+        queryset = models.Load.objects.filter(created_by=app_user, is_deleted=False, is_draft=True).all().order_by(
+            "-id")
+        return queryset
