@@ -33,7 +33,4 @@ urlpatterns = [
     path("search-loads/", views.LoadSearchView.as_view()),
     path("search-contacts/", views.ContactSearchView.as_view()),
     path('', include(shipment_router.urls)),
-    # Fixed URL - always insert above
-    path("<id>/", views.ShipmentView.as_view()),
-    path("", views.ShipmentView.as_view()),
 ]

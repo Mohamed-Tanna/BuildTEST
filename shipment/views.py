@@ -1028,32 +1028,18 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
 
 class ShipmentView(
-    GenericAPIView,
-    CreateModelMixin,
-    ListModelMixin,
-    RetrieveModelMixin,
-    UpdateModelMixin,
+    ModelViewSet
 ):
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.ShipmentSerializer
-    queryset = models.Shipment.objects.all()
     lookup_field = "id"
 
     @extend_schema(
         responses={200: serializers.ShipmentSerializer(many=True)},
     )
-    def get(self, request, *args, **kwargs):
-        """
-        List all shipments that is created by the authenticated user
-        """
-        if self.kwargs:
-            return self.retrieve(request, *args, **kwargs)
-        else:
-            return self.list(request, *args, **kwargs)
-
     @extend_schema(
         request=serializers.ShipmentSerializer,
         responses={200: serializers.ShipmentSerializer},
@@ -1078,24 +1064,14 @@ class ShipmentView(
             ),
         ],
     )
-    def post(self, request, *args, **kwargs):
-        """
-        Create a shipment.
-
-            **Example**
-            >>> "name": "shipment name"
-        """
-        return self.create(request, *args, **kwargs)
-
     def put(self, request, *args, **kwargs):
-        """
-        Update a shipment.
-            update a shipment by changing the user who created this shipment status
+        return Response({"details": "Method PUT not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-            **Example**
-            >>> "created_by": "username#00000"
-        """
-        return self.partial_update(request, *args, **kwargs)
+    def patch(self, request, *args, **kwargs):
+        return Response({"details": "Method PATCH not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({"details": "Method DELETE not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     # override
     def retrieve(self, request, *args, **kwargs):
@@ -1173,13 +1149,6 @@ class ShipmentView(
                     {"detail": [f"{e.args[0]}"]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-    # override -- UNCOMPLETED
-    def update(self, request, *args, **kwargs):
-        """
-        For future implementation
-        """
-        pass
 
 
 class ShipmentFilterView(GenericAPIView, ListModelMixin):
