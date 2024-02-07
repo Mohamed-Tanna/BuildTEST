@@ -1097,9 +1097,6 @@ class ShipmentView(
 
     # override
     def get_queryset(self):
-        assert self.queryset is not None, (
-                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
-        )
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         shipments = models.ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
             "shipment", flat=True
@@ -1107,9 +1104,6 @@ class ShipmentView(
         queryset = models.Shipment.objects.filter(
             created_by=app_user.id
         ) | models.Shipment.objects.filter(id__in=shipments)
-
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
         return queryset.order_by("-id")
 
     # override
