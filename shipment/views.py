@@ -3088,8 +3088,31 @@ class LoadDraftView(ModelViewSet):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    def destroy(self, request, *args, **kwargs):
+        load_draft = self.get_object()
+        app_user = models.AppUser.objects.get(user=request.user)
+        check_result = self.check_if_user_is_the_owner_of_load_draft(app_user, load_draft)
+        if not check_result["isAllowed"]:
+            return Response(
+                {
+                    "details": check_result["message"]
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        load_draft.is_deleted = True
+        load_draft.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def get_queryset(self):
         app_user = models.AppUser.objects.get(user=self.request.user)
         queryset = models.Load.objects.filter(created_by=app_user, is_deleted=False, is_draft=True).all().order_by(
             "-id")
         return queryset
+
+    @staticmethod
+    def check_if_user_is_the_owner_of_load_draft(app_user, load_draft):
+        result = {"isAllowed": True, "message": ""}
+        if app_user != load_draft.created_by:
+            result["isAllowed"] = False
+            result["message"] = "You are not the load draft creator"
+        return result
