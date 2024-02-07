@@ -2326,7 +2326,7 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(
             username=request.user.username)
-        filter_query = Q(created_by=app_user.id)
+        filter_query = Q(created_by=app_user.id, is_deleted=False, is_draft=False)
         filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
         )
@@ -2418,7 +2418,7 @@ class LoadSearchView(APIView):
     def post(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(
             username=request.user.username)
-        filter_query = Q(created_by=app_user.id)
+        filter_query = Q(created_by=app_user.id, is_deleted=False, is_draft=False)
         filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
         )
