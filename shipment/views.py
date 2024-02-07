@@ -3088,10 +3088,29 @@ class LoadDraftView(ModelViewSet):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
+    def partial_update(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        load_draft = self.get_object()
+        check_result = self.check_if_user_can_update_load_draft(app_user, load_draft)
+        if not check_result["isAllowed"]:
+            return Response(
+                {
+                    "details": check_result["message"]
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = self.get_serializer(load_draft, data=mutable_request_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(
+            serializer.data
+        )
+
     def destroy(self, request, *args, **kwargs):
         load_draft = self.get_object()
         app_user = models.AppUser.objects.get(user=request.user)
-        check_result = self.check_if_user_is_the_owner_of_load_draft(app_user, load_draft)
+        check_result = self.check_if_user_can_delete_load_draft(app_user, load_draft)
         if not check_result["isAllowed"]:
             return Response(
                 {
@@ -3116,3 +3135,31 @@ class LoadDraftView(ModelViewSet):
             result["isAllowed"] = False
             result["message"] = "You are not the load draft creator"
         return result
+
+    @staticmethod
+    def check_if_load_draft_is_not_deleted(load_draft):
+        result = {"isAllowed": True, "message": ""}
+        if load_draft.is_deleted:
+            result["isAllowed"] = False
+            result["message"] = "There is load draft doesn't exist"
+        return result
+
+    def check_if_user_can_delete_load_draft(self, app_user, load_draft):
+        checks = [
+            self.check_if_user_is_the_owner_of_load_draft(app_user, load_draft),
+            self.check_if_load_draft_is_not_deleted(load_draft)
+        ]
+        for check in checks:
+            if not check["isAllowed"]:
+                return check
+        return checks[0]
+
+    def check_if_user_can_update_load_draft(self, app_user, load_draft):
+        checks = [
+            self.check_if_user_is_the_owner_of_load_draft(app_user, load_draft),
+            self.check_if_load_draft_is_not_deleted(load_draft)
+        ]
+        for check in checks:
+            if not check["isAllowed"]:
+                return check
+        return checks[0]

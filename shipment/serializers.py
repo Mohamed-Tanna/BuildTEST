@@ -524,6 +524,20 @@ class LoadDraftSerializer(serializers.ModelSerializer):
             "is_draft": {"default": True}
         }
 
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+        if self.context['request'].method in ['PATCH']:
+            extra_kwargs['name'] = {'required': False}
+            extra_kwargs['created_by'] = {'required': False}
+        return extra_kwargs
+
+    def update(self, instance, validated_data):
+        keys_to_get_deleted = ["created_by", "name"]
+        for key in keys_to_get_deleted:
+            if key in validated_data:
+                del validated_data[key]
+        return super().update(instance, validated_data)
+
     @staticmethod
     def get_load_parties_usernames(load: models.Load):
         load_parties = {
