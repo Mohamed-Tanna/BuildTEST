@@ -5,6 +5,10 @@ from django.utils import timezone
 from shipment.models import Load
 from django.db.models import Q
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def delete_load_draft_after_30_days():
     thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -18,4 +22,4 @@ def delete_load_draft_after_30_days():
 
 
 def test_cron():
-    print("testing cron")
+    logger.info("testing cron")
