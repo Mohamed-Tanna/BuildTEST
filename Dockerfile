@@ -39,6 +39,8 @@ RUN pip install \
 
 COPY . /code/
 
+RUN mdir /cron
+RUN touch /cron/django_cron.log
 RUN ["chmod", "777", "./startup.sh"]
 
 EXPOSE 8000

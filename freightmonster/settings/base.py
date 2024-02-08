@@ -111,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 CRONJOBS = [
     ('0 0 * * *', 'freightmonster.cron.delete_load_draft_after_30_days'),
-    ('*/2 * * * *', 'freightmonster.cron.test_cron')
+    ('*/2 * * * *', 'freightmonster.cron.test_cron', ">> /cron/django_cron.log 2>&1")
 ]
 
 REST_FRAMEWORK = {
