@@ -122,6 +122,7 @@ class Load(models.Model):
     actual_delivery_date = models.DateField(null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
     is_draft = models.BooleanField(default=False)
+    last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [

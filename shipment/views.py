@@ -1,5 +1,5 @@
 # Python imports
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import rest_framework.exceptions as exceptions
 from django.db import IntegrityError
@@ -9,6 +9,7 @@ from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import QueryDict
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 # Third Party imports
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -3142,3 +3143,14 @@ class LoadDraftView(ModelViewSet):
             if not check["isAllowed"]:
                 return check
         return checks[0]
+
+    @staticmethod
+    def completely_delete_load_draft_after_30_days():
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        filter_query = (
+                (Q(is_deleted=True) & Q(last_updated__lt=thirty_days_ago)) |
+                (Q(is_draft=True) & Q(created_at__lt=thirty_days_ago))
+        )
+        loads_drafts = models.Load.objects.filter(filter_query)
+        if loads_drafts.exists():
+            loads_drafts.delete()
