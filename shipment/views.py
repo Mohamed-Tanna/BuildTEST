@@ -3082,9 +3082,9 @@ class LoadDraftView(ModelViewSet):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
-        data = self.serializer_class(load_draft).data
+        serializer = self.get_serializer(load_draft)
         return Response(
-            data, status=status.HTTP_200_OK
+            serializer.data, status=status.HTTP_200_OK
         )
 
     def destroy(self, request, *args, **kwargs):
