@@ -1,13 +1,21 @@
-from django_cron import CronJobBase, Schedule
-from freightmonster.management.commands.delete_old_loads_drafts import DeleteLoadDraftCommand
+from datetime import timedelta
+
+from django.utils import timezone
+
+from shipment.models import Load
+from django.db.models import Q
 
 
-class DeleteOldLoadDraftsJob(CronJobBase):
-    RUN_AT_TIMES = ['00:00']  # Run at midnight every day
+def delete_load_draft_after_30_days():
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    filter_query = (
+            (Q(is_deleted=True) & Q(last_updated__lt=thirty_days_ago)) |
+            (Q(is_draft=True) & Q(created_at__lt=thirty_days_ago))
+    )
+    loads_drafts = Load.objects.filter(filter_query)
+    if loads_drafts.exists():
+        loads_drafts.delete()
 
-    schedule = Schedule(run_at_times=RUN_AT_TIMES)
-    code = 'freightmonster.delete_old_load_drafts_job'
 
-    @staticmethod
-    def do():
-        DeleteLoadDraftCommand().handle()
+def test_cron():
+    print("testing cron")

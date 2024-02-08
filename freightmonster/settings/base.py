@@ -13,6 +13,7 @@ EMAIL_PORT = 587
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 # Application definition
 INSTALLED_APPS = [
+    "django_crontab",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -108,9 +109,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-CRON_CLASSES = [
-    'freightmonster.cron.DeleteOldLoadDraftsJob',
+CRONJOBS = [
+    ('0 0 * * *', 'freightmonster.cron.delete_load_draft_after_30_days'),
+    ('*/2 * * * *', 'freightmonster.cron.test_cron')
 ]
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
