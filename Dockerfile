@@ -42,3 +42,5 @@ COPY . /code/
 RUN ["chmod", "777", "./startup.sh"]
 
 EXPOSE 8000
+
+CMD service cron start
