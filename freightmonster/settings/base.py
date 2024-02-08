@@ -13,7 +13,6 @@ EMAIL_PORT = 587
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 # Application definition
 INSTALLED_APPS = [
-    "django_crontab",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
