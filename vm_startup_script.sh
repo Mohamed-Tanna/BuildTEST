@@ -38,9 +38,6 @@ echo "      - DB_PASS=DB_PASS" >> docker-compose.yaml
 echo "      - DB_IP=DATABASE_IP" >> docker-compose.yaml
 echo "      - RED_IP=RED_IP" >> docker-compose.yaml
 echo "      - TWILIO_AUTH_TOKEN=TWILIO_AUTH_TOKEN" >> docker-compose.yaml
-echo "  cron:" >> docker-compose.yaml
-echo "    restart: unless-stopped">>docker-compose.yaml
-echo "    command: cron -f" >> docker-compose.yaml
 echo "  nginx:" >> docker-compose.yaml
 echo "    restart: always" >> docker-compose.yaml
 echo "    volumes:">>docker-compose.yaml
