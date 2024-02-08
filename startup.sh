@@ -1,5 +1,6 @@
 #!/bin/sh
-service cron restart
+celery -A freightmonster worker --loglevel=info
+celery -A freightmonster beat --loglevel=info
 python manage.py crontab add
 python manage.py collectstatic
 python manage.py makemigrations --noinput

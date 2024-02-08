@@ -109,11 +109,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-CRONJOBS = [
-    ('0 0 * * *', 'freightmonster.cron.delete_load_draft_after_30_days'),
-    ('*/2 * * * *', 'freightmonster.cron.test_cron', ">> /cron/django_cron.log 2>&1")
-]
-
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
@@ -161,24 +156,6 @@ REST_AUTH = {
     "TOKEN_SERIALIZER": "dj_rest_auth.serializers.TokenSerializer",
     "REGISTER_SERIALIZER": "authentication.serializers.CustomRegisterSerializer",
     "PASSWORD_RESET_SERIALIZER": "authentication.customResetPassword.CustomPasswordResetSerializer",
-}
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        '': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -232,3 +209,10 @@ DEFENDER_LOCK_OUT_BY_IP_AND_USERNAME = True
 # Twilio settings
 TWILIO_ACCOUNT_SID = "AC5b70bf9a9a982fe3f4c1cea70f86f757"
 TWILIO_PHONE_NUMBER = "+18445071806"
+
+# settings.py
+
+# Celery configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
