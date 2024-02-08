@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from shipment.models import Load
+from shipment.models import Load, LoadNote
 from django.db.models import Q
 
 import logging
@@ -22,4 +22,8 @@ def delete_load_draft_after_30_days():
 
 
 def test_cron():
-    logger.info("testing cron")
+    load_note = LoadNote.objects.get(id=115)
+    if not load_note.is_deleted:
+        load_note.is_deleted=True
+        load_note.save()
+    logger.info("deleeteted")
