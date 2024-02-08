@@ -41,8 +41,9 @@ COPY . /code/
 
 RUN mkdir /cron
 RUN touch /cron/django_cron.log
+
+CMD cron -f
+
 RUN ["chmod", "777", "./startup.sh"]
 
 EXPOSE 8000
-
-CMD service cron start

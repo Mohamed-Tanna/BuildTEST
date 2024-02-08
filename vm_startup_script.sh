@@ -59,4 +59,3 @@ IMAGE_2=us-west1-docker.pkg.dev/freightmonster-dev/nginx/backend-nginx:$commit_S
 export IMAGE_1
 export IMAGE_2
 docker-compose up -d
-service cron start
