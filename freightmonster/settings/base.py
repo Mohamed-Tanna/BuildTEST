@@ -209,9 +209,4 @@ DEFENDER_LOCK_OUT_BY_IP_AND_USERNAME = True
 TWILIO_ACCOUNT_SID = "AC5b70bf9a9a982fe3f4c1cea70f86f757"
 TWILIO_PHONE_NUMBER = "+18445071806"
 
-# settings.py
-
-# Celery configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
