@@ -4,7 +4,7 @@ class IgnoreTokenMiddleware:
 
     def __call__(self, request):
         token = request.headers.get('Authorization')
-        is_scheduler = request.headers.get('is_scheduler', False)
+        is_scheduler = request.headers.get('is-scheduler', False)
 
         if token and is_scheduler:
             request.META['IGNORE_TOKEN'] = True
