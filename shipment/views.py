@@ -18,6 +18,8 @@ from drf_spectacular.utils import (
     OpenApiExample,
     inline_serializer,
 )
+from google.auth.transport import requests
+from google.oauth2 import id_token
 from rest_framework import serializers as drf_serializers
 # DRF imports
 from rest_framework import status
@@ -3154,3 +3156,18 @@ class LoadDraftView(ModelViewSet):
         loads_drafts = models.Load.objects.filter(filter_query)
         if loads_drafts.exists():
             loads_drafts.delete()
+
+
+class CloudSchedulerTaskView(GenericAPIView):
+    @staticmethod
+    def post(request, *args, **kwargs):
+        try:
+            id_token.verify_oauth2_token(
+                request.headers.get('Authorization'),
+                requests.Request(),
+                "911818805097-abkor5br2d2hbjf386ol459dsrhs3ghi.apps.googleusercontent.com"
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except ValueError:
+            print("Invalid token")
+            return Response(status=status.HTTP_403_FORBIDDEN)
