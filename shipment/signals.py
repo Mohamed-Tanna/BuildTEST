@@ -31,7 +31,7 @@ def handle_claim_note_attachment_confirmed(sender, claim_note: models.ClaimNote,
 
 @receiver(post_save, sender=models.Load)
 def add_to_load_notification_handler(sender, instance: models.Load, created, **kwargs):
-    if created:
+    if created and not instance.is_draft:
         send_notifications_to_load_parties(
             load=instance, action="add_to_load", event="load_created"
         )

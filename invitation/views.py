@@ -272,7 +272,7 @@ class ResendInvitationView(GenericAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         time_difference = timezone.now() - invitation.last_time_sent
-        if time_difference > 24 * 3600:
+        if time_difference.total_seconds() > 24 * 3600:
             invitation.invitations_resent_count = 0
         if invitation.invitations_resent_count >= 3:
             return Response(

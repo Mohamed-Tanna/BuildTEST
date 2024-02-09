@@ -1,5 +1,5 @@
 # Python imports
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import rest_framework.exceptions as exceptions
 from django.db import IntegrityError
@@ -9,6 +9,7 @@ from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import QueryDict
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 # Third Party imports
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -17,6 +18,8 @@ from drf_spectacular.utils import (
     OpenApiExample,
     inline_serializer,
 )
+from google.auth.transport import requests
+from google.oauth2 import id_token
 from rest_framework import serializers as drf_serializers
 # DRF imports
 from rest_framework import status
@@ -310,7 +313,7 @@ class FacilityView(
         return result
 
 
-class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
+class LoadView(ModelViewSet):
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
@@ -323,18 +326,6 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request=serializers.LoadCreateRetrieveSerializer,
         responses={200: serializers.LoadCreateRetrieveSerializer},
     )
-    def post(self, request, *args, **kwargs):
-        """
-        Create a Load
-
-            Create a **Load** as its owner if your role is **Shipment Party** or **Dispatcher**
-
-            **Example**
-                >>> load: {load: load_object}
-        """
-
-        return self.create(request, *args, **kwargs)
-
     @extend_schema(
         request=serializers.LoadCreateRetrieveSerializer,
         responses={200: serializers.LoadCreateRetrieveSerializer},
@@ -449,22 +440,27 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             ),
         ],
     )
-    def put(self, request, *args, **kwargs):
-        """
-        Update load's shipper, consignee, dispatcher, carrier, pick up location, destination, pick up date, delivery date
+    @staticmethod
+    def put(request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-            Update the base user **shipper**, **consignee**, **dispatcher**, **carrier**, **pick up location**, **destination**
-            **pick up date** and **delivery date** either separately or all coupled together
+    @staticmethod
+    def get(request, *args, **kwargs):
+        return Response(
+            {"details": "Method GET not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-            **Example**
+    @staticmethod
+    def delete(request, *args, **kwargs):
+        return Response(
+            {"details": "Method DELETE not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
-                >>> carrier: carrier_id
-                >>> dispatcher: dispatcher_id
-        """
-
-        return self.partial_update(request, *args, **kwargs)
-
-    # override
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
@@ -502,7 +498,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
         request.data["dispatcher"] = str(dispatcher.id)
 
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         while True:
             try:
                 self.perform_create(serializer)
@@ -529,8 +526,7 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
-    # override
-    def update(self, request, *args, **kwargs):
+    def partial_update(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
@@ -661,7 +657,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
                                 original_instance=original_instance)
         return Response(serializer.data)
 
-    def _handle_shipment_parties(self, request, party_types):
+    @staticmethod
+    def _handle_shipment_parties(request, party_types):
         for party_type in party_types:
             if party_type in request.data:
                 party = utils.get_shipment_party_by_username(
@@ -679,7 +676,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return request
 
-    def _check_for_any_missing_load_parties(self, request):
+    @staticmethod
+    def _check_for_any_missing_load_parties(request):
         missing_fields = [
             field
             for field in ["dispatcher", "customer", "shipper", "consignee"]
@@ -691,7 +689,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             )
         return None
 
-    def _handle_exception_errors(self, e):
+    @staticmethod
+    def _handle_exception_errors(e):
         if "delivery_date_check" in str(e.__cause__):
             return Response(
                 {
@@ -717,8 +716,9 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    @staticmethod
     def _check_facility_belongs_to_shipment_parties(
-            self, pick_up_location_id, destination_id, shipper_username, consignee_username
+            pick_up_location_id, destination_id, shipper_username, consignee_username
     ):
         pick_up_location = get_object_or_404(
             models.Facility, id=pick_up_location_id)
@@ -742,7 +742,8 @@ class LoadView(GenericAPIView, CreateModelMixin, UpdateModelMixin):
 
         return None
 
-    def _check_mutual_contact(self, origin_id, contact_username):
+    @staticmethod
+    def _check_mutual_contact(origin_id, contact_username):
         contact_app_user = utils.get_app_user_by_username(
             username=contact_username)
         # if you are adding yourself then we would not need to check for mutual contact
@@ -1030,32 +1031,18 @@ class ContactView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
 
 class ShipmentView(
-    GenericAPIView,
-    CreateModelMixin,
-    ListModelMixin,
-    RetrieveModelMixin,
-    UpdateModelMixin,
+    ModelViewSet
 ):
     permission_classes = [
         IsAuthenticated,
         permissions.IsShipmentPartyOrDispatcher,
     ]
     serializer_class = serializers.ShipmentSerializer
-    queryset = models.Shipment.objects.all()
     lookup_field = "id"
 
     @extend_schema(
         responses={200: serializers.ShipmentSerializer(many=True)},
     )
-    def get(self, request, *args, **kwargs):
-        """
-        List all shipments that is created by the authenticated user
-        """
-        if self.kwargs:
-            return self.retrieve(request, *args, **kwargs)
-        else:
-            return self.list(request, *args, **kwargs)
-
     @extend_schema(
         request=serializers.ShipmentSerializer,
         responses={200: serializers.ShipmentSerializer},
@@ -1080,24 +1067,14 @@ class ShipmentView(
             ),
         ],
     )
-    def post(self, request, *args, **kwargs):
-        """
-        Create a shipment.
-
-            **Example**
-            >>> "name": "shipment name"
-        """
-        return self.create(request, *args, **kwargs)
-
     def put(self, request, *args, **kwargs):
-        """
-        Update a shipment.
-            update a shipment by changing the user who created this shipment status
+        return Response({"details": "Method PUT not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-            **Example**
-            >>> "created_by": "username#00000"
-        """
-        return self.partial_update(request, *args, **kwargs)
+    def patch(self, request, *args, **kwargs):
+        return Response({"details": "Method PATCH not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({"details": "Method DELETE not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     # override
     def retrieve(self, request, *args, **kwargs):
@@ -1123,9 +1100,6 @@ class ShipmentView(
 
     # override
     def get_queryset(self):
-        assert self.queryset is not None, (
-                f"'%s' {ERR_FIRST_PART}" f"{ERR_SECOND_PART}" % self.__class__.__name__
-        )
         app_user = models.AppUser.objects.get(user=self.request.user.id)
         shipments = models.ShipmentAdmin.objects.filter(admin=app_user.id).values_list(
             "shipment", flat=True
@@ -1133,9 +1107,6 @@ class ShipmentView(
         queryset = models.Shipment.objects.filter(
             created_by=app_user.id
         ) | models.Shipment.objects.filter(id__in=shipments)
-
-        if isinstance(queryset, QuerySet):
-            queryset = queryset.all()
         return queryset.order_by("-id")
 
     # override
@@ -1175,13 +1146,6 @@ class ShipmentView(
                     {"detail": [f"{e.args[0]}"]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-    # override -- UNCOMPLETED
-    def update(self, request, *args, **kwargs):
-        """
-        For future implementation
-        """
-        pass
 
 
 class ShipmentFilterView(GenericAPIView, ListModelMixin):
@@ -2328,7 +2292,7 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(
             username=request.user.username)
-        filter_query = Q(created_by=app_user.id)
+        filter_query = Q(created_by=app_user.id, is_deleted=False, is_draft=False)
         filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
         )
@@ -2420,7 +2384,7 @@ class LoadSearchView(APIView):
     def post(self, request, *args, **kwargs):
         app_user = utils.get_app_user_by_username(
             username=request.user.username)
-        filter_query = Q(created_by=app_user.id)
+        filter_query = Q(created_by=app_user.id, is_deleted=False, is_draft=False)
         filter_query = utils.apply_load_access_filters_for_user(
             filter_query=filter_query, app_user=app_user
         )
@@ -3080,6 +3044,155 @@ class LoadNoteAttachmentConfirmationClientSideView(GenericAPIView):
             result["isAllowed"] = False
             result["message"] = "You aren't the creator of the load note"
         return result
+
+
+class LoadDraftView(ModelViewSet):
+    permission_classes = [IsAuthenticated, permissions.IsShipmentPartyOrDispatcher, permissions.IsNotCompanyManager]
+    serializer_class = serializers.LoadDraftSerializer
+    lookup_field = "id"
+
+    @staticmethod
+    def put(request, *args, **kwargs):
+        return Response(
+            {"details": "Method PUT not Allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        mutable_request_data["created_by"] = str(app_user.id)
+        mutable_request_data["name"] = utils.generate_load_name()
+        serializer = self.get_serializer(data=mutable_request_data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        load_draft = self.get_object()
+        check_result = self.check_if_user_can_manipulate_load_draft(app_user, load_draft)
+        if not check_result["isAllowed"]:
+            return Response(
+                {
+                    "details": check_result["message"]
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        load_parties_ids = utils.get_load_parties_role_id(utils.extract_load_parties_info(mutable_request_data))
+        for key, value in load_parties_ids.items():
+            mutable_request_data[key] = value
+        serializer = self.get_serializer(load_draft, data=mutable_request_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(
+            serializer.data
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        load_draft_id = kwargs.get("id")
+        load_draft = get_object_or_404(models.Load, id=load_draft_id)
+        app_user = models.AppUser.objects.get(user=request.user)
+        check_result = self.check_if_user_can_manipulate_load_draft(app_user, load_draft)
+        if not check_result["isAllowed"]:
+            return Response(
+                {
+                    "details": check_result["message"]
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = self.get_serializer(load_draft)
+        return Response(
+            serializer.data, status=status.HTTP_200_OK
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        load_draft = self.get_object()
+        app_user = models.AppUser.objects.get(user=request.user)
+        check_result = self.check_if_user_can_manipulate_load_draft(app_user, load_draft)
+        if not check_result["isAllowed"]:
+            return Response(
+                {
+                    "details": check_result["message"]
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        load_draft.is_deleted = True
+        load_draft.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get_queryset(self):
+        app_user = models.AppUser.objects.get(user=self.request.user)
+        queryset = models.Load.objects.filter(created_by=app_user, is_deleted=False, is_draft=True).all().order_by(
+            "-id")
+        return queryset
+
+    @staticmethod
+    def check_if_user_is_the_owner_of_load_draft(app_user, load_draft):
+        result = {"isAllowed": True, "message": ""}
+        if app_user != load_draft.created_by:
+            result["isAllowed"] = False
+            result["message"] = "You are not the load draft creator"
+        return result
+
+    @staticmethod
+    def check_if_load_draft_is_not_deleted(load_draft):
+        result = {"isAllowed": True, "message": ""}
+        if load_draft.is_deleted:
+            result["isAllowed"] = False
+            result["message"] = "There is load draft doesn't exist"
+        return result
+
+    @staticmethod
+    def check_if_load_is_draft(load_draft):
+        result = {"isAllowed": True, "message": ""}
+        if load_draft.is_deleted:
+            result["isAllowed"] = False
+            result["message"] = "There is load draft doesn't exist"
+        return result
+
+    def check_if_user_can_manipulate_load_draft(self, app_user, load_draft):
+        checks = [
+            self.check_if_user_is_the_owner_of_load_draft(app_user, load_draft),
+            self.check_if_load_is_draft(load_draft),
+            self.check_if_load_draft_is_not_deleted(load_draft)
+        ]
+        for check in checks:
+            if not check["isAllowed"]:
+                return check
+        return checks[0]
+
+    @staticmethod
+    def completely_delete_load_draft_after_30_days():
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        filter_query = (
+                (Q(is_deleted=True) & Q(last_updated__lt=thirty_days_ago)) |
+                (Q(is_draft=True) & Q(created_at__lt=thirty_days_ago))
+        )
+        loads_drafts = models.Load.objects.filter(filter_query)
+        if loads_drafts.exists():
+            loads_drafts.delete()
+
+
+class CloudSchedulerTaskView(GenericAPIView):
+    @staticmethod
+    def post(request, *args, **kwargs):
+        try:
+            print("trying to verify token")
+            id_token.verify_oauth2_token(
+                request.headers.get('Authorization'),
+                requests.Request(),
+                "911818805097-abkor5br2d2hbjf386ol459dsrhs3ghi.apps.googleusercontent.com"
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except ValueError:
+            print("Invalid token")
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
 
 class ClaimNoteAttachmentConfirmationView(GenericAPIView):

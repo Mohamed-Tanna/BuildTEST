@@ -3,6 +3,7 @@ import string
 from datetime import datetime, timedelta
 
 import rest_framework.exceptions as exceptions
+from django.apps import apps
 from django.db.models import Q
 
 import authentication.models as auth_models
@@ -508,3 +509,24 @@ def delete_keys_from_dictionary(dictionary, keys):
     for key in keys:
         if key in dictionary:
             del dictionary[key]
+
+
+def get_load_parties_role_id(load_parties_app_user_ids):
+    result = {}
+    for role, app_user_id in load_parties_app_user_ids.items():
+        actual_role = role
+        if role in ["customer", "shipper", "consignee"]:
+            actual_role = "ShipmentParty"
+        model = apps.get_model("authentication", actual_role.capitalize())
+        if model is not None:
+            result[role] = model.objects.get(app_user__id=app_user_id).id
+    return result
+
+
+def extract_load_parties_info(data):
+    available_load_party_roles = ["customer", "shipper", "dispatcher", "carrier", "consignee"]
+    result = {}
+    for key, value in data.items():
+        if key in available_load_party_roles:
+            result[key] = value
+    return result

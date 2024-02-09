@@ -184,11 +184,33 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
         model = models.Load
         fields = "__all__"
         extra_kwargs = {
-            "carrier": {"required": False},
-            "quantity": {"required": False},
-            "equipment": {"required": False},
+            'created_by': {'required': True},
+            'customer': {'required': True},
+            'shipper': {'required': True},
+            'consignee': {'required': True},
+            'dispatcher': {'required': True},
+            'pick_up_date': {'required': True},
+            'delivery_date': {'required': True},
+            'pick_up_location': {'required': True},
+            'destination': {'required': True},
+            'length': {'required': True},
+            'width': {'required': True},
+            'height': {'required': True},
+            'weight': {'required': True},
+            'commodity': {'required': True},
+            'goods_info': {'required': True},
+            'load_type': {'required': True},
+            'status': {'required': True},
+            'shipment': {'required': True},
         }
         read_only_fields = ("id", "status", "created_at")
+
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+        if self.context['request'].method in ['PATCH']:
+            extra_kwargs['name'] = {'required': False}
+            extra_kwargs['created_by'] = {'required': False}
+        return extra_kwargs
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -553,6 +575,78 @@ class LoadNoteAttachmentConfirmationSerializer(serializers.Serializer):
 class LoadNoteAttachmentConfirmationClientSideSerializer(serializers.Serializer):
     load_note_id = serializers.IntegerField()
     attachments_names = serializers.ListField(child=serializers.CharField(max_length=255))
+
+
+class LoadDraftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Load
+        fields = "__all__"
+        read_only_fields = ("id", "status", "created_at")
+        extra_kwargs = {
+            "is_draft": {"default": True}
+        }
+
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+        if self.context['request'].method in ['PATCH']:
+            extra_kwargs['name'] = {'required': False}
+            extra_kwargs['created_by'] = {'required': False}
+        return extra_kwargs
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+        if request and request.method == 'PATCH':
+            fields['created_by'].read_only = True
+            fields['name'].read_only = True
+        return fields
+
+    def update(self, instance, validated_data):
+        keys_to_get_deleted = ["created_by", "name"]
+        for key in keys_to_get_deleted:
+            if key in validated_data:
+                del validated_data[key]
+        return super().update(instance, validated_data)
+
+    @staticmethod
+    def get_load_parties_usernames(load: models.Load):
+        load_parties = {
+            "customer": load.customer,
+            "shipper": load.shipper,
+            "dispatcher": load.dispatcher,
+            "carrier": load.carrier,
+            "consignee": load.consignee,
+        }
+        result = {}
+        for key, value in load_parties.items():
+            result[key] = None
+            if value is not None:
+                result[key] = value.app_user.user.username
+        return result
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["created_by"] = instance.created_by.user.username
+        load_parties_usernames = self.get_load_parties_usernames(instance)
+        for role, username in load_parties_usernames.items():
+            rep[role] = username
+        if instance.pick_up_location is not None:
+            rep["pick_up_location"] = {
+                "id": instance.pick_up_location.id,
+                "building_name": instance.pick_up_location.building_name,
+                "city": instance.pick_up_location.address.city,
+                "state": instance.pick_up_location.address.state,
+            }
+        if instance.destination is not None:
+            rep["destination"] = {
+                "id": instance.destination.id,
+                "building_name": instance.destination.building_name,
+                "city": instance.destination.address.city,
+                "state": instance.destination.address.state,
+            }
+        if instance.shipment is not None:
+            rep["shipment"] = ShipmentSerializer(instance.shipment).data
+        return rep
 
 
 class ClaimNoteAttachmentConfirmationSerializer(serializers.Serializer):

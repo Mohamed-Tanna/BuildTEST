@@ -44,6 +44,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "freightmonster.meta.IgnoreTokenMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -110,7 +111,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+        # "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+        "freightmonster.jwt.CustomJWTCookieAuthentication",
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 5,
@@ -194,7 +196,6 @@ MEDIA_URL = "/media/"
 
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
@@ -209,3 +210,5 @@ DEFENDER_LOCK_OUT_BY_IP_AND_USERNAME = True
 # Twilio settings
 TWILIO_ACCOUNT_SID = "AC5b70bf9a9a982fe3f4c1cea70f86f757"
 TWILIO_PHONE_NUMBER = "+18445071806"
+
+
