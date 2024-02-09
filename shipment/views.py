@@ -2580,7 +2580,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         return result
 
 
-class ClaimNoteView(GenericAPIView, CreateModelMixin):
+class ClaimNoteView(GenericAPIView,CreateModelMixin):
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
     pagination_class = PageNumberPagination
@@ -2588,7 +2588,6 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
-
     def get(self, request, *args, **kwargs):
         return self.retrieve_claim_note(request)
 
@@ -2683,6 +2682,7 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
             result["isAllowed"] = False
             result["message"] = "We don't have a claim note for you because you are the creator of the claim"
         return result
+
 
 
 class OtherLoadPartiesView(APIView):

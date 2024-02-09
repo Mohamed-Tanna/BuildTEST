@@ -244,6 +244,9 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ClaimNote
         fields = "__all__"
+        extra_kwargs = {
+            "supporting_docs": {"required": False},
+        }
         read_only_fields = ("id", "created_at")
 
     def create(self, validated_data):
@@ -297,7 +300,7 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
                     content_type=supporting_docs_content_type[i],
                     storage_client=self.storage_client,
                     headers={
-                        "x-goog-meta-load_note_id": f'{instance.id}'
+                        "x-goog-meta-claim_note_id": f'{instance.id}'
                     }
                 )
                 content_types.append(supporting_docs_content_type[i])
@@ -539,7 +542,6 @@ class LoadNoteSerializer(serializers.ModelSerializer):
                 attachments_info[i]["url"] = url
                 attachments_info[i]["content_type"] = content_type
         representation["attachments"] = attachments_info
-
         return representation
 
 
