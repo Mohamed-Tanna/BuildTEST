@@ -3066,6 +3066,9 @@ class LoadDraftView(ModelViewSet):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
+        load_parties_ids = utils.get_load_parties_role_id(utils.extract_load_parties_info(mutable_request_data))
+        for key, value in load_parties_ids.items():
+            mutable_request_data[key] = value
         serializer = self.get_serializer(load_draft, data=mutable_request_data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)

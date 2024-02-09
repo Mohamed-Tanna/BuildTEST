@@ -531,6 +531,14 @@ class LoadDraftSerializer(serializers.ModelSerializer):
             extra_kwargs['created_by'] = {'required': False}
         return extra_kwargs
 
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+        if request and request.method == 'PATCH':
+            fields['created_by'].read_only = True
+            fields['name'].read_only = True
+        return fields
+
     def update(self, instance, validated_data):
         keys_to_get_deleted = ["created_by", "name"]
         for key in keys_to_get_deleted:
