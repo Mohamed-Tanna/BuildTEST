@@ -2552,6 +2552,7 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+    
     def get(self, request, *args, **kwargs):
         return self.retrieve_claim_note(request)
 
@@ -2586,7 +2587,7 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
         data = serializer.data
         headers = self.get_success_headers(data)
         claim_note = models.ClaimNote.objects.get(id=data["id"])
-        claim_note.attachments = []
+        claim_note.supporting_docs = []
         claim_note.save()
         return Response(
             data, status=status.HTTP_201_CREATED, headers=headers
@@ -3244,6 +3245,6 @@ class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
         result = {"isAllowed": True, "message": ""}
         if claim_note.creator != app_user:
             result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the load note"
+            result["message"] = "You aren't the creator of the claim note"
         return result
 
