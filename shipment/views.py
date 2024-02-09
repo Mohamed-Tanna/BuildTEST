@@ -3063,6 +3063,9 @@ class LoadDraftView(ModelViewSet):
         app_user = models.AppUser.objects.get(user=request.user)
         mutable_request_data["created_by"] = str(app_user.id)
         mutable_request_data["name"] = utils.generate_load_name()
+        load_parties_ids = utils.get_load_parties_role_id(utils.extract_load_parties_info(mutable_request_data))
+        for key, value in load_parties_ids.items():
+            mutable_request_data[key] = value
         serializer = self.get_serializer(data=mutable_request_data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -3183,11 +3186,10 @@ class CloudSchedulerTaskView(GenericAPIView):
     @staticmethod
     def post(request, *args, **kwargs):
         try:
-            print("trying to verify token")
+            print(f"trying to verify token {request.headers.get('Authorization')}")
             id_token.verify_oauth2_token(
                 request.headers.get('Authorization'),
                 requests.Request(),
-                "911818805097-abkor5br2d2hbjf386ol459dsrhs3ghi.apps.googleusercontent.com"
             )
             return Response(status=status.HTTP_204_NO_CONTENT)
         except ValueError:
