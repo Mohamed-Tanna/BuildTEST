@@ -3168,11 +3168,10 @@ class CloudSchedulerTaskView(GenericAPIView):
     @staticmethod
     def post(request, *args, **kwargs):
         try:
-            print("trying to verify token")
+            print(f"trying to verify token {request.headers.get('Authorization')}")
             id_token.verify_oauth2_token(
                 request.headers.get('Authorization'),
                 requests.Request(),
-                "911818805097-abkor5br2d2hbjf386ol459dsrhs3ghi.apps.googleusercontent.com"
             )
             return Response(status=status.HTTP_204_NO_CONTENT)
         except ValueError:
