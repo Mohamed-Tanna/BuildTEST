@@ -106,7 +106,3 @@ TWILIO_AUTH_TOKEN = client.access_secret_version(
         "name": f"projects/{os.getenv('PROJ_ID')}/secrets/{os.getenv('TWILIO_AUTH_TOKEN')}/versions/latest"
     }
 ).payload.data.decode("UTF-8")
-
-# Celery configuration
-CELERY_BROKER_URL = f'redis://{MEMORYSTOREIP}:6379/1'
-CELERY_RESULT_BACKEND = f'redis://{MEMORYSTOREIP}:6379/1'
