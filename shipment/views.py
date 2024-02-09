@@ -48,7 +48,7 @@ from authentication.serializers import AddressSerializer
 from authentication.utilities import create_address
 from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
-from shipment.signals import load_note_attachment_confirmed,claim_note_supporting_doc_confirmed
+from shipment.signals import load_note_attachment_confirmed,claim_note_supporting_doc_confirmed, claim_supporting_doc_confirmed
 from shipment.utilities import send_notifications_to_load_parties
 
 IN_TRANSIT = "In Transit"
@@ -2491,12 +2491,28 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         mutable_request_data["status"] = CLAIM_OPEN_STATUS
         del mutable_request_data["load_id"]
         mutable_request_data["load"] = request.data["load_id"]
-        serializer = self.get_serializer(data=mutable_request_data)
+        supporting_docs_names = []
+        supporting_docs_content_type = []
+        for supporting_doc in request.data.get("supporting_docs", []):
+            supporting_docs_names.append(supporting_doc["name"])
+            supporting_docs_content_type.append(supporting_doc["content_type"])
+        mutable_request_data["supporting_docs"] = supporting_docs_names
+        serializer = self.get_serializer(
+            data=mutable_request_data,
+            context={
+                "request": request,
+                "supporting_docs_content_type": supporting_docs_content_type
+            }
+        )
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        data = serializer.data
+        headers = self.get_success_headers(data)
+        claim = models.Claim.objects.get(id=data["id"])
+        claim.attachments = []
+        claim.save()
         return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            data, status=status.HTTP_201_CREATED, headers=headers
         )
 
     def retrieve(self, request, *args, **kwargs):
@@ -2552,6 +2568,7 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+    
     def get(self, request, *args, **kwargs):
         return self.retrieve_claim_note(request)
 
@@ -2586,7 +2603,7 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
         data = serializer.data
         headers = self.get_success_headers(data)
         claim_note = models.ClaimNote.objects.get(id=data["id"])
-        claim_note.attachments = []
+        claim_note.supporting_docs = []
         claim_note.save()
         return Response(
             data, status=status.HTTP_201_CREATED, headers=headers
@@ -3243,5 +3260,56 @@ class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
         if claim_note.creator != app_user:
             result["isAllowed"] = False
             result["message"] = "You aren't the creator of the load note"
+        return result
+
+
+class ClaimAttachmentConfirmationView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.IsCloudFunction]
+    serializer_class = serializers.ClaimAttachmentConfirmationSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        claim_id = self.request.data.get('claim_id')
+        claim = get_object_or_404(models.Claim, id=claim_id)
+        claim_supporting_docs = claim.supporting_docs
+        supporting_doc = request.data.get('supporting_doc')
+        if supporting_doc not in claim_supporting_docs:
+            claim_supporting_docs.append(supporting_doc)
+            claim.supporting_docs = claim_supporting_docs
+            claim.save()
+        claim_supporting_doc_confirmed.send(sender=self.__class__, claim=claim)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ClaimAttachmentConfirmationClientSideView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    serializer_class = serializers.ClaimAttachmentConfirmationClientSideSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        claim_id = self.request.data.get('claim_id')
+        supporting_docs_names = serializer.data.get('supporting_docs_names')
+        claim = get_object_or_404(models.Claim, id=claim_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_client_is_allowed_to_confirm_claim_supporting_docs(app_user, claim)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        claim.attachments = list(set(supporting_docs_names + claim.supporting_docs))
+        claim.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def check_if_client_is_allowed_to_confirm_claim_supporting_docs(app_user, claim):
+        result = {"isAllowed": True, "message": ""}
+        if claim.claimant != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the claim"
         return result
 

@@ -10,6 +10,7 @@ from shipment.utilities import get_app_user_load_party_roles
 
 
 class FacilitySerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = models.Facility
         fields = [
@@ -43,24 +44,42 @@ class FacilitySerializer(serializers.ModelSerializer):
 
 
 class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
-    supporting_docs = serializers.ListField(child=serializers.FileField())
+    storage_client = StorageClient().storage_client
+    bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
+    blob_path = CLAIM_NOTES_FILES_PATH
 
     class Meta:
         model = models.Claim
         fields = "__all__"
         extra_kwargs = {
             "description_of_loss": {"required": False},
+            "supporting_docs":  {"required": False},
         }
         read_only_fields = ("id", "created_at")
 
     def create(self, validated_data):
-        supporting_docs = validated_data.pop("supporting_docs", [])
-        new_supporting_docs_names = utils.upload_supporting_docs(supporting_docs)
+        supporting_docs_names = validated_data.get("supporting_docs", [])
+        new_supporting_docs_names = []
+
+        for supporting_doc_name in supporting_docs_names:
+            new_unique_supporting_doc_name = utils.generate_new_unique_file_name(
+                file_name=supporting_doc_name,
+            )
+            blob = self.bucket.blob(f"{self.blob_path}{new_unique_supporting_doc_name}")
+            if blob.exists() or new_unique_supporting_doc_name in new_supporting_docs_names:
+                blob = utils.get_unique_blob(
+                    bucket=self.bucket,
+                    file_name=supporting_doc_name,
+                    list_of_names_to_compare=new_supporting_docs_names,
+                    path_name=self.blob_path
+                )
+            new_supporting_docs_names.append(blob.name.replace(self.blob_path, "").strip())
         validated_data["supporting_docs"] = new_supporting_docs_names
         return super().create(validated_data)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
+        request = self.context.get('request')
         supporting_docs_info = utils.get_supporting_docs_info(instance.supporting_docs)
         representation['supporting_docs'] = supporting_docs_info
         representation['claimant'] = {
@@ -71,6 +90,43 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
                 load=instance.load
             )
         }
+        if request and request.method == 'POST':
+            supporting_docs_content_type = self.context.get('supporting_docs_content_type')
+            signed_urls = []
+            content_types = []
+            for i in range(len(representation["supporting_docs"])):
+                supporting_doc_name = representation["supporting_docs"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{supporting_doc_name}")
+                url = utils.generate_put_signed_url_for_file(
+                    blob=blob,
+                    content_type=supporting_docs_content_type[i],
+                    storage_client=self.storage_client,
+                    headers={
+                        "x-goog-meta-claim_note_id": f'{instance.id}'
+                    }
+                )
+                content_types.append(supporting_docs_content_type[i])
+                signed_urls.append(url)
+            for i in range(len(supporting_docs_info)):
+                supporting_docs_info[i]["url"] = signed_urls[i]
+                supporting_docs_info[i]["content_type"] = content_types[i]
+        else:
+            for i in range(len(representation["supporting_docs"])):
+                supporting_doc_name = representation["supporting_docs"][i]
+                blob = self.bucket.blob(f"{self.blob_path}{supporting_doc_name}")
+                url = ""
+                content_type = ""
+                if blob.exists():
+                    url = utils.generate_get_signed_url_for_file(
+                        blob=blob,
+                        storage_client=self.storage_client,
+                    )
+                    blob.reload()
+                    content_type = blob.content_type
+                supporting_docs_info[i]["url"] = url
+                supporting_docs_info[i]["content_type"] = content_type
+        representation["supporting_docs"] = supporting_docs_info
+        
         return representation
 
 
@@ -656,4 +712,14 @@ class ClaimNoteAttachmentConfirmationSerializer(serializers.Serializer):
 
 class ClaimNoteAttachmentConfirmationClientSideSerializer(serializers.Serializer):
     claim_note_id = serializers.IntegerField()
+    supporting_docs = serializers.ListField(child=serializers.CharField(max_length=255))
+
+
+class ClaimAttachmentConfirmationSerializer(serializers.Serializer):
+    claim_id = serializers.IntegerField()
+    supporting_doc = serializers.CharField(max_length=255)
+
+
+class ClaimAttachmentConfirmationClientSideSerializer(serializers.Serializer):
+    claim_id = serializers.IntegerField()
     supporting_docs = serializers.ListField(child=serializers.CharField(max_length=255))

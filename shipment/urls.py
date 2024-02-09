@@ -14,6 +14,12 @@ urlpatterns = [
          ),
     path("load/claim/", views.ClaimView.as_view()),
     path("load/claim/<id>", views.ClaimView.as_view()),
+    path("load/claim/supporting-docs/confirmation/",
+         views.ClaimAttachmentConfirmationView.as_view()
+         ),
+    path("load/claim/supporting-docs/confirmation/client-side/",
+         views.ClaimAttachmentConfirmationClientSideView.as_view()
+         ),
     path("load/other-load-parties/", views.OtherLoadPartiesView.as_view()),
     path("load/notes/deleted-notes/undo/<id>/", views.LoadNoteDeletionView.as_view()),
     path("load/notes/deleted-notes/", views.LoadNoteDeletionView.as_view()),
