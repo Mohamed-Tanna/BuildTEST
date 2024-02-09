@@ -3150,6 +3150,22 @@ class LoadDraftView(ModelViewSet):
                 return check
         return checks[0]
 
+
+class CloudSchedulerTaskView(GenericAPIView):
+    def post(self, request, *args, **kwargs):
+        data = {"details": "Unknown Error"}
+        try:
+            token = request.headers.get('Authorization')
+            token = token.split(' ')[1].strip()
+            if utils.is_ocid_token_valid(token):
+                self.completely_delete_load_draft_after_30_days()
+                data["details"] = "Deletion process completed"
+                return Response(data, status=status.HTTP_200_OK)
+        except ValueError:
+            data["details"] = "Invalid token"
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        return Response(data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @staticmethod
     def completely_delete_load_draft_after_30_days():
         thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -3160,19 +3176,3 @@ class LoadDraftView(ModelViewSet):
         loads_drafts = models.Load.objects.filter(filter_query)
         if loads_drafts.exists():
             loads_drafts.delete()
-
-
-class CloudSchedulerTaskView(GenericAPIView):
-    @staticmethod
-    def post(request, *args, **kwargs):
-        data = {"details": "Unknown Error"}
-        try:
-            token = request.headers.get('Authorization')
-            token = token.split(' ')[1].strip()
-            if utils.is_ocid_token_valid(token):
-                data["details"] = "Valid token"
-                return Response(data, status=status.HTTP_200_OK)
-        except ValueError:
-            data["details"] = "Invalid token"
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        return Response(data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
