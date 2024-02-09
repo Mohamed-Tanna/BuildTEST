@@ -3162,6 +3162,7 @@ class CloudSchedulerTaskView(GenericAPIView):
     @staticmethod
     def post(request, *args, **kwargs):
         try:
+            print("trying to verify token")
             id_token.verify_oauth2_token(
                 request.headers.get('Authorization'),
                 requests.Request(),
