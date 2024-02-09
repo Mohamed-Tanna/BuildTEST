@@ -18,8 +18,6 @@ from drf_spectacular.utils import (
     OpenApiExample,
     inline_serializer,
 )
-from google.auth.transport import requests
-from google.oauth2 import id_token
 from rest_framework import serializers as drf_serializers
 # DRF imports
 from rest_framework import status
@@ -3167,13 +3165,14 @@ class LoadDraftView(ModelViewSet):
 class CloudSchedulerTaskView(GenericAPIView):
     @staticmethod
     def post(request, *args, **kwargs):
+        data = {"details": "Unknown Error"}
         try:
-            print(f"trying to verify token {request.headers.get('Authorization')}")
-            id_token.verify_oauth2_token(
-                request.headers.get('Authorization'),
-                requests.Request(),
-            )
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            token = request.headers.get('Authorization')
+            token = token.split(' ')[1].strip()
+            if utils.is_ocid_token_valid(token):
+                data["details"] = "Valid token"
+                return Response(data, status=status.HTTP_200_OK)
         except ValueError:
-            print("Invalid token")
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            data["details"] = "Invalid token"
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        return Response(data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
