@@ -4,6 +4,7 @@ import shipment.views as views
 from shipment.routers import load_router, shipment_router
 
 urlpatterns = [
+    path("cloud/", views.CloudSchedulerTaskView.as_view()),
     path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
     path("load/claim/", views.ClaimView.as_view()),
     path("load/claim/<id>", views.ClaimView.as_view()),
