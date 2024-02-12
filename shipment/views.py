@@ -46,7 +46,7 @@ from authentication.serializers import AddressSerializer
 from authentication.utilities import create_address
 from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
-from shipment.signals import load_note_attachment_confirmed
+from shipment.signals import load_note_attachment_confirmed,claim_note_supporting_doc_confirmed
 from shipment.utilities import send_notifications_to_load_parties
 
 IN_TRANSIT = "In Transit"
@@ -2542,13 +2542,15 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         return result
 
 
-class ClaimNoteView(GenericAPIView, CreateModelMixin):
+class ClaimNoteView(GenericAPIView,CreateModelMixin):
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    pagination_class = PageNumberPagination
+    lookup_field = "id"
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
-
+    
     def get(self, request, *args, **kwargs):
         return self.retrieve_claim_note(request)
 
@@ -2565,12 +2567,28 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
         mutable_request_data["creator"] = str(app_user.id)
         del mutable_request_data["claim_id"]
         mutable_request_data["claim"] = request.data["claim_id"]
-        serializer = self.get_serializer(data=mutable_request_data)
+        supporting_docs_names = []
+        supporting_docs_content_type = []
+        for supporting_doc in request.data.get("supporting_docs", []):
+            supporting_docs_names.append(supporting_doc["name"])
+            supporting_docs_content_type.append(supporting_doc["content_type"])
+        mutable_request_data["supporting_docs"] = supporting_docs_names
+        serializer = self.get_serializer(
+            data=mutable_request_data,
+            context={
+                "request": request,
+                "supporting_docs_content_type": supporting_docs_content_type
+            }
+        )
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        data = serializer.data
+        headers = self.get_success_headers(data)
+        claim_note = models.ClaimNote.objects.get(id=data["id"])
+        claim_note.supporting_docs = []
+        claim_note.save()
         return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            data, status=status.HTTP_201_CREATED, headers=headers
         )
 
     def retrieve_claim_note(self, request):
@@ -2627,6 +2645,110 @@ class ClaimNoteView(GenericAPIView, CreateModelMixin):
             result["isAllowed"] = False
             result["message"] = "We don't have a claim note for you because you are the creator of the claim"
         return result
+
+    serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    pagination_class = PageNumberPagination
+    lookup_field = "id"
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+    
+    def get(self, request, *args, **kwargs):
+        return self.retrieve_claim_note(request)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = models.AppUser.objects.get(user=request.user)
+        claim = get_object_or_404(models.Claim, id=mutable_request_data.get("claim_id"))
+        check_result = self.check_if_user_is_allowed_to_create_claim_note(app_user, claim)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        mutable_request_data["creator"] = str(app_user.id)
+        del mutable_request_data["claim_id"]
+        mutable_request_data["claim"] = request.data["claim_id"]
+        supporting_docs_names = []
+        supporting_docs_content_type = []
+        for supporting_doc in request.data.get("supporting_docs", []):
+            supporting_docs_names.append(supporting_doc["name"])
+            supporting_docs_content_type.append(supporting_doc["content_type"])
+        mutable_request_data["supporting_docs"] = supporting_docs_names
+        serializer = self.get_serializer(
+            data=mutable_request_data,
+            context={
+                "request": request,
+                "supporting_docs_content_type": supporting_docs_content_type
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        data = serializer.data
+        headers = self.get_success_headers(data)
+        claim_note = models.ClaimNote.objects.get(id=data["id"])
+        claim_note.supporting_docs = []
+        claim_note.save()
+        return Response(
+            data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+    def retrieve_claim_note(self, request):
+        claim_id = request.query_params.get("claim_id", None)
+        if claim_id is not None:
+            try:
+                app_user = models.AppUser.objects.get(user=request.user)
+                claim = models.Claim.objects.get(id=claim_id)
+                check_result = self.check_if_user_is_allowed_to_get_claim_note(app_user, claim)
+                if not check_result["isAllowed"]:
+                    return Response(
+                        {"details": check_result["message"]},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                claim_note = models.ClaimNote.objects.get(claim=claim, creator=app_user)
+                serializer = self.get_serializer(claim_note)
+                return Response(serializer.data)
+            except models.Claim.DoesNotExist:
+                return Response(
+                    {"details": "There is no claim with this id"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except models.ClaimNote.DoesNotExist:
+                return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response(
+            {"details": "Expected claim_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @staticmethod
+    def check_if_user_is_allowed_to_create_claim_note(app_user, claim):
+        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
+        result = {"isAllowed": True, "message": ""}
+        if user_load_party is None:
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif utils.is_user_the_creator_of_the_claim(app_user, claim):
+            result["isAllowed"] = False
+            result["message"] = "You can't create a claim note because you are the creator of the claim."
+        elif utils.does_user_have_claim_note_on_claim_already(app_user, claim):
+            result["isAllowed"] = False
+            result["message"] = "You have already created a claim note on this claim."
+        return result
+
+    @staticmethod
+    def check_if_user_is_allowed_to_get_claim_note(app_user, claim):
+        user_load_party = utils.get_load_party_by_id(claim.load, app_user.id)
+        result = {"isAllowed": True, "message": ""}
+        if user_load_party is None:
+            result["isAllowed"] = False
+            result["message"] = "You aren't one of the load parties"
+        elif utils.is_user_the_creator_of_the_claim(app_user, claim):
+            result["isAllowed"] = False
+            result["message"] = "We don't have a claim note for you because you are the creator of the claim"
+        return result
+
 
 
 class OtherLoadPartiesView(APIView):
@@ -3176,3 +3298,54 @@ class CloudSchedulerTaskView(GenericAPIView):
         loads_drafts = models.Load.objects.filter(filter_query)
         if loads_drafts.exists():
             loads_drafts.delete()
+
+
+class ClaimNoteAttachmentConfirmationView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.IsCloudFunction]
+    serializer_class = serializers.ClaimNoteAttachmentConfirmationSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        claim_note_id = self.request.data.get('claim_note_id')
+        claim_note = get_object_or_404(models.ClaimNote, id=claim_note_id)
+        claim_note_supporting_docs = claim_note.supporting_docs
+        supporting_doc = request.data.get('supporting_doc')
+        if supporting_doc not in claim_note_supporting_docs:
+            claim_note_supporting_docs.append(supporting_doc)
+            claim_note.supporting_docs = claim_note_supporting_docs
+            claim_note.save()
+        claim_note_supporting_doc_confirmed.send(sender=self.__class__, claim_note=claim_note)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
+    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
+    serializer_class = serializers.ClaimNoteAttachmentConfirmationClientSideSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        claim_note_id = self.request.data.get('claim_note_id')
+        supporting_docs_names = serializer.data.get('supporting_docs_names')
+        claim_note = get_object_or_404(models.ClaimNote, id=claim_note_id)
+        app_user = models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_client_is_allowed_to_confirm_claim_note_supporting_docs(app_user, claim_note)
+        if not check_result["isAllowed"]:
+            return Response(
+                {"details": check_result["message"]},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        claim_note.attachments = list(set(supporting_docs_names + claim_note.supporting_docs))
+        claim_note.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def check_if_client_is_allowed_to_confirm_claim_note_supporting_docs(app_user, claim_note):
+        result = {"isAllowed": True, "message": ""}
+        if claim_note.creator != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the creator of the claim note"
+        return result

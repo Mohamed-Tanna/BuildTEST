@@ -19,7 +19,7 @@ class StorageClient(metaclass=SingletonMeta):
         self.storage_client = get_storage_client()
 
 
-class SecreteManagerClient(metaclass=SingletonMeta):
+class SecretManagerClient(metaclass=SingletonMeta):
     def __init__(self):
         self.secrete_manager_client = get_secret_manager_client()
 
