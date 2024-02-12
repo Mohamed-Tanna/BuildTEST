@@ -5,7 +5,7 @@ import shipment.utilities as utils
 from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from freightmonster.classes import StorageClient
-from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH, CLAIM_NOTES_FILES_PATH
+from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH, CLAIM_NOTES_FILES_PATH, CLAIM_FILES_PATH
 from shipment.utilities import get_app_user_load_party_roles
 
 
@@ -46,7 +46,7 @@ class FacilitySerializer(serializers.ModelSerializer):
 class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
     storage_client = StorageClient().storage_client
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
-    blob_path = CLAIM_NOTES_FILES_PATH
+    blob_path = CLAIM_FILES_PATH
 
     class Meta:
         model = models.Claim
