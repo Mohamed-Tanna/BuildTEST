@@ -7,7 +7,7 @@ from dj_rest_auth.registration.views import ResendEmailVerificationView
 
 urlpatterns = [
     path("", include("dj_rest_auth.urls")),
-    path("signup/", include("dj_rest_auth.registration.urls")),
+    path("signup/", views.CustomSignUpView.as_view(), name="custom_sign_up"),
     path("verify-email/", VerifyEmailView.as_view(), name="rest_verify_email"),
     path("resend-email/", ResendEmailVerificationView.as_view(), name="rest_resend_email"),
     path(

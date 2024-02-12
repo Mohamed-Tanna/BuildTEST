@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+from dj_rest_auth.registration.views import RegisterView
 
 # DRF imports
 from rest_framework import status
@@ -894,3 +895,21 @@ class ChangePasswordView(APIView):
         request.user.set_password(request.data["new_password"])
         request.user.save()
         return Response(status=status.HTTP_200_OK)
+
+
+class CustomSignUpView(RegisterView):
+    def post(self, request, *args, **kwargs):
+        try:
+            User.objects.get(email=request.data["email"])
+            return Response({"details": "email already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            mutable_request_data = request.data.copy()
+            response = super().post(request, *args, **kwargs)
+            if response.status_code == status.HTTP_201_CREATED and request.data.get("is_company_manager", False):
+                mutable_request_data["user"] = User.objects.get(email=request.data["email"]).id
+                mutable_request_data["user_type"] = "manager"
+                mutable_request_data["selected_role"] = "manager"
+                serializer = serializers.AppUserSerializer(data=mutable_request_data)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+            return response
