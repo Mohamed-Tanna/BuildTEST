@@ -18,8 +18,6 @@ from drf_spectacular.utils import (
     OpenApiExample,
     inline_serializer,
 )
-from google.auth.transport import requests
-from google.oauth2 import id_token
 from rest_framework import serializers as drf_serializers
 # DRF imports
 from rest_framework import status
@@ -3171,6 +3169,22 @@ class LoadDraftView(ModelViewSet):
                 return check
         return checks[0]
 
+
+class CloudSchedulerTaskView(GenericAPIView):
+    def post(self, request, *args, **kwargs):
+        data = {"details": "Unknown Error"}
+        try:
+            token = request.headers.get('Authorization')
+            token = token.split(' ')[1].strip()
+            if utils.is_ocid_token_valid(token):
+                self.completely_delete_load_draft_after_30_days()
+                data["details"] = "Deletion process completed"
+                return Response(data, status=status.HTTP_200_OK)
+        except ValueError:
+            data["details"] = "Invalid token"
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        return Response(data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @staticmethod
     def completely_delete_load_draft_after_30_days():
         thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -3181,70 +3195,3 @@ class LoadDraftView(ModelViewSet):
         loads_drafts = models.Load.objects.filter(filter_query)
         if loads_drafts.exists():
             loads_drafts.delete()
-
-
-class CloudSchedulerTaskView(GenericAPIView):
-    @staticmethod
-    def post(request, *args, **kwargs):
-        try:
-            print(f"trying to verify token {request.headers.get('Authorization')}")
-            id_token.verify_oauth2_token(
-                request.headers.get('Authorization'),
-                requests.Request(),
-            )
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except ValueError:
-            print("Invalid token")
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-
-class ClaimNoteAttachmentConfirmationView(GenericAPIView):
-    permission_classes = [IsAuthenticated, permissions.IsCloudFunction]
-    serializer_class = serializers.ClaimNoteAttachmentConfirmationSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=self.request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        claim_note_id = self.request.data.get('claim_note_id')
-        claim_note = get_object_or_404(models.ClaimNote, id=claim_note_id)
-        claim_note_supporting_docs = claim_note.supporting_docs
-        supporting_doc = request.data.get('supporting_doc')
-        if supporting_doc not in claim_note_supporting_docs:
-            claim_note_supporting_docs.append(supporting_doc)
-            claim_note.supporting_docs = claim_note_supporting_docs
-            claim_note.save()
-        claim_note_supporting_doc_confirmed.send(sender=self.__class__, claim_note=claim_note)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
-    permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
-    serializer_class = serializers.ClaimNoteAttachmentConfirmationClientSideSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=self.request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        claim_note_id = self.request.data.get('claim_note_id')
-        supporting_docs_names = serializer.data.get('supporting_docs_names')
-        claim_note = get_object_or_404(models.ClaimNote, id=claim_note_id)
-        app_user = models.AppUser.objects.get(user=request.user.id)
-        check_result = self.check_if_client_is_allowed_to_confirm_claim_note_supporting_docs(app_user, claim_note)
-        if not check_result["isAllowed"]:
-            return Response(
-                {"details": check_result["message"]},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        claim_note.attachments = list(set(supporting_docs_names + claim_note.supporting_docs))
-        claim_note.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @staticmethod
-    def check_if_client_is_allowed_to_confirm_claim_note_supporting_docs(app_user, claim_note):
-        result = {"isAllowed": True, "message": ""}
-        if claim_note.creator != app_user:
-            result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the claim note"
-        return result
-
