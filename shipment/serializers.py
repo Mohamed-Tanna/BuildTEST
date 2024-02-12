@@ -102,7 +102,7 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
                     content_type=supporting_docs_content_type[i],
                     storage_client=self.storage_client,
                     headers={
-                        "x-goog-meta-claim_note_id": f'{instance.id}'
+                        "x-goog-meta-claim_id": f'{instance.id}'
                     }
                 )
                 content_types.append(supporting_docs_content_type[i])
