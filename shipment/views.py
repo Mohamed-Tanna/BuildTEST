@@ -2662,6 +2662,8 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
             result["message"] = "We don't have a claim note for you because you are the creator of the claim"
         return result
 
+    
+
 
 
 class OtherLoadPartiesView(APIView):
@@ -3260,7 +3262,7 @@ class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
         result = {"isAllowed": True, "message": ""}
         if claim_note.creator != app_user:
             result["isAllowed"] = False
-            result["message"] = "You aren't the creator of the load note"
+            result["message"] = "You aren't the creator of the claim note"
         return result
 
 
