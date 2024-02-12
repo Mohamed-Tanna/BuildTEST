@@ -1,17 +1,21 @@
+import os
 import random
 import string
 from datetime import datetime, timedelta
 
+import environ
 import rest_framework.exceptions as exceptions
 from django.apps import apps
 from django.db.models import Q
-
+from google.auth.transport import requests
+from google.oauth2 import id_token
 import authentication.models as auth_models
 import shipment.models as models
 from document.utilities import get_signing_creds
-from freightmonster.classes import StorageClient
+from freightmonster.classes import StorageClient, SecreteManagerClient
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
     AWAITING_DISPATCHER, CLAIM_CREATED, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
+from freightmonster.settings import BASE_DIR
 from freightmonster.thread import ThreadWithReturnValue
 from notifications.utilities import handle_notification
 
@@ -530,3 +534,30 @@ def extract_load_parties_info(data):
         if key in available_load_party_roles:
             result[key] = value
     return result
+
+
+def is_ocid_token_valid(token):
+    try:
+        data = id_token.verify_oauth2_token(
+            token,
+            requests.Request(),
+        )
+        if (
+                data["email"] == get_cloud_scheduler_email() and
+                data["email_verified"] and
+                data["iss"] == "https://accounts.google.com" and
+                data["exp"] < (datetime.now().timestamp() * 1000)
+        ):
+            return True
+        return False
+    except ValueError:
+        return False
+
+
+def get_cloud_scheduler_email():
+    if os.getenv("ENV") == "LOCAL":
+        env = environ.Env()
+        env.read_env(os.path.join(BASE_DIR, "local.env"))
+        return env("CLOUD_SCHEDULER_EMAIL")
+    else:
+        return SecreteManagerClient().get_secret_value("cloud_scheduler_email")
