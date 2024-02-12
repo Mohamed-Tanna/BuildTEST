@@ -12,7 +12,7 @@ from google.oauth2 import id_token
 import authentication.models as auth_models
 import shipment.models as models
 from document.utilities import get_signing_creds
-from freightmonster.classes import StorageClient, SecreteManagerClient
+from freightmonster.classes import StorageClient, SecretManagerClient
 from freightmonster.constants import CREATED, AWAITING_CUSTOMER, AWAITING_CARRIER, ASSIGNING_CARRIER, \
     AWAITING_DISPATCHER, CLAIM_CREATED, GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME
 from freightmonster.settings import BASE_DIR
@@ -560,4 +560,4 @@ def get_cloud_scheduler_email():
         env.read_env(os.path.join(BASE_DIR, "local.env"))
         return env("CLOUD_SCHEDULER_EMAIL")
     else:
-        return SecreteManagerClient().get_secret_value("cloud_scheduler_email")
+        return SecretManagerClient().get_secret_value("cloud_scheduler_email")

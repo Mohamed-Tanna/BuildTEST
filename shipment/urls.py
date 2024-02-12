@@ -5,11 +5,11 @@ from shipment.routers import load_router, shipment_router
 
 urlpatterns = [
     path("cloud/", views.CloudSchedulerTaskView.as_view()),
-    path("load/claim/claim-note/", views.ClaimNoteView.as_view()),
-    path("load/claim/claim-note/supporting-docs/confirmation/",
+    path("load/claim/note/", views.ClaimNoteView.as_view()),
+    path("load/claim/note/supporting-docs/confirmation/",
          views.ClaimNoteAttachmentConfirmationView.as_view()
          ),
-    path("load/claim/claim-note/supporting-docs/confirmation/client-side/",
+    path("load/claim/note/supporting-docs/confirmation/client-side/",
          views.ClaimNoteAttachmentConfirmationClientSideView.as_view()
          ),
     path("load/claim/", views.ClaimView.as_view()),
