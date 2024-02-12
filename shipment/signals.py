@@ -9,6 +9,8 @@ from shipment.utilities import send_notifications_to_load_parties
 
 load_note_attachment_confirmed = Signal()
 claim_note_supporting_doc_confirmed = Signal()
+claim_supporting_doc_confirmed = Signal()
+
 
 
 @receiver(load_note_attachment_confirmed)
@@ -27,6 +29,14 @@ def handle_claim_note_attachment_confirmed(sender, claim_note: models.ClaimNote,
     if len(new_supporting_docs) != len(claim_note.supporting_docs):
         claim_note.supporting_docs = new_supporting_docs
         claim_note.save()
+
+@receiver(claim_supporting_doc_confirmed)
+def handle_claim_attachment_confirmed(sender, claim: models.Claim, **kwargs):
+    claim.refresh_from_db()
+    new_supporting_docs = list(set(claim.supporting_docs))
+    if len(new_supporting_docs) != len(claim.supporting_docs):
+        claim.supporting_docs = new_supporting_docs
+        claim.save()
 
 
 @receiver(post_save, sender=models.Load)

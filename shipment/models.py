@@ -211,7 +211,7 @@ class Claim(models.Model):
         max_length=11,
     )
     description_of_loss = models.TextField(blank=True, null=False)
-    supporting_docs = ArrayField(models.TextField(), null=False, blank=True)
+    supporting_docs = ArrayField(models.TextField(), default=list, blank=True)
     date_of_loss = models.DateField(null=False)
 
 
