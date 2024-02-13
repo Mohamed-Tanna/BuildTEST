@@ -61,7 +61,7 @@ class ListEmployeesLoadsView(GenericAPIView, ListModelMixin):
 
     permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = ship_serializers.LoadListSerializer
-    queryset = ship_models.Load.objects.all()
+    queryset = ship_models.Load.objects.filter(is_draft=False).order_by("-id")
     lookup_field = "id"
     pagination_class = PageNumberPagination
 
