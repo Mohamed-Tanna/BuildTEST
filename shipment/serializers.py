@@ -158,12 +158,12 @@ class LoadListSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep["customer"] = instance.customer.app_user.user.username if instance.customer else None
-        rep["shipper"] = instance.shipper.app_user.user.username if instance.shipper else None
-        rep["consignee"] = instance.consignee.app_user.user.username if instance.consignee else None
-        rep["dispatcher"] = instance.dispatcher.app_user.user.username if instance.dispatcher else None
-        rep["pick_up_location"] = instance.pick_up_location.building_name if instance.pick_up_location else None
-        rep["destination"] = instance.destination.building_name if instance.destination else None
+        rep["customer"] = instance.customer.app_user.user.username
+        rep["shipper"] = instance.shipper.app_user.user.username
+        rep["consignee"] = instance.consignee.app_user.user.username
+        rep["dispatcher"] = instance.dispatcher.app_user.user.username
+        rep["pick_up_location"] = instance.pick_up_location.building_name
+        rep["destination"] = instance.destination.building_name
         try:
             rep["carrier"] = instance.carrier.app_user.user.username
         except BaseException:
