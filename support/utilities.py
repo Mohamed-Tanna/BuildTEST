@@ -103,3 +103,13 @@ def min_length_validation(value, min_length):
 
 def is_email_already_a_user_in_the_system(email: str):
     return AppUser.objects.filter(user__email__iexact=email).exists()
+
+
+def extract_integrity_error_info(error_message):
+    match = re.search(r"Key \((.*?)\)=\((.*?)\) already exists", error_message)
+    if match:
+        refined_column_name = match.group(1).replace("_", "").title()
+        return {
+            "column_name": refined_column_name,
+            "message": f'This {refined_column_name} already exists.'
+        }

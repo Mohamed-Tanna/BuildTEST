@@ -57,38 +57,72 @@ ticket_fields = [
 ]
 
 
-class CreateTicketSerializer(serializers.Serializer):
+class CreateTicketSerializer(serializers.ModelSerializer):
     sid_photo = serializers.FileField()
     personal_photo = serializers.FileField()
-    city = serializers.CharField(max_length=255)
-    state = serializers.CharField(max_length=255)
-    address = serializers.CharField(max_length=255)
-    country = serializers.CharField(max_length=255)
-    zip_code = serializers.CharField(max_length=255)
-    email = serializers.EmailField()
 
     class Meta:
         model = models.Ticket
-        fields = ticket_fields
+        fields = "__all__"
         extra_kwargs = {
-            "company_fax_number": {"required": False},
-            "scac": {"required": False},
+            'email': {'required': True},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+            'personal_phone_number': {'required': True},
+            'company_name': {'required': True},
+            'company_domain': {'required': True},
+            'company_size': {'required': True},
+            'EIN': {'required': True},
+            'company_phone_number': {'required': True},
+            'address': {'required': True},
+            'city': {'required': True},
+            'state': {'required': True},
+            'zip_code': {'required': True},
+            'country': {'required': True},
+            'insurance_provider': {'required': True},
+            'insurance_policy_number': {'required': True},
+            'insurance_type': {'required': True},
+            'insurance_premium_amount': {'required': True},
+            'sid_photo': {'required': True},
+            'personal_photo': {'required': True},
         }
         read_only_fields = (
             "id",
             "status",
             "created_at",
             "handled_at",
+            "rejection_reason"
         )
 
-    def validate_email_unique(self, value):
-        if utils.is_email_already_a_user_in_the_system(value):
-            raise serializers.ValidationError({'email': "User with this email already exists."})
+    @staticmethod
+    def validate_scac(value):
+        scac_validity_result = utils.is_scac_valid(value)
+        if not scac_validity_result["isValid"]:
+            raise serializers.ValidationError({'SCAC': scac_validity_result["message"]})
+        return value
+
+    @staticmethod
+    def validate_ein(value):
+        ein_validity_result = utils.ein_validation(value)
+        if not ein_validity_result["isValid"]:
+            raise serializers.ValidationError({'EIN': ein_validity_result["message"]})
+        return value
+
+    @staticmethod
+    def validate_insurance_policy_number(value):
+        IPN_validity_result = utils.min_length_validation(value, 8)
+        if not IPN_validity_result["isValid"]:
+            raise serializers.ValidationError({'IPN': IPN_validity_result["message"]})
         return value
 
     def validate(self, data):
-        email = data.get('email', None)
-        self.validate_email_unique(email)
+        scac = data.get('scac', "")
+        ein = data.get('EIN', None)
+        insurance_policy_number = data.get('insurance_policy_number', None)
+        if len(scac) > 0:
+            self.validate_scac(scac)
+        self.validate_ein(ein)
+        self.validate_insurance_policy_number(insurance_policy_number)
         return super().validate(data)
 
     def create(self, validated_data):
@@ -102,92 +136,13 @@ class CreateTicketSerializer(serializers.Serializer):
         sid_photo_name = f"sid_{timestamp}_{sid_photo.name}"
         personal_photo_name = f"personal_{timestamp}_{personal_photo.name}"
 
-        if models.Ticket.objects.filter(
-                Q(sid_photo=sid_photo_name) | Q(personal_photo=personal_photo_name)
-        ).exists():
-            return Response(
-                {"message": "The photo already exists"},
-                status=status.HTTP_409_CONFLICT,
-            )
-
         sid_photo.name = sid_photo_name
         personal_photo.name = personal_photo_name
         utils.upload_to_gcs(sid_photo)
         utils.upload_to_gcs(personal_photo)
         validated_data["sid_photo"] = sid_photo_name
         validated_data["personal_photo"] = personal_photo_name
-        company_fax_number = ""
-        scac = ""
-        if "company_fax_number" in validated_data:
-            company_fax_number = validated_data["company_fax_number"]
-        if "scac" in validated_data:
-            scac = validated_data["scac"].strip()
-        if len(scac) > 0:
-            scac_validity_result = utils.is_scac_valid(scac)
-            if not scac_validity_result["isValid"]:
-                return Response(
-                    {"SCAC": scac_validity_result["message"]},
-                    status=scac_validity_result["errorStatus"],
-                )
-        if "EIN" in validated_data:
-            ein_validity_result = utils.ein_validation(validated_data["EIN"])
-            if not ein_validity_result["isValid"]:
-                return Response(
-                    {"EIN": ein_validity_result["message"]},
-                    status=ein_validity_result["errorStatus"],
-                )
-        if "insurance_policy_number" in validated_data:
-            IPN_validity_result = utils.min_length_validation(validated_data["insurance_policy_number"], 8)
-            if not IPN_validity_result["isValid"]:
-                return Response(
-                    {"IPN": IPN_validity_result["message"]},
-                    status=IPN_validity_result["errorStatus"],
-                )
-
-        obj = models.Ticket(
-            email=validated_data["email"],
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
-            personal_phone_number=validated_data["personal_phone_number"],
-            company_name=validated_data["company_name"],
-            company_domain=validated_data["company_domain"],
-            company_size=validated_data["company_size"],
-            EIN=validated_data["EIN"],
-            scac=scac,
-            company_fax_number=company_fax_number,
-            company_phone_number=validated_data["company_phone_number"],
-            sid_photo=validated_data["sid_photo"],
-            personal_photo=validated_data["personal_photo"],
-            address=validated_data["address"],
-            city=validated_data["city"],
-            state=validated_data["state"],
-            country=validated_data["country"],
-            zip_code=validated_data["zip_code"],
-            insurance_provider=validated_data["insurance_provider"],
-            insurance_policy_number=validated_data["insurance_policy_number"],
-            insurance_type=validated_data["insurance_type"],
-            insurance_premium_amount=validated_data["insurance_premium_amount"],
-        )
-        try:
-            obj.save()
-            return Response(
-                {"details": "Ticket created successfully"},
-                status=status.HTTP_201_CREATED,
-            )
-        except IntegrityError as e:
-            error_message = str(e)
-            match = re.search(r"Key \((.*?)\)=\((.*?)\) already exists", error_message)
-            if match:
-                refined_column_name = match.group(1).replace("_", "").title()
-                return Response(
-                    {refined_column_name: f'This {refined_column_name} already exists.'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-        except Exception as e:
-            return Response(
-                {"details": f"{str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        return super().create(validated_data)
 
 
 class ListTicketsSerializer(serializers.ModelSerializer):

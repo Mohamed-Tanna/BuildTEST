@@ -1,17 +1,19 @@
 from django.db import models
+from django.db.models import CheckConstraint, Q, UniqueConstraint
+
 
 class Ticket(models.Model):
     email = models.EmailField(max_length=100, null=False, blank=False, unique=True)
     first_name = models.CharField(max_length=100, null=False, blank=False)
     last_name = models.CharField(max_length=100, null=False, blank=False)
     personal_phone_number = models.CharField(
-        max_length=18, unique=True, null=False, blank=False, editable=False
+        max_length=18, unique=True
     )
     company_name = models.CharField(
-        max_length=100, unique=True, null=False, blank=False
+        max_length=100, default=""
     )
     company_domain = models.CharField(
-        max_length=150, unique=True, null=False, blank=False
+        max_length=150, default=""
     )
     company_size = models.CharField(
         choices=[
@@ -21,14 +23,11 @@ class Ticket(models.Model):
             (">100", ">100"),
         ],
         max_length=6,
-        null=False,
-        blank=False,
+        default="",
     )
     EIN = models.CharField(
         max_length=10,
-        null=False,
-        blank=False,
-        unique=True,
+        default=""
     )
     scac = models.CharField(
         max_length=4,
@@ -38,22 +37,22 @@ class Ticket(models.Model):
         max_length=100, default=""
     )
     company_phone_number = models.CharField(
-        max_length=18, unique=True, null=False, blank=False
+        max_length=18, default=""
     )
-    address = models.CharField(max_length=255, null=False, blank=False)
-    city = models.CharField(max_length=100, null=False, blank=False)
-    state = models.CharField(max_length=100, null=False, blank=False)
-    zip_code = models.CharField(max_length=100, null=False, blank=False)
-    country = models.CharField(max_length=100, null=False, blank=False)
-    insurance_provider = models.CharField(max_length=100, null=False, blank=False)
+    address = models.CharField(max_length=255, default="")
+    city = models.CharField(max_length=100, default="")
+    state = models.CharField(max_length=100, default="")
+    zip_code = models.CharField(max_length=100, default="")
+    country = models.CharField(max_length=100, default="")
+    insurance_provider = models.CharField(max_length=100, default="")
     insurance_policy_number = models.CharField(
-        max_length=20, null=False, blank=False,
+        max_length=20, default=""
     )
-    insurance_type = models.CharField(max_length=100, null=False, blank=False)
-    insurance_premium_amount = models.FloatField(null=False, blank=False)
-    sid_photo = models.CharField(max_length=255, null=False, blank=False, unique=True)
+    insurance_type = models.CharField(max_length=100, default="")
+    insurance_premium_amount = models.FloatField(null=True)
+    sid_photo = models.CharField(max_length=255, default="")
     personal_photo = models.CharField(
-        max_length=255, null=False, blank=False, unique=True
+        max_length=255, default=""
     )
     status = models.CharField(
         max_length=8,
@@ -68,3 +67,27 @@ class Ticket(models.Model):
     rejection_reason = models.TextField(default="")
     created_at = models.DateTimeField(auto_now_add=True)
     handled_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=['company_name'],
+                condition=~Q(company_name=""),
+                name='company_name_unique'
+            ),
+            UniqueConstraint(
+                fields=['company_domain'],
+                condition=~Q(company_domain=""),
+                name='company_domain_unique'
+            ),
+            UniqueConstraint(
+                fields=['EIN'],
+                condition=~Q(EIN=""),
+                name='EIN_unique'
+            ),
+            UniqueConstraint(
+                fields=['company_phone_number'],
+                condition=~Q(company_phone_number=""),
+                name='company_phone_number_unique'
+            ),
+        ]

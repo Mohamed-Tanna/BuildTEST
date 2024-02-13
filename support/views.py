@@ -1,5 +1,8 @@
 import random
+import re
 import string
+
+from django.db import IntegrityError
 
 # Module imports
 import manager.models as manager_models
@@ -65,8 +68,7 @@ class CreateTicketView(GenericAPIView, CreateModelMixin):
     """
     View for Creating the Tickets
     """
-
-    queryset = Ticket.objects.all()
+    permission_classes = [IsAuthenticated, permissions.IsCompanyManager]
     serializer_class = serializers.CreateTicketSerializer
 
     @extend_schema(
@@ -75,12 +77,47 @@ class CreateTicketView(GenericAPIView, CreateModelMixin):
         responses={200: serializers.CreateTicketSerializer},
     )
     def post(self, request, *args, **kwargs):
-        """
-        Create a Ticket.
-        """
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return serializer.create(request.data)
+        return self.create(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        mutable_request_data = request.data.copy()
+        app_user = auth_models.AppUser.objects.get(user=request.user.id)
+        check_result = self.check_if_user_can_create_ticket(app_user)
+        if not check_result["isAllowed"]:
+            return Response(
+                {
+                    "details": check_result["message"]
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        mutable_request_data["email"] = app_user.user.email
+        mutable_request_data["first_name"] = app_user.user.first_name
+        mutable_request_data["last_name"] = app_user.user.last_name
+        mutable_request_data["personal_phone_number"] = app_user.phone_number
+        serializer = self.get_serializer(data=mutable_request_data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            self.perform_create(serializer)
+        except IntegrityError as e:
+            error_message = str(e)
+            error_info = utils.extract_integrity_error_info(error_message)
+            return Response(
+                {error_info["column_name"]: error_info['message']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_201_CREATED)
+
+    @staticmethod
+    def check_if_user_can_create_ticket(app_user: auth_models.AppUser):
+        result = {"isAllowed": True, "message": ""}
+        if len(Ticket.objects.filter(email=app_user.user.email)) > 0:
+            result["isAllowed"] = False
+            result["message"] = "You already submitted a ticket"
+        elif len(auth_models.Company.objects.filter(manager=app_user)) > 0:
+            result["isAllowed"] = False
+            result["message"] = "You already have a company"
+        return result
 
 
 class HandleTicketView(GenericAPIView, UpdateModelMixin):
@@ -105,8 +142,8 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
             )
         if request.data["action"] == "approve":
             # create an app user and a company using the informatrion in the ticket
-
-            app_user, password = self._create_app_user_from_ticket(ticket)
+            user = auth_models.User.objects.get(email=ticket.email)
+            app_user = auth_models.AppUser.objects.get(user=user)
 
             address = auth_utils.create_address(
                 address=ticket.address,
@@ -148,7 +185,7 @@ class HandleTicketView(GenericAPIView, UpdateModelMixin):
             utils.send_request_result(
                 template="accepted_request.html",
                 to=ticket.email,
-                password_or_reason=password,
+                password_or_reason="",
                 company_name=ticket.company_name,
                 subject="Congratulations! Your Company Request Has Been Approved",
             )
