@@ -2803,7 +2803,7 @@ class LoadNoteView(ModelViewSet):
             )
         paginator = self.pagination_class()
         paginated_loads = paginator.paginate_queryset(
-            load_notes.order_by("-created_at"),
+            load_notes.order_by("-updated_at"),
             request
         )
         load_notes_data = serializers.LoadNoteSerializer(paginated_loads, many=True).data
@@ -2981,7 +2981,7 @@ class LoadNoteDeletionView(GenericAPIView, ListModelMixin, UpdateModelMixin):
             )
             load_parties_ids = [party.id for party in load_parties_under_company_manager]
             filter_query = Q(creator__id__in=load_parties_ids) & Q(is_deleted=True)
-        deleted_notes = models.LoadNote.objects.filter(filter_query)
+        deleted_notes = models.LoadNote.objects.filter(filter_query).order_by("-updated_at")
         if deleted_notes.exists() is False:
             return Response(
                 data=[], status=status.HTTP_200_OK
