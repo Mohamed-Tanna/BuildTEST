@@ -3253,7 +3253,11 @@ class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
                 {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        claim_note.attachments = list(set(supporting_docs_names + claim_note.supporting_docs))
+        if supporting_docs_names is None:
+            supporting_docs_names = []
+        if claim_note.supporting_docs is None:
+            claim_note.supporting_docs = []
+        claim_note.supporting_docs = list(set(supporting_docs_names + claim_note.supporting_docs))
         claim_note.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -3304,9 +3308,14 @@ class ClaimAttachmentConfirmationClientSideView(GenericAPIView):
                 {"details": check_result["message"]},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        claim.attachments = list(set(supporting_docs_names + claim.supporting_docs))
+        if supporting_docs_names is None:
+            supporting_docs_names = []
+        if claim.supporting_docs is None:
+            claim.supporting_docs = []
+        claim.supporting_docs = list(set(supporting_docs_names + claim.supporting_docs))
         claim.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
     @staticmethod
     def check_if_client_is_allowed_to_confirm_claim_supporting_docs(app_user, claim):
