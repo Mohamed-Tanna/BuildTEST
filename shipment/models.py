@@ -238,3 +238,4 @@ class LoadNote(models.Model):
                                         related_name='visible_to')
     is_deleted = BooleanField(default=False, verbose_name="is Deleted")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

@@ -474,14 +474,24 @@ def generate_put_signed_url_for_file(
     if storage_client is None:
         storage_client = StorageClient().storage_client
     signing_creds = get_signing_creds(storage_client._credentials)
-    url = blob.generate_signed_url(
-        version="v4",
-        expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
-        method="PUT",
-        content_type=content_type,
-        headers=headers,
-        credentials=signing_creds,
-    )
+    env = os.getenv("ENV")
+    if env == "LOCAL":
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
+            method="PUT",
+            content_type=content_type,
+            headers=headers,
+        )
+    else:
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
+            method="PUT",
+            content_type=content_type,
+            headers=headers,
+            credentials=signing_creds,
+        )
     return url
 
 
@@ -493,12 +503,20 @@ def generate_get_signed_url_for_file(
     if storage_client is None:
         storage_client = StorageClient().storage_client
     signing_creds = get_signing_creds(storage_client._credentials)
-    url = blob.generate_signed_url(
-        version="v4",
-        expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
-        method="GET",
-        credentials=signing_creds,
-    )
+    env = os.getenv("ENV")
+    if env == "LOCAL":
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
+            method="GET",
+        )
+    else:
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.utcnow() + timedelta(seconds=expiration_time),
+            method="GET",
+            credentials=signing_creds,
+        )
     return url
 
 

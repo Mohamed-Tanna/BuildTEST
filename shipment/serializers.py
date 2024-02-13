@@ -5,12 +5,12 @@ import shipment.utilities as utils
 from authentication.models import AppUser
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from freightmonster.classes import StorageClient
-from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH, CLAIM_NOTES_FILES_PATH, CLAIM_FILES_PATH
+from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH, \
+    CLAIM_NOTES_FILES_PATH, CLAIM_FILES_PATH
 from shipment.utilities import get_app_user_load_party_roles
 
 
 class FacilitySerializer(serializers.ModelSerializer):
-    
     class Meta:
         model = models.Facility
         fields = [
@@ -53,7 +53,7 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
         fields = "__all__"
         extra_kwargs = {
             "description_of_loss": {"required": False},
-            "supporting_docs":  {"required": False},
+            "supporting_docs": {"required": False},
         }
         read_only_fields = ("id", "created_at")
 
@@ -126,7 +126,7 @@ class ClaimCreateRetrieveSerializer(serializers.ModelSerializer):
                 supporting_docs_info[i]["url"] = url
                 supporting_docs_info[i]["content_type"] = content_type
         representation["supporting_docs"] = supporting_docs_info
-        
+
         return representation
 
 
@@ -318,7 +318,6 @@ class ClaimNoteCreateRetrieveSerializer(serializers.ModelSerializer):
     bucket = storage_client.get_bucket(GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME)
     blob_path = CLAIM_NOTES_FILES_PATH
 
-
     class Meta:
         model = models.ClaimNote
         fields = "__all__"
@@ -466,7 +465,7 @@ class LoadNoteSerializer(serializers.ModelSerializer):
             "attachments": {"required": False},
             "is_deleted": {"required": False},
         }
-        read_only_fields = ("id", "created_at", "is_deleted")
+        read_only_fields = ("id", "created_at", "is_deleted", "updated_at")
 
     def create(self, validated_data):
         attachments_names = validated_data.get("attachments", [])
