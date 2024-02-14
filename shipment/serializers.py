@@ -2,12 +2,13 @@ from rest_framework import serializers
 
 import shipment.models as models
 import shipment.utilities as utils
-from authentication.models import AppUser
+from authentication.models import AppUser, ShipmentParty
 from authentication.serializers import AppUserSerializer, AddressSerializer
 from freightmonster.classes import StorageClient
 from freightmonster.constants import GS_DEV_FREIGHT_UPLOADED_FILES_BUCKET_NAME, LOAD_NOTES_FILES_PATH, \
     CLAIM_NOTES_FILES_PATH, CLAIM_FILES_PATH
 from shipment.utilities import get_app_user_load_party_roles
+import rest_framework.exceptions as exceptions
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -640,6 +641,74 @@ class LoadDraftSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "is_draft": {"default": True}
         }
+
+    @staticmethod
+    def validate_pickup_location(pickup_location: models.Facility, shipper: ShipmentParty):
+        if pickup_location is not None and shipper is not None:
+            if pickup_location.owner != shipper.app_user.user:
+                raise serializers.ValidationError(
+                    {"pickup_location": "The chosen facility doesn't belong to the shipper"})
+        elif pickup_location is not None and shipper is None:
+            raise serializers.ValidationError(
+                {"pickup_location": "Can't have a pickup location without assigning a shipper"})
+
+    @staticmethod
+    def validate_destination(destination: models.Facility, consignee: ShipmentParty):
+        if destination is not None and consignee is not None:
+            if destination.owner != consignee.app_user.user:
+                raise serializers.ValidationError(
+                    {"destination": "The chosen facility doesn't belong to the consignee"})
+        elif destination is not None and consignee is None:
+            raise serializers.ValidationError(
+                {"destination": "Can't have a pickup location without assigning a consignee"})
+
+    @staticmethod
+    def validate_load_parties(load_parties, load_draft_creator: AppUser):
+        for party, value in load_parties.items():
+            if (
+                    value is not None and
+                    value.app_user != load_draft_creator and
+                    not models.Contact.objects.filter(
+                        origin=load_draft_creator.user,
+                        contact=value.app_user
+                    ).exists()
+            ):
+                raise serializers.ValidationError(
+                    {
+                        f"{value.app_user.user.username}": f"Is not in {load_draft_creator.user.username} contact list"
+                    }
+                )
+
+    @staticmethod
+    def validate_load_parties_tax_info(load_parties):
+        for party, value in load_parties.items():
+            if party in ["customer", "dispatcher"] and value is not None:
+                try:
+                    utils.get_user_tax_or_company(value.app_user, user_type=party)
+                except exceptions.NotFound:
+                    raise serializers.ValidationError(
+                        {
+                            party: "Has no tax information or a company."
+                        }
+                    )
+
+    def validate(self, data):
+        load_draft_creator = data["created_by"]
+        pickup_location = data.get('pick_up_location', None)
+        shipper = data.get('shipper', None)
+        destination = data.get('destination', None)
+        consignee = data.get('consignee', None)
+        load_parties = {
+            "customer": data.get('customer', None),
+            "shipper": shipper,
+            "consignee": consignee,
+            "dispatcher": data.get('dispatcher', None)
+        }
+        self.validate_load_parties(load_parties, load_draft_creator)
+        self.validate_load_parties_tax_info(load_parties)
+        self.validate_pickup_location(pickup_location, shipper)
+        self.validate_destination(destination, consignee)
+        return super().validate(data)
 
     def get_extra_kwargs(self):
         extra_kwargs = super().get_extra_kwargs()
