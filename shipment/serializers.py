@@ -260,7 +260,7 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             'status': {'required': True},
             'shipment': {'required': True},
         }
-        read_only_fields = ("id", "status", "created_at")
+        read_only_fields = ("id", "status", "created_at", "is_deleted", "is_draft")
 
     def get_extra_kwargs(self):
         extra_kwargs = super().get_extra_kwargs()
@@ -268,6 +268,13 @@ class LoadCreateRetrieveSerializer(serializers.ModelSerializer):
             extra_kwargs['name'] = {'required': False}
             extra_kwargs['created_by'] = {'required': False}
         return extra_kwargs
+
+    def get_fields(self):
+        fields = super().get_fields()
+        is_from_draft = self.context.get('is_from_draft', False)
+        if is_from_draft:
+            fields['is_draft'].read_only = False
+        return fields
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)

@@ -46,8 +46,10 @@ from authentication.serializers import AddressSerializer
 from authentication.utilities import create_address
 from freightmonster.constants import CLAIM_OPEN_STATUS, MANAGER_USER_TYPE
 from notifications.utilities import handle_notification
-from shipment.signals import load_note_attachment_confirmed,claim_note_supporting_doc_confirmed, claim_supporting_doc_confirmed
+from shipment.signals import load_note_attachment_confirmed, claim_note_supporting_doc_confirmed, \
+    claim_supporting_doc_confirmed
 from shipment.utilities import send_notifications_to_load_parties
+from rest_framework.exceptions import MethodNotAllowed
 
 IN_TRANSIT = "In Transit"
 SHIPMENT_PARTY = "shipment party"
@@ -319,6 +321,7 @@ class LoadView(ModelViewSet):
     serializer_class = serializers.LoadCreateRetrieveSerializer
     queryset = models.Load.objects.all()
     lookup_field = "id"
+    allowed_methods = ('POST', 'PATCH')
 
     @extend_schema(
         request=serializers.LoadCreateRetrieveSerializer,
@@ -438,34 +441,17 @@ class LoadView(ModelViewSet):
             ),
         ],
     )
-    @staticmethod
-    def put(request, *args, **kwargs):
-        return Response(
-            {"details": "Method PUT not Allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
-
-    @staticmethod
-    def get(request, *args, **kwargs):
-        return Response(
-            {"details": "Method GET not Allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
-
-    @staticmethod
-    def delete(request, *args, **kwargs):
-        return Response(
-            {"details": "Method DELETE not Allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
-
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, QueryDict):
             request.data._mutable = True
 
+        load_id = request.data.get("id", None)
         app_user = models.AppUser.objects.get(user=request.user)
         request.data["created_by"] = str(app_user.id)
-        request.data["name"] = utils.generate_load_name()
+        if load_id is None:
+            request.data["name"] = utils.generate_load_name()
+        else:
+            request.data["is_draft"] = False
 
         self._check_for_any_missing_load_parties(request)
         self._check_facility_belongs_to_shipment_parties(
@@ -495,12 +481,30 @@ class LoadView(ModelViewSet):
         )
         request.data["dispatcher"] = str(dispatcher.id)
 
-        serializer = self.get_serializer(data=request.data)
+        if load_id is None:
+            serializer = self.get_serializer(data=request.data)
+        else:
+            load = get_object_or_404(models.Load, id=load_id)
+            check_result = self.check_if_user_can_create_load_from_draft(load, app_user)
+            if not check_result["isAllowed"]:
+                return Response(
+                    {"details": check_result["message"]},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            serializer = self.get_serializer(
+                load,
+                data=request.data,
+                context={"is_from_draft": True, "request": request}
+            )
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         while True:
             try:
-                self.perform_create(serializer)
+                if load_id is None:
+                    self.perform_create(serializer)
+                else:
+                    self.perform_update(serializer)
+                    pass
                 break
             except IntegrityError as e:
                 request.data["name"] = utils.generate_load_name()
@@ -776,6 +780,20 @@ class LoadView(ModelViewSet):
             details=details,
             log_fields=updated_fields,
         )
+
+    @staticmethod
+    def check_if_user_can_create_load_from_draft(load: models.Load, app_user: models.AppUser):
+        result = {"isAllowed": True, "message": ""}
+        if load.created_by != app_user:
+            result["isAllowed"] = False
+            result["message"] = "You aren't the owner of this load draft"
+        elif load.is_deleted:
+            result["isAllowed"] = False
+            result["message"] = "You can't create a load from a deleted load draft"
+        elif not load.is_draft:
+            result["isAllowed"] = False
+            result["message"] = "You can't create a load from un-drafted load"
+        return result
 
 
 class ListLoadView(GenericAPIView, ListModelMixin):
@@ -2558,7 +2576,7 @@ class ClaimView(GenericAPIView, CreateModelMixin, RetrieveModelMixin):
         return result
 
 
-class ClaimNoteView(GenericAPIView,CreateModelMixin):
+class ClaimNoteView(GenericAPIView, CreateModelMixin):
     serializer_class = serializers.ClaimNoteCreateRetrieveSerializer
     permission_classes = [IsAuthenticated, permissions.HasRole, permissions.IsNotCompanyManager]
     pagination_class = PageNumberPagination
@@ -2566,7 +2584,7 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
-    
+
     def get(self, request, *args, **kwargs):
         return self.retrieve_claim_note(request)
 
@@ -2661,9 +2679,6 @@ class ClaimNoteView(GenericAPIView,CreateModelMixin):
             result["isAllowed"] = False
             result["message"] = "We don't have a claim note for you because you are the creator of the claim"
         return result
-
-    
-
 
 
 class OtherLoadPartiesView(APIView):
@@ -3067,13 +3082,7 @@ class LoadDraftView(ModelViewSet):
     permission_classes = [IsAuthenticated, permissions.IsShipmentPartyOrDispatcher, permissions.IsNotCompanyManager]
     serializer_class = serializers.LoadDraftSerializer
     lookup_field = "id"
-
-    @staticmethod
-    def put(request, *args, **kwargs):
-        return Response(
-            {"details": "Method PUT not Allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
+    allowed_methods = ('POST', 'GET', 'PATCH', 'DELETE')
 
     def create(self, request, *args, **kwargs):
         mutable_request_data = request.data.copy()
@@ -3316,7 +3325,6 @@ class ClaimAttachmentConfirmationClientSideView(GenericAPIView):
         claim.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
     @staticmethod
     def check_if_client_is_allowed_to_confirm_claim_supporting_docs(app_user, claim):
         result = {"isAllowed": True, "message": ""}
@@ -3324,4 +3332,3 @@ class ClaimAttachmentConfirmationClientSideView(GenericAPIView):
             result["isAllowed"] = False
             result["message"] = "You aren't the creator of the claim"
         return result
-
