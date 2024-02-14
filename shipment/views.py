@@ -3253,7 +3253,7 @@ class ClaimNoteAttachmentConfirmationClientSideView(GenericAPIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         claim_note_id = self.request.data.get('claim_note_id')
-        supporting_docs_names = serializer.data.get('supporting_docs_names')
+        supporting_docs_names = serializer.data.get('supporting_docs')
         claim_note = get_object_or_404(models.ClaimNote, id=claim_note_id)
         app_user = models.AppUser.objects.get(user=request.user.id)
         check_result = self.check_if_client_is_allowed_to_confirm_claim_note_supporting_docs(app_user, claim_note)
