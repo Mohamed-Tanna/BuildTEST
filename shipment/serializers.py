@@ -653,7 +653,7 @@ class LoadDraftSerializer(serializers.ModelSerializer):
                 {"pickup_location": "Can't have a pickup location without assigning a shipper"})
 
     @staticmethod
-    def validate_destination(destination: models.Facility, consignee: ShipmentParty):
+    def validate_destination_facility(destination: models.Facility, consignee: ShipmentParty):
         if destination is not None and consignee is not None:
             if destination.owner != consignee.app_user.user:
                 raise serializers.ValidationError(
@@ -707,7 +707,7 @@ class LoadDraftSerializer(serializers.ModelSerializer):
         self.validate_load_parties(load_parties, load_draft_creator)
         self.validate_load_parties_tax_info(load_parties)
         self.validate_pickup_location(pickup_location, shipper)
-        self.validate_destination(destination, consignee)
+        self.validate_destination_facility(destination, consignee)
         return super().validate(data)
 
     def get_extra_kwargs(self):
